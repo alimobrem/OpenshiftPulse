@@ -2044,7 +2044,7 @@ body,
 .compass-web-terminal {
   position: fixed;
   bottom: 0;
-  left: 250px;
+  left: var(--pf-v6-c-page__sidebar--Width, 18.125rem);
   right: 0;
   height: 350px;
   z-index: 9990;
