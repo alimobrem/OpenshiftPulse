@@ -2046,8 +2046,46 @@ body,
   bottom: 0;
   left: 0;
   right: 0;
-  height: 300px;
-  z-index: 900;
+  height: 350px;
+  z-index: 9990;
+  border-top: 2px solid var(--os-border, #333);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.compass-web-terminal.compass-log-viewer {
+  height: 350px;
+}
+
+.compass-web-terminal .compass-log-viewer__content {
+  height: calc(350px - 40px);
+  overflow-y: auto;
+  background: #0d1117 !important;
+  padding: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.compass-web-terminal .compass-log-viewer__toolbar {
+  background: #161b22 !important;
+  border-bottom: 1px solid #30363d;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.compass-web-terminal .compass-log-line {
+  padding: 1px 0;
+  border-bottom: none;
+}
+
+.compass-web-terminal .compass-log-line-content {
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #e6edf3;
 }
 
 .compass-log-viewer__toolbar-title {
