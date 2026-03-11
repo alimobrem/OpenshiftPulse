@@ -248,19 +248,19 @@ h1, h2, h3, h4, h5, h6 {
    More subtle, flatter design
    ============================================ */
 [data-theme="patternfly"] .pf-v6-c-card {
-  background: rgba(255, 255, 255, 0.65) !important;
+  background: rgba(255, 255, 255, 0.75) !important;
   backdrop-filter: blur(8px) saturate(120%) !important;
   -webkit-backdrop-filter: blur(8px) saturate(120%) !important;
 }
 
 [data-theme="patternfly"] .pf-v6-c-masthead {
-  background: rgba(255, 255, 255, 0.7) !important;
+  background: rgba(255, 255, 255, 0.8) !important;
   backdrop-filter: blur(12px) saturate(110%) !important;
   -webkit-backdrop-filter: blur(12px) saturate(110%) !important;
 }
 
 [data-theme="patternfly"] .pf-v6-c-page__sidebar {
-  background: rgba(255, 255, 255, 0.7) !important;
+  background: rgba(255, 255, 255, 0.8) !important;
   backdrop-filter: blur(12px) saturate(110%) !important;
   -webkit-backdrop-filter: blur(12px) saturate(110%) !important;
 }

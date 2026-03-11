@@ -11,7 +11,7 @@
   --console-primary-fg: hsl(var(--primary-foreground));
 
   /* Glassmorphism variables - use theme-aware colors */
-  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-bg: rgba(255, 255, 255, 0.42);
   --glass-border: var(--theme-glass-border, rgba(255, 255, 255, 0.4));
   --glass-shadow:
     0 8px 32px 0 var(--theme-glass-shadow-1, rgba(0, 0, 0, 0.1)),
@@ -138,7 +138,7 @@
 }
 
 .pf-v6-c-table thead {
-  background: rgba(241, 245, 249, 0.7) !important;
+  background: rgba(241, 245, 249, 0.5) !important;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--glass-border);
@@ -542,7 +542,7 @@
 
 /* Masthead Enhancement - Premium Glass */
 .pf-v6-c-masthead {
-  background: rgba(255, 255, 255, 0.7) !important;
+  background: rgba(255, 255, 255, 0.5) !important;
   backdrop-filter: blur(24px) saturate(180%) brightness(1.08) !important;
   -webkit-backdrop-filter: blur(24px) saturate(180%) brightness(1.08) !important;
   box-shadow:
@@ -595,11 +595,11 @@
 
 /* Sidebar Enhancement - Premium Glass with Improved Layout */
 .pf-v6-c-page__sidebar {
-  background: rgba(255, 255, 255, 0.65) !important;
+  background: rgba(255, 255, 255, 0.45) !important;
   backdrop-filter: blur(24px) saturate(180%) brightness(1.08) !important;
   -webkit-backdrop-filter: blur(24px) saturate(180%) brightness(1.08) !important;
   box-shadow:
-    4px 0 24px rgba(251, 146, 60, 0.12),
+    4px 0 24px var(--theme-glass-shadow-1, rgba(0, 0, 0, 0.1)),
     2px 0 12px rgba(251, 113, 133, 0.08),
     inset -1px 0 1px rgba(255, 255, 255, 0.3) !important;
   border-right: 1px solid var(--glass-border) !important;
