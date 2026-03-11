@@ -10,25 +10,25 @@
   --console-primary: hsl(var(--primary));
   --console-primary-fg: hsl(var(--primary-foreground));
 
-  /* Glassmorphism variables - Enhanced Premium Glass with Sunset Theme */
+  /* Glassmorphism variables - use theme-aware colors */
   --glass-bg: rgba(255, 255, 255, 0.55);
-  --glass-border: rgba(255, 255, 255, 0.4);
+  --glass-border: var(--theme-glass-border, rgba(255, 255, 255, 0.4));
   --glass-shadow:
-    0 8px 32px 0 rgba(251, 146, 60, 0.12),
-    0 4px 16px 0 rgba(251, 113, 133, 0.08),
+    0 8px 32px 0 var(--theme-glass-shadow-1, rgba(0, 0, 0, 0.1)),
+    0 4px 16px 0 var(--theme-glass-shadow-2, rgba(0, 0, 0, 0.06)),
     inset 0 1px 2px 0 rgba(255, 255, 255, 0.3);
-  --glass-glow: 0 0 20px rgba(251, 146, 60, 0.25);
+  --glass-glow: 0 0 20px var(--theme-glass-glow, rgba(0, 0, 0, 0.1));
   --glass-shimmer: linear-gradient(135deg, transparent 0%, rgba(255, 255, 255, 0.15) 50%, transparent 100%);
 }
 
 .dark {
-  --glass-bg: rgba(30, 10, 5, 0.65);
-  --glass-border: rgba(251, 146, 60, 0.3);
+  --glass-bg: rgba(30, 30, 40, 0.65);
+  --glass-border: var(--theme-glass-border, rgba(255, 255, 255, 0.15));
   --glass-shadow:
     0 8px 32px 0 rgba(0, 0, 0, 0.4),
-    0 4px 16px 0 rgba(251, 146, 60, 0.2),
-    inset 0 1px 2px 0 rgba(251, 113, 133, 0.2);
-  --glass-glow: 0 0 30px rgba(251, 146, 60, 0.35);
+    0 4px 16px 0 var(--theme-glass-shadow-1, rgba(0, 0, 0, 0.2)),
+    inset 0 1px 2px 0 var(--theme-glass-border, rgba(255, 255, 255, 0.1));
+  --glass-glow: 0 0 30px var(--theme-glass-glow, rgba(0, 0, 0, 0.2));
 }
 
 /* Enhanced Card Styling - Premium Glassmorphism */
