@@ -58,8 +58,20 @@ export default function Overview() {
   }, [fetchClusterData, startPolling, stopPolling]);
 
   const [deployOpen, setDeployOpen] = React.useState(false);
-  const avgCpu = nodes.length > 0 ? Math.round(nodes.reduce((s, n) => s + n.cpu, 0) / nodes.length) : 0;
-  const avgMem = nodes.length > 0 ? Math.round(nodes.reduce((s, n) => s + n.memory, 0) / nodes.length) : 0;
+  const [nodeRoleFilter, setNodeRoleFilter] = React.useState('all');
+
+  const nodeRoles = React.useMemo(() => {
+    const roles = new Set(nodes.map((n) => n.role));
+    return ['all', ...Array.from(roles)];
+  }, [nodes]);
+
+  const filteredNodes = React.useMemo(
+    () => nodeRoleFilter === 'all' ? nodes : nodes.filter((n) => n.role === nodeRoleFilter),
+    [nodes, nodeRoleFilter],
+  );
+
+  const avgCpu = filteredNodes.length > 0 ? Math.round(filteredNodes.reduce((s, n) => s + n.cpu, 0) / filteredNodes.length) : 0;
+  const avgMem = filteredNodes.length > 0 ? Math.round(filteredNodes.reduce((s, n) => s + n.memory, 0) / filteredNodes.length) : 0;
 
   const statusItems = [
     { label: 'Cluster', ok: true },
@@ -205,8 +217,16 @@ export default function Overview() {
                 <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }} alignItems={{ default: 'alignItemsCenter' }} className="os-overview__section-header">
                   <FlexItem><strong className="os-overview__section-title">Cluster utilization</strong></FlexItem>
                   <FlexItem className="os-overview__filter-group">
-                    <Label color="grey">Filter by Node type</Label>
-                    <Label color="grey">1 hour</Label>
+                    {nodeRoles.map((role) => (
+                      <Label
+                        key={role}
+                        color={nodeRoleFilter === role ? 'blue' : 'grey'}
+                        onClick={() => setNodeRoleFilter(role)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {role === 'all' ? 'All Nodes' : role}
+                      </Label>
+                    ))}
                   </FlexItem>
                 </Flex>
 
@@ -218,9 +238,9 @@ export default function Overview() {
                 <div className="os-overview__utilization-row">
                   <div>
                     <div className="os-overview__utilization-label">CPU</div>
-                    <div className="os-overview__utilization-sublabel">{avgCpu}% of {nodes.length * 4} cores</div>
+                    <div className="os-overview__utilization-sublabel">{avgCpu}% of {filteredNodes.length * 4} cores</div>
                   </div>
-                  <div className="os-overview__utilization-value">{(avgCpu / 100 * nodes.length * 4).toFixed(1)}</div>
+                  <div className="os-overview__utilization-value">{(avgCpu / 100 * filteredNodes.length * 4).toFixed(1)}</div>
                   <div><Sparkline data={metrics.map((m) => m.cpu)} color="#0066cc" /></div>
                 </div>
 

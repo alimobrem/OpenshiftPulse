@@ -936,3 +936,126 @@
 .os-storageclasses__default-label {
   margin-left: 8px;
 }
+
+/* --------------------------------------------------------------------------
+   Modal Light Mode + Dark Mode Contrast Fixes
+   -------------------------------------------------------------------------- */
+
+/* Dark mode: increase text contrast */
+.os-confirm__desc { color: rgba(255, 255, 255, 0.8); }
+.os-create__desc { color: rgba(255, 255, 255, 0.75); }
+.os-create__label { color: rgba(255, 255, 255, 0.85); }
+.os-create__close { color: rgba(255, 255, 255, 0.7); }
+.os-create__input { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.2); }
+.os-confirm__btn--cancel { border-color: rgba(255, 255, 255, 0.25); color: rgba(255, 255, 255, 0.9); }
+.os-create__btn--cancel { border-color: rgba(255, 255, 255, 0.25); color: rgba(255, 255, 255, 0.9); }
+.os-deploy__desc { color: rgba(255, 255, 255, 0.75); }
+.os-deploy__label { color: rgba(255, 255, 255, 0.85); }
+.os-deploy__input { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.2); }
+.os-deploy__textarea { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.2); }
+.os-deploy__summary-label { color: rgba(255, 255, 255, 0.75); }
+.os-deploy__close { color: rgba(255, 255, 255, 0.7); }
+.os-deploy__btn--back { border-color: rgba(255, 255, 255, 0.25); color: rgba(255, 255, 255, 0.9); }
+
+/* ConfirmDialog - Light mode */
+:root:not(.dark) .os-confirm__content {
+  background: #fff;
+  border: 1px solid #d2d2d2;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+:root:not(.dark) .os-confirm__title { color: #151515; }
+:root:not(.dark) .os-confirm__desc { color: #4a4a4a; }
+:root:not(.dark) .os-confirm__btn--cancel {
+  background: #f0f0f0;
+  border: 1px solid #d2d2d2;
+  color: #151515;
+}
+:root:not(.dark) .os-confirm__btn--cancel:hover { background: #e0e0e0; }
+
+/* CreateResourceDialog - Light mode */
+:root:not(.dark) .os-create__content {
+  background: #fff;
+  border: 1px solid #d2d2d2;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+:root:not(.dark) .os-create__title { color: #151515; }
+:root:not(.dark) .os-create__desc { color: #6a6e73; }
+:root:not(.dark) .os-create__label { color: #151515; }
+:root:not(.dark) .os-create__input {
+  background: #fff;
+  border: 1px solid #d2d2d2;
+  color: #151515;
+}
+:root:not(.dark) .os-create__input:focus {
+  border-color: #0066cc;
+  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.15);
+}
+:root:not(.dark) .os-create__btn--cancel {
+  background: #f0f0f0;
+  border: 1px solid #d2d2d2;
+  color: #151515;
+}
+:root:not(.dark) .os-create__close { color: #6a6e73; }
+
+/* QuickDeployDialog - Light mode */
+:root:not(.dark) .os-deploy__content {
+  background: #fff;
+  border: 1px solid #d2d2d2;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+:root:not(.dark) .os-deploy__title { color: #151515; }
+:root:not(.dark) .os-deploy__desc { color: #6a6e73; }
+:root:not(.dark) .os-deploy__label { color: #151515; }
+:root:not(.dark) .os-deploy__input {
+  background: #fff;
+  border: 1px solid #d2d2d2;
+  color: #151515;
+}
+:root:not(.dark) .os-deploy__textarea {
+  background: #fff;
+  border: 1px solid #d2d2d2;
+  color: #151515;
+}
+:root:not(.dark) .os-deploy__input:focus,
+:root:not(.dark) .os-deploy__textarea:focus {
+  border-color: #0066cc;
+  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.15);
+}
+:root:not(.dark) .os-deploy__summary { background: #f0f0f0; border-color: #d2d2d2; }
+:root:not(.dark) .os-deploy__summary-label { color: #6a6e73; }
+:root:not(.dark) .os-deploy__summary-value { color: #151515; }
+:root:not(.dark) .os-deploy__summary-row { border-bottom-color: #d2d2d2; }
+:root:not(.dark) .os-deploy__btn--back {
+  background: #f0f0f0;
+  border: 1px solid #d2d2d2;
+  color: #151515;
+}
+:root:not(.dark) .os-deploy__close { color: #6a6e73; }
+:root:not(.dark) .os-deploy__counter-btn {
+  background: #f0f0f0;
+  border-color: #d2d2d2;
+  color: #151515;
+}
+:root:not(.dark) .os-deploy__counter-val { color: #151515; }
+:root:not(.dark) .os-deploy__dot { background: #d2d2d2; }
+:root:not(.dark) .os-deploy__dot--active { background: #0066cc; }
+
+/* PF6 Modal (used by AddPage YAML dialog) - Light mode */
+:root:not(.dark) .pf-v6-c-modal-box {
+  background: #fff;
+  color: #151515;
+}
+.dark .pf-v6-c-modal-box {
+  background: rgba(30, 30, 42, 0.98);
+  color: #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.dark .pf-v6-c-modal-box .pf-v6-c-title { color: #fff; }
+.dark .pf-v6-c-modal-box .pf-v6-c-button.pf-m-primary { background: #0066cc; }
+.dark .pf-v6-c-modal-box textarea,
+.dark .pf-v6-c-modal-box input {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+.dark .pf-v6-c-backdrop { background: rgba(0, 0, 0, 0.6); }
