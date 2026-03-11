@@ -116,6 +116,16 @@ export default defineConfig({
           Authorization: `Bearer ${getOCToken()}`,
         },
       },
+      {
+        context: ['/api/alertmanager'],
+        target: process.env.ALERTMANAGER_URL || 'https://alertmanager-main-openshift-monitoring.apps.rhamilto.devcluster.openshift.com',
+        changeOrigin: true,
+        secure: false,
+        pathRewrite: (path: string) => path.replace(/^\/api\/alertmanager/, ''),
+        headers: {
+          Authorization: `Bearer ${getOCToken()}`,
+        },
+      },
     ],
   },
   performance: {
