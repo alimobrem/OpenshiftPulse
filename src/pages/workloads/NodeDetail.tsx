@@ -1,17 +1,27 @@
 import { useState, useEffect } from 'react';
-import { Card, CardBody, Grid, GridItem, DescriptionList, DescriptionListGroup, DescriptionListTerm, DescriptionListDescription, Label, Title } from '@patternfly/react-core';
+import { Card, CardBody, Grid, GridItem, DescriptionList, DescriptionListGroup, DescriptionListTerm, DescriptionListDescription, Label, Title, Select, SelectOption, MenuToggle } from '@patternfly/react-core';
 import { useParams } from 'react-router-dom';
 import ResourceDetailPage from '@/components/ResourceDetailPage';
 import StatusIndicator from '@/components/StatusIndicator';
+import LogViewer from '@/components/LogViewer';
 import '@/openshift-components.css';
 
 const BASE = '/api/kubernetes';
+
+interface NodePod {
+  name: string;
+  namespace: string;
+  containers: string[];
+}
 
 export default function NodeDetail() {
   const { name } = useParams();
   const [node, setNode] = useState<Record<string, unknown> | null>(null);
   const [yaml, setYaml] = useState('');
   const [loading, setLoading] = useState(true);
+  const [nodePods, setNodePods] = useState<NodePod[]>([]);
+  const [selectedPod, setSelectedPod] = useState<NodePod | null>(null);
+  const [podSelectOpen, setPodSelectOpen] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -28,6 +38,28 @@ export default function NodeDetail() {
       setLoading(false);
     }
     load();
+  }, [name]);
+
+  useEffect(() => {
+    if (!name) return;
+    async function loadPods() {
+      try {
+        const res = await fetch(`${BASE}/api/v1/pods?fieldSelector=spec.nodeName=${encodeURIComponent(name!)}`);
+        if (!res.ok) return;
+        const data = await res.json() as { items?: Record<string, unknown>[] };
+        const pods: NodePod[] = (data.items ?? []).map((item) => {
+          const meta = item['metadata'] as Record<string, unknown>;
+          const spec = item['spec'] as Record<string, unknown>;
+          const containers = ((spec?.['containers'] ?? []) as Record<string, unknown>[]).map((c) => String(c['name'] ?? ''));
+          return { name: String(meta?.['name'] ?? ''), namespace: String(meta?.['namespace'] ?? ''), containers };
+        });
+        setNodePods(pods);
+        if (pods.length > 0) setSelectedPod(pods[0]);
+      } catch {
+        // ignore
+      }
+    }
+    loadPods();
   }, [name]);
 
   if (loading) return <div className="os-text-muted" role="status">Loading...</div>;
@@ -95,6 +127,48 @@ export default function NodeDetail() {
     </Grid>
   );
 
+  const logsTab = (
+    <div>
+      {nodePods.length === 0 ? (
+        <div className="os-text-muted">No pods found on this node.</div>
+      ) : (
+        <>
+          <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span className="os-text-muted">Pod:</span>
+            <Select
+              isOpen={podSelectOpen}
+              selected={selectedPod?.name}
+              onSelect={(_event, selection) => {
+                const pod = nodePods.find((p) => p.name === selection);
+                if (pod) setSelectedPod(pod);
+                setPodSelectOpen(false);
+              }}
+              onOpenChange={(isOpen) => setPodSelectOpen(isOpen)}
+              toggle={(toggleRef) => (
+                <MenuToggle ref={toggleRef} onClick={() => setPodSelectOpen(!podSelectOpen)}>
+                  {selectedPod ? `${selectedPod.namespace}/${selectedPod.name}` : 'Select a pod'}
+                </MenuToggle>
+              )}
+            >
+              {nodePods.map((p) => (
+                <SelectOption key={`${p.namespace}/${p.name}`} value={p.name}>
+                  {p.namespace}/{p.name}
+                </SelectOption>
+              ))}
+            </Select>
+          </div>
+          {selectedPod && (
+            <LogViewer
+              podName={selectedPod.name}
+              namespace={selectedPod.namespace}
+              containers={selectedPod.containers}
+            />
+          )}
+        </>
+      )}
+    </div>
+  );
+
   return (
     <ResourceDetailPage
       kind="Node"
@@ -104,7 +178,10 @@ export default function NodeDetail() {
       backPath="/compute/nodes"
       backLabel="Nodes"
       yaml={yaml}
-      tabs={[{ title: 'Details', content: detailsTab }]}
+      tabs={[
+        { title: 'Details', content: detailsTab },
+        { title: 'Logs', content: logsTab },
+      ]}
     />
   );
 }
