@@ -27,6 +27,14 @@ interface ResourceEvent {
   lastSeen: string;
 }
 
+interface NsHealth {
+  name: string;
+  issues: number;
+  failingPods: number;
+  degradedDeploys: number;
+  warningEvents: number;
+}
+
 type Step = 'namespace' | 'resources' | 'detail';
 
 export default function Troubleshoot() {
@@ -42,6 +50,8 @@ export default function Troubleshoot() {
   const [events, setEvents] = useState<ResourceEvent[]>([]);
   const [logs, setLogs] = useState('');
   const [eventsLoading, setEventsLoading] = useState(false);
+  const [nsHealth, setNsHealth] = useState<NsHealth[]>([]);
+  const [nsHealthLoading, setNsHealthLoading] = useState(true);
 
   // Fetch namespaces from API if store is empty
   const [namespaces, setNamespaces] = useState<string[]>([]);
@@ -60,6 +70,81 @@ export default function Troubleshoot() {
     }
     load();
   }, [storeNamespaces]);
+
+  // Scan all namespaces for issues on page load
+  useEffect(() => {
+    async function scanAll() {
+      setNsHealthLoading(true);
+      const health: Record<string, NsHealth> = {};
+
+      // Scan pods cluster-wide
+      try {
+        const res = await fetch(`${BASE}/api/v1/pods`);
+        if (res.ok) {
+          const json = await res.json() as { items?: Record<string, unknown>[] };
+          for (const pod of json.items ?? []) {
+            const meta = pod['metadata'] as Record<string, unknown>;
+            const status = pod['status'] as Record<string, unknown>;
+            const ns = String(meta?.['namespace'] ?? '');
+            const phase = String(status?.['phase'] ?? '');
+            const containerStatuses = (status?.['containerStatuses'] ?? []) as Record<string, unknown>[];
+            const restarts = containerStatuses.reduce((sum, cs) => sum + Number(cs['restartCount'] ?? 0), 0);
+            const waiting = containerStatuses.some((cs) => {
+              const state = cs['state'] as Record<string, unknown> | undefined;
+              return state?.['waiting'] !== undefined;
+            });
+
+            if (phase !== 'Running' && phase !== 'Succeeded' || restarts > 5 || waiting) {
+              if (!health[ns]) health[ns] = { name: ns, issues: 0, failingPods: 0, degradedDeploys: 0, warningEvents: 0 };
+              health[ns].failingPods++;
+              health[ns].issues++;
+            }
+          }
+        }
+      } catch { /* ignore */ }
+
+      // Scan deployments cluster-wide
+      try {
+        const res = await fetch(`${BASE}/apis/apps/v1/deployments`);
+        if (res.ok) {
+          const json = await res.json() as { items?: Record<string, unknown>[] };
+          for (const dep of json.items ?? []) {
+            const meta = dep['metadata'] as Record<string, unknown>;
+            const spec = dep['spec'] as Record<string, unknown>;
+            const status = dep['status'] as Record<string, unknown>;
+            const ns = String(meta?.['namespace'] ?? '');
+            const desired = Number(spec?.['replicas'] ?? 0);
+            const ready = Number(status?.['readyReplicas'] ?? 0);
+            if (desired > 0 && ready < desired) {
+              if (!health[ns]) health[ns] = { name: ns, issues: 0, failingPods: 0, degradedDeploys: 0, warningEvents: 0 };
+              health[ns].degradedDeploys++;
+              health[ns].issues++;
+            }
+          }
+        }
+      } catch { /* ignore */ }
+
+      // Scan warning events cluster-wide
+      try {
+        const res = await fetch(`${BASE}/api/v1/events?fieldSelector=type=Warning&limit=200`);
+        if (res.ok) {
+          const json = await res.json() as { items?: Record<string, unknown>[] };
+          for (const evt of json.items ?? []) {
+            const meta = evt['metadata'] as Record<string, unknown>;
+            const ns = String(meta?.['namespace'] ?? '');
+            if (!health[ns]) health[ns] = { name: ns, issues: 0, failingPods: 0, degradedDeploys: 0, warningEvents: 0 };
+            health[ns].warningEvents++;
+          }
+        }
+      } catch { /* ignore */ }
+
+      // Sort by issue count descending
+      const sorted = Object.values(health).sort((a, b) => b.issues - a.issues);
+      setNsHealth(sorted);
+      setNsHealthLoading(false);
+    }
+    scanAll();
+  }, []);
 
   // Step 2: find unhealthy resources in namespace
   const scanNamespace = useCallback(async (ns: string) => {
@@ -162,6 +247,47 @@ export default function Troubleshoot() {
       <PageSection variant="default">
         <Title headingLevel="h1" size="2xl">Troubleshoot</Title>
         <p className="os-text-muted">Guided diagnostics to find and fix issues in your cluster</p>
+      </PageSection>
+
+      {/* Namespace Health Overview */}
+      <PageSection>
+        <Card>
+          <CardBody>
+            <Title headingLevel="h3" size="lg" style={{ marginBottom: 12 }}>
+              Namespaces with Issues
+              {!nsHealthLoading && nsHealth.length === 0 && <Label color="green" style={{ marginLeft: 8 }}>All Clear</Label>}
+              {!nsHealthLoading && nsHealth.length > 0 && <Label color="red" style={{ marginLeft: 8 }}>{nsHealth.length}</Label>}
+            </Title>
+            {nsHealthLoading ? (
+              <p className="os-text-muted">Scanning cluster...</p>
+            ) : nsHealth.length === 0 ? (
+              <p className="os-text-muted">No issues found across any namespace.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {nsHealth.slice(0, 10).map((ns) => (
+                  <div
+                    key={ns.name}
+                    onClick={() => { setSelectedNs(ns.name); scanNamespace(ns.name); }}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', border: '1px solid var(--glass-border)', borderRadius: 6, cursor: 'pointer' }}
+                    className="os-troubleshoot__resource-row"
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <strong>{ns.name}</strong>
+                      <Label color="red">{ns.issues} issue{ns.issues !== 1 ? 's' : ''}</Label>
+                    </div>
+                    <div style={{ display: 'flex', gap: 12, fontSize: 13 }}>
+                      {ns.failingPods > 0 && <span>{ns.failingPods} failing pod{ns.failingPods !== 1 ? 's' : ''}</span>}
+                      {ns.degradedDeploys > 0 && <span>{ns.degradedDeploys} degraded deploy{ns.degradedDeploys !== 1 ? 's' : ''}</span>}
+                      {ns.warningEvents > 0 && <span className="os-text-muted">{ns.warningEvents} warning{ns.warningEvents !== 1 ? 's' : ''}</span>}
+                      <Button variant="link" size="sm" isInline>Investigate →</Button>
+                    </div>
+                  </div>
+                ))}
+                {nsHealth.length > 10 && <p className="os-text-muted">and {nsHealth.length - 10} more...</p>}
+              </div>
+            )}
+          </CardBody>
+        </Card>
       </PageSection>
 
       <PageSection>
