@@ -72,15 +72,19 @@
   gap: calc(var(--spacing-unit) * 2);
 }
 
-/* Page Section - Glass Effect */
+/* Page main area — flex column for docked terminal */
+.pf-v6-c-page__main {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* Page Section */
 .pf-v6-c-page__main-section {
   background-color: transparent !important;
 }
 
 .pf-v6-c-page__main-section[class*="pf-m-light"] {
   background: rgba(255, 255, 255, 0.2) !important;
-  backdrop-filter: blur(8px) saturate(140%) !important;
-  -webkit-backdrop-filter: blur(8px) saturate(140%) !important;
   border-bottom: 1px solid var(--glass-border) !important;
 }
 

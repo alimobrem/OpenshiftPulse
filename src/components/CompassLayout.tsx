@@ -418,10 +418,11 @@ export default function CompassLayout() {
       <CommandPalette />
       <ToastProvider />
       <QuickStartGuide open={guideOpen} onClose={() => setGuideOpen(false)} />
-      <PageTransition>
-        <Outlet />
-      </PageTransition>
-      {terminalOpen && <div style={{ height: terminalHeight }} />}
+      <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
+        <PageTransition>
+          <Outlet />
+        </PageTransition>
+      </div>
       <WebTerminal open={terminalOpen} onClose={() => setTerminalOpen(false)} onHeightChange={setTerminalHeight} />
     </Page>
   );

@@ -340,7 +340,7 @@ const WebTerminal: React.FC<WebTerminalProps> = ({ open, onClose, onHeightChange
       </div>
 
       <style>{`
-        .os-terminal { position: fixed; bottom: 0; left: 0; right: 0; z-index: 9990; display: flex; flex-direction: column; border-top: 1px solid var(--glass-border); }
+        .os-terminal { display: flex; flex-direction: column; border-top: 1px solid var(--glass-border); flex-shrink: 0; }
         .os-terminal__resize { height: 4px; cursor: ns-resize; background: transparent; flex-shrink: 0; }
         .os-terminal__resize:hover { background: var(--theme-color-1, #0066cc); }
         .os-terminal__header { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: #1a1a2e; color: #e2e8f0; font-size: 13px; font-weight: 600; }
