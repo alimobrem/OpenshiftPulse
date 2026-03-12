@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import ResourceListPage, { type ColumnDef } from '@/components/ResourceListPage';
+import ResourceActions from '@/components/ResourceActions';
 import { useK8sResource, ageFromTimestamp, type K8sMeta } from '@/hooks/useK8sResource';
 
 interface PV {
@@ -33,6 +34,7 @@ const columns: ColumnDef<PV>[] = [
   { title: 'Claim', key: 'claim' },
   { title: 'Storage Class', key: 'storageClass' },
   { title: 'Age', key: 'age' },
+  { title: '', key: 'actions', render: (r) => <ResourceActions name={r.name} apiBase="/api/v1" resourceType="persistentvolumes" kind="PersistentVolume" detailPath={`/storage/persistentvolumes/${r.name}`} />, sortable: false },
 ];
 
 const accessModeShort: Record<string, string> = {

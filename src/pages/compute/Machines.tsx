@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import ResourceListPage, { type ColumnDef } from '@/components/ResourceListPage';
+import ResourceActions from '@/components/ResourceActions';
 import { useK8sResource, ageFromTimestamp, type K8sMeta } from '@/hooks/useK8sResource';
 import StatusIndicator from '@/components/StatusIndicator';
 
@@ -38,6 +39,7 @@ const columns: ColumnDef<Machine>[] = [
   { title: 'Region', key: 'region' },
   { title: 'Zone', key: 'zone' },
   { title: 'Age', key: 'age' },
+  { title: '', key: 'actions', render: (r) => <ResourceActions name={r.name} namespace={r.namespace} apiBase="/apis/machine.openshift.io/v1beta1" resourceType="machines" kind="Machine" detailPath={`/compute/machines/${r.namespace}/${r.name}`} />, sortable: false },
 ];
 
 export default function Machines() {

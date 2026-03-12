@@ -1,4 +1,5 @@
 import ResourceListPage, { type ColumnDef } from '@/components/ResourceListPage';
+import ResourceActions from '@/components/ResourceActions';
 import { Label } from '@patternfly/react-core';
 import { useK8sResource, ageFromTimestamp, type K8sMeta } from '@/hooks/useK8sResource';
 
@@ -34,6 +35,7 @@ const columns: ColumnDef<HelmChart>[] = [
   { title: 'URL', key: 'url' },
   { title: 'Status', key: 'status', render: (r) => <Label color={statusColors[r.status] ?? 'grey'}>{r.status}</Label> },
   { title: 'Age', key: 'age' },
+  { title: '', key: 'actions', render: (r) => <ResourceActions name={r.name} apiBase="/apis/helm.openshift.io/v1beta1" resourceType="helmchartrepositories" kind="HelmChartRepository" />, sortable: false },
 ];
 
 export default function HelmCharts() {

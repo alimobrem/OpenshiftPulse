@@ -1,4 +1,5 @@
 import ResourceListPage, { type ColumnDef } from '@/components/ResourceListPage';
+import ResourceActions from '@/components/ResourceActions';
 import { useK8sResource, ageFromTimestamp, type K8sMeta } from '@/hooks/useK8sResource';
 
 interface Pipeline {
@@ -19,6 +20,7 @@ const columns: ColumnDef<Pipeline>[] = [
   { title: 'Namespace', key: 'namespace' },
   { title: 'Tasks', key: 'tasks' },
   { title: 'Age', key: 'age' },
+  { title: '', key: 'actions', render: (r) => <ResourceActions name={r.name} namespace={r.namespace} apiBase="/apis/tekton.dev/v1" resourceType="pipelines" kind="Pipeline" />, sortable: false },
 ];
 
 export default function Pipelines() {

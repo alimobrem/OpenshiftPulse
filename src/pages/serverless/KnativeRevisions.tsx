@@ -1,4 +1,5 @@
 import ResourceListPage, { type ColumnDef } from '@/components/ResourceListPage';
+import ResourceActions from '@/components/ResourceActions';
 import StatusIndicator from '@/components/StatusIndicator';
 import { useK8sResource, ageFromTimestamp, type K8sMeta } from '@/hooks/useK8sResource';
 
@@ -38,6 +39,7 @@ const columns: ColumnDef<KnativeRevision>[] = [
     render: (item) => <StatusIndicator status={item.ready} />,
   },
   { title: 'Age', key: 'age' },
+  { title: '', key: 'actions', render: (r) => <ResourceActions name={r.name} namespace={r.namespace} apiBase="/apis/serving.knative.dev/v1" resourceType="revisions" kind="Revision" />, sortable: false },
 ];
 
 export default function KnativeRevisions() {

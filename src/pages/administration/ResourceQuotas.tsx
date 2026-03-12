@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import ResourceListPage, { type ColumnDef } from '@/components/ResourceListPage';
+import ResourceActions from '@/components/ResourceActions';
 import { useK8sResource, ageFromTimestamp, type K8sMeta } from '@/hooks/useK8sResource';
 
 interface ResourceQuota {
@@ -28,6 +29,7 @@ const columns: ColumnDef<ResourceQuota>[] = [
   { title: 'Memory (used/limit)', key: 'mem', render: (rq) => `${rq.memUsed} / ${rq.memLimit}`, sortable: false },
   { title: 'Pods (used/limit)', key: 'pods', render: (rq) => `${rq.podsUsed} / ${rq.podsLimit}`, sortable: false },
   { title: 'Age', key: 'age' },
+  { title: '', key: 'actions', render: (r) => <ResourceActions name={r.name} namespace={r.namespace} apiBase="/api/v1" resourceType="resourcequotas" kind="ResourceQuota" detailPath={`/administration/resourcequotas/${r.namespace}/${r.name}`} />, sortable: false },
 ];
 
 export default function ResourceQuotas() {

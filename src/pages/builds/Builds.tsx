@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import ResourceListPage, { type ColumnDef } from '@/components/ResourceListPage';
+import ResourceActions from '@/components/ResourceActions';
 import { useK8sResource, ageFromTimestamp, type K8sMeta } from '@/hooks/useK8sResource';
 
 interface Build {
@@ -36,6 +37,7 @@ const columns: ColumnDef<Build>[] = [
   { title: 'Status', key: 'status' },
   { title: 'Duration', key: 'duration' },
   { title: 'Started', key: 'started' },
+  { title: '', key: 'actions', render: (r) => <ResourceActions name={r.name} namespace={r.namespace} apiBase="/apis/build.openshift.io/v1" resourceType="builds" kind="Build" detailPath={`/builds/builds/${r.namespace}/${r.name}`} />, sortable: false },
 ];
 
 export default function Builds() {

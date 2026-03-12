@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import ResourceListPage, { type ColumnDef } from '@/components/ResourceListPage';
+import ResourceActions from '@/components/ResourceActions';
 import { useK8sResource, ageFromTimestamp, type K8sMeta } from '@/hooks/useK8sResource';
 import { Label } from '@patternfly/react-core';
 
@@ -31,6 +32,7 @@ const columns: ColumnDef<CustomResourceDefinition>[] = [
     ),
   },
   { title: 'Age', key: 'age' },
+  { title: '', key: 'actions', render: (r) => <ResourceActions name={r.name} apiBase="/apis/apiextensions.k8s.io/v1" resourceType="customresourcedefinitions" kind="CRD" detailPath={`/administration/crds/${r.name}/instances`} />, sortable: false },
 ];
 
 export default function CustomResourceDefinitions() {

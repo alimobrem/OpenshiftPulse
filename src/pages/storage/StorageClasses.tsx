@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import ResourceListPage, { type ColumnDef } from '@/components/ResourceListPage';
+import ResourceActions from '@/components/ResourceActions';
 import { Label } from '@patternfly/react-core';
 import { useK8sResource, ageFromTimestamp, type K8sMeta } from '@/hooks/useK8sResource';
 
@@ -34,6 +35,7 @@ const columns: ColumnDef<StorageClass>[] = [
     <Label color={sc.allowExpansion ? 'green' : 'grey'}>{sc.allowExpansion ? 'Yes' : 'No'}</Label>
   ), sortable: false },
   { title: 'Age', key: 'age' },
+  { title: '', key: 'actions', render: (r) => <ResourceActions name={r.name} apiBase="/apis/storage.k8s.io/v1" resourceType="storageclasses" kind="StorageClass" detailPath={`/storage/storageclasses/${r.name}`} />, sortable: false },
 ];
 
 export default function StorageClasses() {

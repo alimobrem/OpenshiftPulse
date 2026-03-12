@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import ResourceListPage, { type ColumnDef } from '@/components/ResourceListPage';
+import ResourceActions from '@/components/ResourceActions';
 import { useK8sResource, ageFromTimestamp, type K8sMeta } from '@/hooks/useK8sResource';
 import { Label } from '@patternfly/react-core';
 
@@ -28,6 +29,7 @@ const columns: ColumnDef<ImageStream>[] = [
   )},
   { title: 'Updated', key: 'updated' },
   { title: 'Age', key: 'age' },
+  { title: '', key: 'actions', render: (r) => <ResourceActions name={r.name} namespace={r.namespace} apiBase="/apis/image.openshift.io/v1" resourceType="imagestreams" kind="ImageStream" detailPath={`/builds/imagestreams/${r.namespace}/${r.name}`} />, sortable: false },
 ];
 
 export default function ImageStreams() {

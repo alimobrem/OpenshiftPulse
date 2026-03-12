@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import ResourceListPage, { type ColumnDef } from '@/components/ResourceListPage';
+import ResourceActions from '@/components/ResourceActions';
 import { useK8sResource, ageFromTimestamp, type K8sMeta } from '@/hooks/useK8sResource';
 
 interface LimitRange {
@@ -32,6 +33,7 @@ const columns: ColumnDef<LimitRange>[] = [
   { title: 'Max CPU', key: 'maxCPU' },
   { title: 'Max Memory', key: 'maxMemory' },
   { title: 'Age', key: 'age' },
+  { title: '', key: 'actions', render: (r) => <ResourceActions name={r.name} namespace={r.namespace} apiBase="/api/v1" resourceType="limitranges" kind="LimitRange" detailPath={`/administration/limitranges/${r.namespace}/${r.name}`} />, sortable: false },
 ];
 
 export default function LimitRanges() {

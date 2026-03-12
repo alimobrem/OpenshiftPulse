@@ -1,4 +1,5 @@
 import ResourceListPage, { type ColumnDef } from '@/components/ResourceListPage';
+import ResourceActions from '@/components/ResourceActions';
 import StatusIndicator from '@/components/StatusIndicator';
 import { useK8sResource, ageFromTimestamp, type K8sMeta } from '@/hooks/useK8sResource';
 
@@ -58,6 +59,7 @@ const columns: ColumnDef<PipelineRun>[] = [
   },
   { title: 'Duration', key: 'duration' },
   { title: 'Age', key: 'age' },
+  { title: '', key: 'actions', render: (r) => <ResourceActions name={r.name} namespace={r.namespace} apiBase="/apis/tekton.dev/v1" resourceType="pipelineruns" kind="PipelineRun" />, sortable: false },
 ];
 
 export default function PipelineRuns() {
