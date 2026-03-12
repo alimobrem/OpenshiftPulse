@@ -3,7 +3,6 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 interface WebTerminalProps {
   open: boolean;
   onClose: () => void;
-  sidebarOpen?: boolean;
 }
 
 interface TerminalEntry {
@@ -218,9 +217,7 @@ const MIN_HEIGHT = 150;
 const MAX_HEIGHT = window.innerHeight - 100;
 const DEFAULT_HEIGHT = 350;
 
-const SIDEBAR_WIDTH = '18.125rem';
-
-const WebTerminal: React.FC<WebTerminalProps> = ({ open, onClose, sidebarOpen = true }) => {
+const WebTerminal: React.FC<WebTerminalProps> = ({ open, onClose }) => {
   const [input, setInput] = useState('');
   const [history, setHistory] = useState<TerminalEntry[]>([]);
   const [cmdHistory, setCmdHistory] = useState<string[]>([]);
@@ -308,7 +305,7 @@ const WebTerminal: React.FC<WebTerminalProps> = ({ open, onClose, sidebarOpen = 
   if (!open) return null;
 
   return (
-    <div className="os-terminal" style={{ height, left: sidebarOpen ? SIDEBAR_WIDTH : 0 }}>
+    <div className="os-terminal" style={{ height }}>
       <div className="os-terminal__resize" onMouseDown={handleDragStart} />
       <div className="os-terminal__header">
         <span className="os-terminal__title">Terminal</span>
@@ -340,7 +337,7 @@ const WebTerminal: React.FC<WebTerminalProps> = ({ open, onClose, sidebarOpen = 
       </div>
 
       <style>{`
-        .os-terminal { position: fixed; bottom: 0; right: 0; z-index: 9990; display: flex; flex-direction: column; border-top: 1px solid var(--glass-border); transition: left 0.2s ease; }
+        .os-terminal { display: flex; flex-direction: column; border-top: 1px solid var(--glass-border); flex-shrink: 0; }
         .os-terminal__resize { height: 4px; cursor: ns-resize; background: transparent; flex-shrink: 0; }
         .os-terminal__resize:hover { background: var(--theme-color-1, #0066cc); }
         .os-terminal__header { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: #1a1a2e; color: #e2e8f0; font-size: 13px; font-weight: 600; }
