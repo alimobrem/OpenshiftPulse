@@ -64,6 +64,7 @@ const navigation = [
     children: [
       { id: 'overview', name: 'Overview', href: '/home/overview' },
       { id: 'topology', name: 'Topology', href: '/home/topology' },
+      { id: 'service-map', name: 'Service Map', href: '/home/service-map' },
       { id: 'search', name: 'Search', href: '/home/search' },
       { id: 'troubleshoot', name: 'Troubleshoot', href: '/home/troubleshoot' },
     ],
@@ -98,6 +99,7 @@ const navigation = [
       { id: 'alerts', name: 'Alerts', href: '/observe/alerts' },
       { id: 'metrics', name: 'Metrics', href: '/observe/metrics' },
       { id: 'dashboards', name: 'Dashboards', href: '/observe/dashboards' },
+      { id: 'timeline', name: 'Timeline', href: '/observe/timeline' },
       { id: 'events', name: 'Events', href: '/home/events' },
       { id: 'pod-resources', name: 'Resource Usage', href: '/observe/pod-resources' },
     ],

@@ -9,6 +9,8 @@ import Search from './pages/home/Search';
 import Events from './pages/home/Events';
 import Topology from './pages/home/Topology';
 import Troubleshoot from './pages/home/Troubleshoot';
+import ServiceMap from './pages/home/ServiceMap';
+import Timeline from './pages/observe/Timeline';
 
 // Operators
 import OperatorHub from './pages/operators/OperatorHub';
@@ -123,6 +125,7 @@ function App() {
             <Route path="events" element={<Events />} />
             <Route path="topology" element={<Topology />} />
             <Route path="troubleshoot" element={<Troubleshoot />} />
+            <Route path="service-map" element={<ServiceMap />} />
           </Route>
 
           {/* Operators */}
@@ -387,6 +390,7 @@ function App() {
             <Route path="dashboards/:name" element={<DashboardView />} />
             <Route path="metrics" element={<Metrics />} />
             <Route path="alerts" element={<Alerts />} />
+            <Route path="timeline" element={<Timeline />} />
             <Route path="alert-rules" element={<AlertRules />} />
             <Route path="pod-resources" element={<PodResources />} />
             <Route path="namespace-consumption" element={<NamespaceConsumption />} />
