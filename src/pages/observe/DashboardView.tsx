@@ -379,22 +379,20 @@ export default function DashboardView() {
         const start = end - 3600;
         const step = 60;
 
-        const chartData: ChartData[] = [];
-        for (const panel of queryPanels.slice(0, 16)) {
+        // Query all panels in parallel for speed
+        const panelPromises = queryPanels.slice(0, 20).map(async (panel): Promise<ChartData | null> => {
           const target = panel.targets?.[0];
-          if (!target?.expr) continue;
-
+          if (!target?.expr) return null;
           try {
             const resolvedExpr = substituteVariables(target.expr, templateVars);
             const query = encodeURIComponent(resolvedExpr);
             const promRes = await fetch(
               `${PROM_BASE}/api/v1/query_range?query=${query}&start=${start}&end=${end}&step=${step}`
             );
-            if (!promRes.ok) continue;
+            if (!promRes.ok) return null;
             const promData = await promRes.json() as { data?: { result?: PromResult[] } };
             const results = promData.data?.result ?? [];
-
-            chartData.push({
+            return {
               title: panel.title || resolvedExpr.slice(0, 50),
               series: results.slice(0, 10).map((r) => ({
                 label: target.legendFormat
@@ -405,11 +403,16 @@ export default function DashboardView() {
                   : Object.values(r.metric).slice(0, 3).join(' / ') || 'value',
                 values: r.values,
               })),
-            });
+            };
           } catch {
-            // Query may fail
+            return null;
           }
-        }
+        });
+
+        const results = await Promise.allSettled(panelPromises);
+        const chartData = results
+          .map((r) => r.status === 'fulfilled' ? r.value : null)
+          .filter((d): d is ChartData => d !== null);
 
         setPanels(chartData);
       } catch {
