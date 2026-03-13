@@ -28,8 +28,8 @@ interface PodData {
   nodeName: string;
   created: string;
   labels: Record<string, string>;
-  containers: { name: string; image: string; ready: boolean; restartCount: number; state: string }[];
-  conditions: { type: string; status: string; lastTransition: string }[];
+  containers: { name: string; image: string; ready: boolean; restartCount: number; state: string; stateReason: string; stateMessage: string; isInit: boolean }[];
+  conditions: { type: string; status: string; lastTransition: string; message: string }[];
 }
 
 export default function PodDetail() {
@@ -48,23 +48,39 @@ export default function PodDetail() {
           const meta = raw['metadata'] as Record<string, unknown>;
           const spec = raw['spec'] as Record<string, unknown>;
           const status = raw['status'] as Record<string, unknown>;
-          const containerStatuses = (status?.['containerStatuses'] ?? []) as Record<string, unknown>[];
-          const containers = ((spec?.['containers'] ?? []) as Record<string, unknown>[]).map((c, i) => {
-            const cs = containerStatuses[i];
+          function parseContainerStatus(c: Record<string, unknown>, cs: Record<string, unknown> | undefined, isInit: boolean) {
             const stateObj = cs?.['state'] as Record<string, unknown> | undefined;
             const stateKey = stateObj ? Object.keys(stateObj)[0] ?? 'unknown' : 'unknown';
+            const stateDetail = stateObj ? stateObj[stateKey] as Record<string, unknown> | undefined : undefined;
             return {
               name: String(c['name'] ?? ''),
               image: String(c['image'] ?? ''),
               ready: Boolean(cs?.['ready']),
               restartCount: Number(cs?.['restartCount'] ?? 0),
               state: stateKey.charAt(0).toUpperCase() + stateKey.slice(1),
+              stateReason: String(stateDetail?.['reason'] ?? ''),
+              stateMessage: String(stateDetail?.['message'] ?? ''),
+              isInit,
             };
-          });
+          }
+
+          const initContainerStatuses = (status?.['initContainerStatuses'] ?? []) as Record<string, unknown>[];
+          const initContainers = ((spec?.['initContainers'] ?? []) as Record<string, unknown>[]).map((c, i) =>
+            parseContainerStatus(c, initContainerStatuses[i], true)
+          );
+
+          const containerStatuses = (status?.['containerStatuses'] ?? []) as Record<string, unknown>[];
+          const containers = ((spec?.['containers'] ?? []) as Record<string, unknown>[]).map((c, i) =>
+            parseContainerStatus(c, containerStatuses[i], false)
+          );
+
+          const allContainers = [...initContainers, ...containers];
+
           const conditions = ((status?.['conditions'] ?? []) as Record<string, unknown>[]).map((c) => ({
             type: String(c['type'] ?? ''),
             status: String(c['status'] ?? ''),
             lastTransition: String(c['lastTransitionTime'] ?? '-'),
+            message: String(c['message'] ?? ''),
           }));
           setPod({
             name: String(meta?.['name'] ?? name ?? ''),
@@ -74,7 +90,7 @@ export default function PodDetail() {
             nodeName: String(spec?.['nodeName'] ?? '-'),
             created: String(meta?.['creationTimestamp'] ?? '-'),
             labels: (meta?.['labels'] ?? {}) as Record<string, string>,
-            containers,
+            containers: allContainers,
             conditions,
           });
           setRawResource(raw);
@@ -122,11 +138,43 @@ export default function PodDetail() {
         <Card>
           <CardBody>
             <Title headingLevel="h3" size="lg" className="os-detail__section-title">Containers</Title>
-            {pod.containers.map((c) => (
-              <DescriptionList key={c.name}>
+            {pod.containers.filter((c) => c.isInit).length > 0 && (
+              <>
+                <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', color: 'var(--os-text-secondary, #6a6e73)', marginBottom: 8 }}>Init Containers</div>
+                {pod.containers.filter((c) => c.isInit).map((c) => (
+                  <DescriptionList key={c.name} style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--modern-border, #e0e0e0)' }}>
+                    <DescriptionListGroup><DescriptionListTerm>Name</DescriptionListTerm><DescriptionListDescription><strong>{c.name}</strong> <Label color="purple" isCompact>init</Label></DescriptionListDescription></DescriptionListGroup>
+                    <DescriptionListGroup><DescriptionListTerm>Image</DescriptionListTerm><DescriptionListDescription><code style={{ fontSize: 12, wordBreak: 'break-all' }}>{c.image}</code></DescriptionListDescription></DescriptionListGroup>
+                    <DescriptionListGroup>
+                      <DescriptionListTerm>State</DescriptionListTerm>
+                      <DescriptionListDescription>
+                        <StatusIndicator status={c.state} />
+                        {c.stateReason && <Label color={c.stateReason.includes('Error') ? 'red' : 'orange'} isCompact style={{ marginLeft: 6 }}>{c.stateReason}</Label>}
+                      </DescriptionListDescription>
+                    </DescriptionListGroup>
+                    {c.stateMessage && (
+                      <DescriptionListGroup><DescriptionListTerm>Message</DescriptionListTerm><DescriptionListDescription style={{ color: '#c9190b', fontSize: 13 }}>{c.stateMessage}</DescriptionListDescription></DescriptionListGroup>
+                    )}
+                    <DescriptionListGroup><DescriptionListTerm>Restart Count</DescriptionListTerm><DescriptionListDescription>{c.restartCount}</DescriptionListDescription></DescriptionListGroup>
+                  </DescriptionList>
+                ))}
+                <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', color: 'var(--os-text-secondary, #6a6e73)', marginTop: 16, marginBottom: 8 }}>Containers</div>
+              </>
+            )}
+            {pod.containers.filter((c) => !c.isInit).map((c) => (
+              <DescriptionList key={c.name} style={{ marginBottom: 12 }}>
                 <DescriptionListGroup><DescriptionListTerm>Name</DescriptionListTerm><DescriptionListDescription><strong>{c.name}</strong></DescriptionListDescription></DescriptionListGroup>
-                <DescriptionListGroup><DescriptionListTerm>Image</DescriptionListTerm><DescriptionListDescription><code>{c.image}</code></DescriptionListDescription></DescriptionListGroup>
-                <DescriptionListGroup><DescriptionListTerm>State</DescriptionListTerm><DescriptionListDescription><StatusIndicator status={c.state} /></DescriptionListDescription></DescriptionListGroup>
+                <DescriptionListGroup><DescriptionListTerm>Image</DescriptionListTerm><DescriptionListDescription><code style={{ fontSize: 12, wordBreak: 'break-all' }}>{c.image}</code></DescriptionListDescription></DescriptionListGroup>
+                <DescriptionListGroup>
+                  <DescriptionListTerm>State</DescriptionListTerm>
+                  <DescriptionListDescription>
+                    <StatusIndicator status={c.state} />
+                    {c.stateReason && <Label color={c.stateReason.includes('Error') ? 'red' : 'orange'} isCompact style={{ marginLeft: 6 }}>{c.stateReason}</Label>}
+                  </DescriptionListDescription>
+                </DescriptionListGroup>
+                {c.stateMessage && (
+                  <DescriptionListGroup><DescriptionListTerm>Message</DescriptionListTerm><DescriptionListDescription style={{ color: '#c9190b', fontSize: 13 }}>{c.stateMessage}</DescriptionListDescription></DescriptionListGroup>
+                )}
                 <DescriptionListGroup><DescriptionListTerm>Restart Count</DescriptionListTerm><DescriptionListDescription>{c.restartCount}</DescriptionListDescription></DescriptionListGroup>
               </DescriptionList>
             ))}
@@ -136,10 +184,15 @@ export default function PodDetail() {
           <CardBody>
             <Title headingLevel="h3" size="lg" className="os-detail__section-title">Conditions</Title>
             <Table aria-label="Conditions table" variant="compact">
-              <Thead><Tr><Th>Type</Th><Th>Status</Th><Th>Last Transition</Th></Tr></Thead>
+              <Thead><Tr><Th>Type</Th><Th>Status</Th><Th>Message</Th><Th>Last Transition</Th></Tr></Thead>
               <Tbody>
                 {pod.conditions.map((c) => (
-                  <Tr key={c.type}><Td>{c.type}</Td><Td><StatusIndicator status={c.status} /></Td><Td>{c.lastTransition}</Td></Tr>
+                  <Tr key={c.type}>
+                    <Td>{c.type}</Td>
+                    <Td><StatusIndicator status={c.status} /></Td>
+                    <Td style={{ fontSize: 12, maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.message || '-'}</Td>
+                    <Td>{c.lastTransition}</Td>
+                  </Tr>
                 ))}
               </Tbody>
             </Table>
