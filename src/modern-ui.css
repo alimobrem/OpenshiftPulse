@@ -240,6 +240,9 @@ body::before, body::after {
   transition: border-color 0.15s !important;
 }
 .pf-v6-c-search-input:focus-within { border-color: var(--modern-accent) !important; box-shadow: 0 0 0 3px rgba(0,102,204,0.08) !important; transform: none !important; }
+.pf-v6-c-search-input input[type="text"],
+.pf-v6-c-search-input .pf-v6-c-search-input__text-input,
+.pf-v6-c-text-input-group__text-input { color: var(--modern-text) !important; background: transparent !important; caret-color: var(--modern-text) !important; }
 
 /* --- Toolbar --- */
 .pf-v6-c-toolbar { background: transparent !important; border: none !important; box-shadow: none !important; padding: 0 0 12px !important; }

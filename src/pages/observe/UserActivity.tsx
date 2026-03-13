@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import {
   PageSection, Title, Card, CardBody, Label, Button,
   ToggleGroup, ToggleGroupItem, SearchInput,
-  Toolbar, ToolbarContent, ToolbarItem,
+  Toolbar, ToolbarContent, ToolbarItem, Pagination,
 } from '@patternfly/react-core';
+import { Table, Thead, Tr, Th, Tbody, Td } from '@patternfly/react-table';
 import { useClusterStore } from '@/store/useClusterStore';
 
 const BASE = '/api/kubernetes';
@@ -23,17 +24,15 @@ interface ActivityEntry {
 
 type TimeRange = '1h' | '24h' | '7d';
 
-function formatTime(d: Date): string {
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-function formatDate(d: Date): string {
+function formatTimestamp(d: Date): string {
   const today = new Date();
-  if (d.toDateString() === today.toDateString()) return 'Today';
+  const isToday = d.toDateString() === today.toDateString();
+  const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  if (isToday) return time;
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
-  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
-  return d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+  if (d.toDateString() === yesterday.toDateString()) return `Yesterday ${time}`;
+  return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${time}`;
 }
 
 function getHref(kind: string, name: string, namespace: string): string | undefined {
@@ -66,6 +65,23 @@ const resourceApis: { kind: string; path: string }[] = [
   { kind: 'Ingress', path: '/apis/networking.k8s.io/v1/{ns}ingresses' },
 ];
 
+const managerColor = (m: string): 'blue' | 'purple' | 'teal' | 'orange' | 'green' | 'grey' => {
+  if (/helm/i.test(m)) return 'blue';
+  if (/argo/i.test(m)) return 'purple';
+  if (/kubectl/i.test(m)) return 'orange';
+  if (/mozilla|chrome|safari/i.test(m)) return 'green';
+  if (/event/i.test(m)) return 'teal';
+  return 'grey';
+};
+
+const operationColor = (op: string): 'blue' | 'orange' | 'green' | 'red' | 'grey' => {
+  if (op === 'Apply') return 'blue';
+  if (op === 'Update') return 'orange';
+  if (/create/i.test(op)) return 'green';
+  if (/delete|kill/i.test(op)) return 'red';
+  return 'grey';
+};
+
 export default function UserActivity() {
   const navigate = useNavigate();
   const selectedNamespace = useClusterStore((s) => s.selectedNamespace);
@@ -74,6 +90,10 @@ export default function UserActivity() {
   const [range, setRange] = useState<TimeRange>('24h');
   const [search, setSearch] = useState('');
   const [selectedManager, setSelectedManager] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(25);
+  const [sortIndex, setSortIndex] = useState<number | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
     let cancelled = false;
@@ -91,7 +111,6 @@ export default function UserActivity() {
         ? `namespaces/${encodeURIComponent(selectedNamespace)}/`
         : '';
 
-      // Fetch managedFields from key resource types
       for (const api of resourceApis) {
         const path = api.path.replace('{ns}', nsPrefix);
         try {
@@ -116,7 +135,6 @@ export default function UserActivity() {
               if (ts < cutoff) continue;
 
               const manager = field.manager ?? 'unknown';
-              // Extract top-level field names from fieldsV1
               const changedFields: string[] = [];
               if (field.fieldsV1) {
                 for (const key of Object.keys(field.fieldsV1)) {
@@ -140,7 +158,6 @@ export default function UserActivity() {
         } catch { /* ignore */ }
       }
 
-      // Also fetch events for create/delete/scale actions
       try {
         const evtPath = selectedNamespace !== 'all'
           ? `/api/v1/namespaces/${encodeURIComponent(selectedNamespace)}/events?limit=200`
@@ -193,132 +210,192 @@ export default function UserActivity() {
     filtered = filtered.filter((e) =>
       e.manager.toLowerCase().includes(q) ||
       e.name.toLowerCase().includes(q) ||
-      e.kind.toLowerCase().includes(q)
+      e.kind.toLowerCase().includes(q) ||
+      e.namespace.toLowerCase().includes(q) ||
+      e.operation.toLowerCase().includes(q) ||
+      (e.fields ?? []).some((f) => f.toLowerCase().includes(q))
     );
   }
   if (selectedManager) {
     filtered = filtered.filter((e) => e.manager === selectedManager);
   }
 
-  // Group by date
-  const groups = new Map<string, ActivityEntry[]>();
-  for (const entry of filtered) {
-    const key = formatDate(entry.timestamp);
-    const list = groups.get(key) ?? [];
-    list.push(entry);
-    groups.set(key, list);
+  // Sort
+  const sortKeys = ['timestamp', 'manager', 'operation', 'kind', 'name', 'namespace', 'fields'];
+  let sorted = filtered;
+  if (sortIndex !== null && sortKeys[sortIndex]) {
+    const key = sortKeys[sortIndex];
+    sorted = [...filtered].sort((a, b) => {
+      let aVal: string, bVal: string;
+      if (key === 'timestamp') {
+        aVal = String(a.timestamp.getTime());
+        bVal = String(b.timestamp.getTime());
+      } else if (key === 'fields') {
+        aVal = (a.fields ?? []).join(',');
+        bVal = (b.fields ?? []).join(',');
+      } else {
+        aVal = String((a as Record<string, unknown>)[key] ?? '');
+        bVal = String((b as Record<string, unknown>)[key] ?? '');
+      }
+      const cmp = aVal.localeCompare(bVal, undefined, { numeric: true });
+      return sortDirection === 'asc' ? cmp : -cmp;
+    });
   }
 
-  // Unique managers for filter
+  // Paginate
+  const paginated = sorted.slice((page - 1) * perPage, page * perPage);
+
+  // Unique managers for filter buttons
   const managers = [...new Set(entries.map((e) => e.manager))].sort();
 
-  const managerColor = (m: string): 'blue' | 'purple' | 'teal' | 'orange' | 'green' | 'grey' => {
-    if (/helm/i.test(m)) return 'blue';
-    if (/argo/i.test(m)) return 'purple';
-    if (/kubectl/i.test(m)) return 'orange';
-    if (/mozilla|chrome|safari/i.test(m)) return 'green';
-    if (/event/i.test(m)) return 'teal';
-    return 'grey';
+  const onSort = (_event: React.MouseEvent, index: number, direction: 'asc' | 'desc') => {
+    setSortIndex(index);
+    setSortDirection(direction);
   };
+
+  // Summary counts
+  const managerCounts = new Map<string, number>();
+  for (const e of entries) {
+    managerCounts.set(e.manager, (managerCounts.get(e.manager) ?? 0) + 1);
+  }
 
   return (
     <>
       <PageSection variant="default">
         <Title headingLevel="h1" size="2xl">User Activity</Title>
-        <p className="os-text-muted">Who changed what, when — audit trail from managedFields and K8s events</p>
+        <p className="os-text-muted">Audit trail — what changed, when, by which tool. The "Who" column shows the client tool (kubectl, argocd, helm), not the authenticated user. For user login history, see Access History.</p>
       </PageSection>
 
       <PageSection>
-        <Toolbar>
-          <ToolbarContent>
-            <ToolbarItem>
-              <ToggleGroup aria-label="Time range">
-                <ToggleGroupItem text="1 hour" isSelected={range === '1h'} onChange={() => setRange('1h')} />
-                <ToggleGroupItem text="24 hours" isSelected={range === '24h'} onChange={() => setRange('24h')} />
-                <ToggleGroupItem text="7 days" isSelected={range === '7d'} onChange={() => setRange('7d')} />
-              </ToggleGroup>
-            </ToolbarItem>
-            <ToolbarItem>
-              <SearchInput
-                placeholder="Search by user, resource, kind..."
-                value={search}
-                onChange={(_e, val) => setSearch(val)}
-                onClear={() => setSearch('')}
-              />
-            </ToolbarItem>
-          </ToolbarContent>
-        </Toolbar>
-
-        <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
-          <Button
-            variant={selectedManager === null ? 'primary' : 'secondary'}
-            size="sm"
-            onClick={() => setSelectedManager(null)}
-          >
-            All ({entries.length})
-          </Button>
-          {managers.map((m) => (
-            <Button
-              key={m}
-              variant={selectedManager === m ? 'primary' : 'secondary'}
-              size="sm"
-              onClick={() => setSelectedManager(selectedManager === m ? null : m)}
-            >
-              {m} ({entries.filter((e) => e.manager === m).length})
-            </Button>
-          ))}
+        {/* Summary cards */}
+        <div style={{ display: 'flex', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
+          <Card style={{ flex: 1, minWidth: 120 }}>
+            <CardBody style={{ textAlign: 'center', padding: '12px 16px' }}>
+              <Title headingLevel="h3" size="2xl">{entries.length}</Title>
+              <div className="os-text-muted" style={{ fontSize: 12 }}>Total Changes</div>
+            </CardBody>
+          </Card>
+          <Card style={{ flex: 1, minWidth: 120 }}>
+            <CardBody style={{ textAlign: 'center', padding: '12px 16px' }}>
+              <Title headingLevel="h3" size="2xl">{managers.length}</Title>
+              <div className="os-text-muted" style={{ fontSize: 12 }}>Actors</div>
+            </CardBody>
+          </Card>
+          <Card style={{ flex: 1, minWidth: 120 }}>
+            <CardBody style={{ textAlign: 'center', padding: '12px 16px' }}>
+              <Title headingLevel="h3" size="2xl">{new Set(entries.map((e) => e.kind)).size}</Title>
+              <div className="os-text-muted" style={{ fontSize: 12 }}>Resource Types</div>
+            </CardBody>
+          </Card>
+          <Card style={{ flex: 1, minWidth: 120 }}>
+            <CardBody style={{ textAlign: 'center', padding: '12px 16px' }}>
+              <Title headingLevel="h3" size="2xl">{new Set(entries.map((e) => `${e.namespace}/${e.name}`)).size}</Title>
+              <div className="os-text-muted" style={{ fontSize: 12 }}>Resources Touched</div>
+            </CardBody>
+          </Card>
         </div>
 
-        {loading ? (
-          <Card><CardBody><p className="os-text-muted">Scanning resources for activity...</p></CardBody></Card>
-        ) : filtered.length === 0 ? (
-          <Card><CardBody><p className="os-text-muted">No activity found in the selected time range.</p></CardBody></Card>
-        ) : (
-          Array.from(groups.entries()).map(([date, items]) => (
-            <div key={date} style={{ marginBottom: 24 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--os-text-secondary, #6a6e73)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                {date}
-              </div>
-              <Card>
-                <CardBody style={{ padding: 0 }}>
-                  {items.map((entry, i) => (
-                    <div
-                      key={entry.id + i}
-                      style={{
-                        display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 16px',
-                        borderBottom: i < items.length - 1 ? '1px solid var(--modern-border, #e0e0e0)' : 'none',
-                        cursor: entry.href ? 'pointer' : 'default',
-                      }}
-                      onClick={() => entry.href && navigate(entry.href)}
-                    >
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 4, minWidth: 12 }}>
-                        <div style={{ width: 10, height: 10, borderRadius: '50%', background: entry.operation === 'Apply' ? '#0066cc' : entry.operation === 'Update' ? '#f0ab00' : '#3e8635', flexShrink: 0 }} />
-                        {i < items.length - 1 && <div style={{ width: 1, flex: 1, background: 'var(--modern-border, #e0e0e0)', marginTop: 4, minHeight: 20 }} />}
-                      </div>
-                      <div style={{ minWidth: 50, fontSize: 12, color: 'var(--os-text-muted, #8a8d90)', paddingTop: 1, flexShrink: 0 }}>
-                        {formatTime(entry.timestamp)}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                          <Label color={managerColor(entry.manager)} style={{ fontSize: 10 }}>{entry.manager}</Label>
-                          <Label color="grey" style={{ fontSize: 10 }}>{entry.kind}</Label>
-                          <span style={{ fontWeight: 600, fontSize: 13 }}>{entry.name}</span>
-                          <span style={{ fontSize: 11, color: 'var(--os-text-muted, #8a8d90)' }}>{entry.namespace}</span>
-                        </div>
-                        <div style={{ fontSize: 12, color: 'var(--os-text-secondary, #6a6e73)', marginTop: 3 }}>
-                          <strong>{entry.operation}</strong>
-                          {entry.fields && entry.fields.length > 0 && (
-                            <span> — fields: {entry.fields.slice(0, 5).join(', ')}{entry.fields.length > 5 ? ` +${entry.fields.length - 5} more` : ''}</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </CardBody>
-              </Card>
+        <Card>
+          <CardBody>
+            <Toolbar>
+              <ToolbarContent>
+                <ToolbarItem>
+                  <ToggleGroup aria-label="Time range">
+                    <ToggleGroupItem text="1 hour" isSelected={range === '1h'} onChange={() => { setRange('1h'); setPage(1); }} />
+                    <ToggleGroupItem text="24 hours" isSelected={range === '24h'} onChange={() => { setRange('24h'); setPage(1); }} />
+                    <ToggleGroupItem text="7 days" isSelected={range === '7d'} onChange={() => { setRange('7d'); setPage(1); }} />
+                  </ToggleGroup>
+                </ToolbarItem>
+                <ToolbarItem>
+                  <SearchInput
+                    placeholder="Search by actor, resource, kind, namespace..."
+                    value={search}
+                    onChange={(_e, val) => { setSearch(val); setPage(1); }}
+                    onClear={() => { setSearch(''); setPage(1); }}
+                    style={{ minWidth: 280 }}
+                  />
+                </ToolbarItem>
+                <ToolbarItem variant="pagination" align={{ default: 'alignEnd' }}>
+                  <Pagination
+                    itemCount={filtered.length}
+                    perPage={perPage}
+                    page={page}
+                    onSetPage={(_e, p) => setPage(p)}
+                    onPerPageSelect={(_e, pp) => { setPerPage(pp); setPage(1); }}
+                    isCompact
+                  />
+                </ToolbarItem>
+              </ToolbarContent>
+            </Toolbar>
+
+            {/* Manager filter chips */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+              <Button
+                variant={selectedManager === null ? 'primary' : 'secondary'}
+                size="sm"
+                onClick={() => { setSelectedManager(null); setPage(1); }}
+              >
+                All
+              </Button>
+              {managers.map((m) => (
+                <Button
+                  key={m}
+                  variant={selectedManager === m ? 'primary' : 'secondary'}
+                  size="sm"
+                  onClick={() => { setSelectedManager(selectedManager === m ? null : m); setPage(1); }}
+                >
+                  {m} ({managerCounts.get(m) ?? 0})
+                </Button>
+              ))}
             </div>
-          ))
-        )}
+
+            <Table aria-label="User activity table" variant="compact">
+              <Thead>
+                <Tr>
+                  {['When', 'Who', 'Action', 'Kind', 'Resource', 'Namespace', 'Fields Changed'].map((title, i) => (
+                    <Th key={title} sort={{ sortBy: sortIndex !== null ? { index: sortIndex, direction: sortDirection } : { direction: sortDirection }, onSort, columnIndex: i }}>
+                      {title}
+                    </Th>
+                  ))}
+                </Tr>
+              </Thead>
+              <Tbody>
+                {loading ? (
+                  <Tr><Td colSpan={7}><span className="os-text-muted">Scanning resources for activity...</span></Td></Tr>
+                ) : paginated.length === 0 ? (
+                  <Tr><Td colSpan={7}><span className="os-text-muted">No activity found.</span></Td></Tr>
+                ) : (
+                  paginated.map((entry, i) => (
+                    <Tr
+                      key={entry.id + i}
+                      isClickable={!!entry.href}
+                      onRowClick={entry.href ? () => navigate(entry.href!) : undefined}
+                      className={entry.href ? 'os-list__row--clickable' : ''}
+                    >
+                      <Td dataLabel="When" style={{ whiteSpace: 'nowrap', fontSize: 13 }}>
+                        {formatTimestamp(entry.timestamp)}
+                      </Td>
+                      <Td dataLabel="Who">
+                        <Label color={managerColor(entry.manager)} isCompact>{entry.manager}</Label>
+                      </Td>
+                      <Td dataLabel="Action">
+                        <Label color={operationColor(entry.operation)} isCompact>{entry.operation}</Label>
+                      </Td>
+                      <Td dataLabel="Kind" style={{ fontSize: 13 }}>{entry.kind}</Td>
+                      <Td dataLabel="Resource"><strong style={{ fontSize: 13 }}>{entry.name}</strong></Td>
+                      <Td dataLabel="Namespace" style={{ fontSize: 13, color: 'var(--os-text-muted, #8a8d90)' }}>{entry.namespace}</Td>
+                      <Td dataLabel="Fields Changed" style={{ fontSize: 12, color: 'var(--os-text-secondary, #6a6e73)' }}>
+                        {entry.fields && entry.fields.length > 0
+                          ? entry.fields.slice(0, 3).join(', ') + (entry.fields.length > 3 ? ` +${entry.fields.length - 3}` : '')
+                          : '-'}
+                      </Td>
+                    </Tr>
+                  ))
+                )}
+              </Tbody>
+            </Table>
+          </CardBody>
+        </Card>
       </PageSection>
     </>
   );
