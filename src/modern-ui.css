@@ -1,0 +1,318 @@
+/* =====================================================
+   MODERN UI OVERRIDE — 2026 Clean Design
+   Inspired by Linear, Vercel, Raycast
+   ===================================================== */
+
+/* --- Base --- */
+:root {
+  --modern-bg: #fafafa;
+  --modern-card: #ffffff;
+  --modern-border: #eaeaea;
+  --modern-text: #171717;
+  --modern-text-secondary: #666666;
+  --modern-text-muted: #999999;
+  --modern-accent: var(--theme-color-1, #0066cc);
+  --modern-hover: #f5f5f5;
+  --modern-radius: 10px;
+  --modern-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 1px 4px rgba(0,0,0,0.04);
+  --modern-shadow-hover: 0 2px 8px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.dark {
+  --modern-bg: #0a0a0a;
+  --modern-card: #141414;
+  --modern-border: #262626;
+  --modern-text: #ededed;
+  --modern-text-secondary: #a1a1a1;
+  --modern-text-muted: #666666;
+  --modern-hover: #1a1a1a;
+  --modern-shadow: 0 1px 2px rgba(0,0,0,0.2), 0 1px 4px rgba(0,0,0,0.15);
+  --modern-shadow-hover: 0 2px 8px rgba(0,0,0,0.3), 0 1px 3px rgba(0,0,0,0.2);
+}
+
+body {
+  background: var(--modern-bg) !important;
+  color: var(--modern-text) !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif !important;
+  -webkit-font-smoothing: antialiased !important;
+}
+
+/* Kill the gradient backgrounds */
+body::before, body::after {
+  display: none !important;
+}
+
+/* --- Page --- */
+.pf-v6-c-page { background: var(--modern-bg) !important; color: var(--modern-text) !important; }
+.pf-v6-c-page__main { background: var(--modern-bg) !important; }
+.pf-v6-c-page__main-section { background: transparent !important; padding: 16px 24px !important; }
+
+/* --- Cards --- */
+.pf-v6-c-card {
+  background: var(--modern-card) !important;
+  border: 1px solid var(--modern-border) !important;
+  border-top: none !important;
+  border-radius: var(--modern-radius) !important;
+  box-shadow: var(--modern-shadow) !important;
+  transition: box-shadow 0.15s ease !important;
+  overflow: hidden;
+}
+
+.pf-v6-c-card:hover {
+  box-shadow: var(--modern-shadow-hover) !important;
+}
+
+.pf-v6-c-card__body {
+  padding: 16px !important;
+  color: var(--modern-text) !important;
+}
+
+.pf-v6-c-card__title {
+  color: var(--modern-text) !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+}
+
+/* --- Masthead --- */
+.pf-v6-c-masthead {
+  background: var(--modern-card) !important;
+  border-bottom: 1px solid var(--modern-border) !important;
+  box-shadow: none !important;
+  min-height: 56px !important;
+}
+
+/* --- Sidebar --- */
+.pf-v6-c-page__sidebar {
+  background: var(--modern-card) !important;
+  border-right: 1px solid var(--modern-border) !important;
+  box-shadow: none !important;
+}
+
+.pf-v6-c-page__sidebar::before { display: none !important; }
+
+/* --- Navigation --- */
+.pf-v6-c-nav__link {
+  font-size: 13px !important;
+  font-weight: 450 !important;
+  color: var(--modern-text-secondary) !important;
+  padding: 7px 12px !important;
+  margin: 1px 8px !important;
+  border-radius: 6px !important;
+  transition: background 0.1s, color 0.1s !important;
+  border: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+  text-shadow: none !important;
+  letter-spacing: 0 !important;
+}
+
+.pf-v6-c-nav__link:hover {
+  background: var(--modern-hover) !important;
+  color: var(--modern-text) !important;
+  transform: none !important;
+  box-shadow: none !important;
+  border: none !important;
+  padding-left: 12px !important;
+}
+
+.pf-v6-c-nav__link.pf-m-current {
+  background: var(--modern-accent) !important;
+  color: #fff !important;
+  font-weight: 550 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.pf-v6-c-nav__link.pf-m-current:hover {
+  opacity: 0.9;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.pf-v6-c-nav__link.pf-m-current::before { display: none !important; }
+
+/* Nav section headers */
+.pf-v6-c-nav__item.pf-m-expandable > .pf-v6-c-nav__link {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  color: var(--modern-text-muted) !important;
+  padding: 12px 12px 4px !important;
+  margin: 8px 8px 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+.pf-v6-c-nav__item.pf-m-expandable > .pf-v6-c-nav__link:hover {
+  background: transparent !important;
+  color: var(--modern-text-secondary) !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.pf-v6-c-nav__item.pf-m-expandable::after { display: none !important; }
+.pf-v6-c-nav__subnav { padding: 2px 0 4px !important; background: transparent !important; margin: 0 !important; }
+.pf-v6-c-nav__toggle-icon { color: var(--modern-text-muted) !important; transition: transform 0.15s !important; }
+
+/* --- Tables --- */
+.pf-v6-c-table {
+  background: var(--modern-card) !important;
+  border: 1px solid var(--modern-border) !important;
+  border-radius: var(--modern-radius) !important;
+  overflow: hidden !important;
+  box-shadow: var(--modern-shadow) !important;
+  color: var(--modern-text) !important;
+}
+
+.pf-v6-c-table thead {
+  background: var(--modern-bg) !important;
+}
+
+.pf-v6-c-table thead th,
+.pf-v6-c-table thead .pf-v6-c-table__button {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  color: var(--modern-text-muted) !important;
+  padding: 10px 12px !important;
+}
+
+.pf-v6-c-table td {
+  padding: 8px 12px !important;
+  font-size: 13px !important;
+  color: var(--modern-text) !important;
+  border-bottom: 1px solid var(--modern-border) !important;
+}
+
+.pf-v6-c-table tbody tr:last-child td { border-bottom: none !important; }
+.pf-v6-c-table tbody tr:hover { background: var(--modern-hover) !important; }
+
+/* --- Buttons --- */
+.pf-v6-c-button.pf-m-primary {
+  background: var(--modern-accent) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  font-weight: 500 !important;
+  font-size: 13px !important;
+  padding: 8px 16px !important;
+  box-shadow: none !important;
+  transition: opacity 0.1s !important;
+}
+.pf-v6-c-button.pf-m-primary:hover:not(:disabled) { opacity: 0.85 !important; background: var(--modern-accent) !important; transform: none !important; }
+.pf-v6-c-button.pf-m-primary::before, .pf-v6-c-button.pf-m-primary::after { display: none !important; }
+
+.pf-v6-c-button.pf-m-secondary {
+  background: transparent !important;
+  border: 1px solid var(--modern-border) !important;
+  border-radius: 8px !important;
+  color: var(--modern-text) !important;
+  font-size: 13px !important;
+  padding: 7px 16px !important;
+  box-shadow: none !important;
+}
+.pf-v6-c-button.pf-m-secondary:hover:not(:disabled) { background: var(--modern-hover) !important; border-color: var(--modern-text-muted) !important; transform: none !important; }
+
+.pf-v6-c-button.pf-m-link { color: var(--modern-accent) !important; box-shadow: none !important; }
+.pf-v6-c-button.pf-m-plain { color: var(--modern-text-secondary) !important; box-shadow: none !important; }
+.pf-v6-c-button.pf-m-plain:hover { color: var(--modern-text) !important; }
+.pf-v6-c-button:active:not(:disabled) { transform: none !important; }
+
+/* --- Labels --- */
+.pf-v6-c-label {
+  font-size: 11px !important;
+  font-weight: 550 !important;
+  padding: 2px 8px !important;
+  border-radius: 6px !important;
+}
+
+/* --- Search --- */
+.pf-v6-c-search-input {
+  background: var(--modern-card) !important;
+  border: 1px solid var(--modern-border) !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  transition: border-color 0.15s !important;
+}
+.pf-v6-c-search-input:focus-within { border-color: var(--modern-accent) !important; box-shadow: 0 0 0 3px rgba(0,102,204,0.08) !important; transform: none !important; }
+
+/* --- Toolbar --- */
+.pf-v6-c-toolbar { background: transparent !important; border: none !important; box-shadow: none !important; padding: 0 0 12px !important; }
+
+/* --- Titles --- */
+.pf-v6-c-title, h1, h2, h3, h4, h5, h6 {
+  color: var(--modern-text) !important;
+  font-weight: 650 !important;
+  letter-spacing: -0.02em !important;
+  text-shadow: none !important;
+  background: none !important;
+  -webkit-text-fill-color: unset !important;
+  -webkit-background-clip: unset !important;
+}
+
+h1 { font-size: 24px !important; font-weight: 700 !important; }
+h2 { font-size: 20px !important; }
+h3 { font-size: 16px !important; }
+
+/* --- Description Lists --- */
+.pf-v6-c-description-list__term { color: var(--modern-text-muted) !important; font-size: 12px !important; }
+.pf-v6-c-description-list__description { color: var(--modern-text) !important; }
+
+/* --- Tabs --- */
+.pf-v6-c-tabs__link { color: var(--modern-text-secondary) !important; }
+.pf-v6-c-tabs__link:hover { color: var(--modern-text) !important; }
+.pf-v6-c-tabs__link::after { background: var(--modern-accent) !important; }
+
+/* --- Modals --- */
+.pf-v6-c-modal-box { background: var(--modern-card) !important; border: 1px solid var(--modern-border) !important; border-radius: 12px !important; box-shadow: 0 16px 48px rgba(0,0,0,0.12) !important; color: var(--modern-text) !important; }
+.pf-v6-c-backdrop { background: rgba(0,0,0,0.4) !important; }
+
+/* --- Dropdowns --- */
+.pf-v6-c-dropdown__menu, .pf-v6-c-menu { background: var(--modern-card) !important; border: 1px solid var(--modern-border) !important; border-radius: 8px !important; box-shadow: 0 4px 16px rgba(0,0,0,0.08) !important; }
+.pf-v6-c-menu__item, .pf-v6-c-menu__item-text { color: var(--modern-text) !important; }
+.pf-v6-c-menu-toggle { background: var(--modern-card) !important; border: 1px solid var(--modern-border) !important; color: var(--modern-text) !important; border-radius: 8px !important; }
+
+/* --- Pagination --- */
+.pf-v6-c-pagination { background: transparent !important; color: var(--modern-text-secondary) !important; }
+
+/* --- Progress --- */
+.pf-v6-c-progress { border-radius: 6px !important; background: var(--modern-hover) !important; overflow: hidden; }
+.pf-v6-c-progress__bar { border-radius: 6px !important; box-shadow: none !important; }
+
+/* --- Badges --- */
+.pf-v6-c-badge { border-radius: 10px !important; font-size: 11px !important; padding: 1px 8px !important; }
+.pf-v6-c-badge.pf-m-read { background: var(--modern-hover) !important; color: var(--modern-text-secondary) !important; border: none !important; }
+
+/* --- Empty State --- */
+.pf-v6-c-empty-state { background: transparent !important; border: none !important; }
+
+/* --- Breadcrumb --- */
+.pf-v6-c-breadcrumb__link { color: var(--modern-accent) !important; }
+
+/* --- Focus --- */
+.pf-v6-c-button:focus-visible, .pf-v6-c-nav__link:focus-visible { outline: 2px solid var(--modern-accent) !important; outline-offset: 2px; box-shadow: none !important; }
+
+/* --- Misc --- */
+p, span, div { text-shadow: none !important; }
+code, pre { color: var(--modern-text) !important; }
+.os-text-muted { color: var(--modern-text-muted) !important; }
+input, textarea, select { color: var(--modern-text) !important; }
+input::placeholder, textarea::placeholder { color: var(--modern-text-muted) !important; }
+
+/* --- Scrollbar --- */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--modern-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--modern-text-muted); }
+
+/* Kill all remaining backdrop-filter, transforms, glow */
+* { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+
+/* --- Reduced Motion --- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

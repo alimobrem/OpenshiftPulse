@@ -16,6 +16,9 @@
 @import './openshift-components.css';
 @import './openshift-components-2.css';
 
+/* Modern UI — final override layer */
+@import './modern-ui.css';
+
 /* Tailwind CSS (for utility classes where needed) */
 @tailwind base;
 @tailwind components;
