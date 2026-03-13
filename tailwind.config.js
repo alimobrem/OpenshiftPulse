@@ -37,6 +37,9 @@ export default {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
+        slate: {
+          850: '#1a202e',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',

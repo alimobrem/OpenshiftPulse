@@ -1,0 +1,257 @@
+# KubeView Log Viewer Architecture
+
+## Component Hierarchy
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     MultiPodLogs                             │
+│  ┌────────────────────────────────────────────────────────┐ │
+│  │  Pod Selector: [All 3 pods] [pod-1] [pod-2] [pod-3]   │ │
+│  └────────────────────────────────────────────────────────┘ │
+│  ┌────────────────────────────────────────────────────────┐ │
+│  │                MultiContainerLogs                       │ │
+│  │  ┌──────────────────────────────────────────────────┐  │ │
+│  │  │  Container: [All] [app] [sidecar] [init-setup]  │  │ │
+│  │  └──────────────────────────────────────────────────┘  │ │
+│  │  ┌──────────────────────────────────────────────────┐  │ │
+│  │  │                  LogStream                        │  │ │
+│  │  │  ┌────────────────────────────────────────────┐  │  │ │
+│  │  │  │  Toolbar: Search, Follow, TS, Wrap, etc.  │  │  │ │
+│  │  │  └────────────────────────────────────────────┘  │  │ │
+│  │  │  ┌────────────────────────────────────────────┐  │  │ │
+│  │  │  │  Log Lines (scrollable)                    │  │  │ │
+│  │  │  │  1  2024-01-15 [INFO] Starting...          │  │  │ │
+│  │  │  │  2  2024-01-15 [INFO] Ready                │  │  │ │
+│  │  │  │  ...                                        │  │  │ │
+│  │  │  └────────────────────────────────────────────┘  │  │ │
+│  │  └──────────────────────────────────────────────────┘  │ │
+│  └────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                     LogContext (Modal)                       │
+│  ┌────────────────────────────────────────────────────────┐ │
+│  │  Context (5 lines before & after)                      │ │
+│  │  Structured Fields                                      │ │
+│  │  Similar Occurrences                                    │ │
+│  │  Raw Log Line                                           │ │
+│  └────────────────────────────────────────────────────────┘ │
+│  [Copy Line] [Copy with Context]                            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Component Responsibilities
+
+### LogStream
+**Purpose:** Core log streaming viewer
+**Responsibilities:**
+- Fetch logs from K8s API
+- Handle live streaming (ReadableStream)
+- Parse log lines with LogParser
+- Render log lines with syntax highlighting
+- Handle auto-scroll behavior
+- Provide search, filtering, download, copy
+
+**State:**
+- `lines: ParsedLogLine[]` - All parsed log lines
+- `isFollowing: boolean` - Live tail mode
+- `autoScroll: boolean` - Auto-scroll state
+- `searchQuery: string` - Search filter
+
+**API calls:**
+```
+GET /api/kubernetes/api/v1/namespaces/{ns}/pods/{pod}/log
+  ?container={name}&timestamps=true&tailLines=1000&follow=true
+```
+
+### LogSearch
+**Purpose:** Advanced search with regex support
+**Responsibilities:**
+- Accept search query
+- Auto-detect regex patterns
+- Find matching line indices
+- Provide match navigation (up/down)
+- Support negative filtering with `-` prefix
+
+**Props:**
+- `lines: ParsedLogLine[]` - Lines to search
+- `onMatchesChange: (indices: number[]) => void`
+- `onActiveMatchChange: (index: number) => void`
+
+### MultiContainerLogs
+**Purpose:** Container switcher for multi-container pods
+**Responsibilities:**
+- Render container selector tabs
+- Show container state indicators
+- In "All" mode, fetch and merge logs from all containers
+- Color-code container prefixes
+- Render LogStream for selected container
+
+**State:**
+- `selectedContainer: string` - Current container or 'all'
+- `mergedLogs: MergedLogLine[]` - Merged logs from all containers
+
+### MultiPodLogs
+**Purpose:** Aggregate logs across multiple pods
+**Responsibilities:**
+- Render pod selector tabs
+- In "All" mode, fetch and merge logs from all pods
+- Color-code pod prefixes
+- Sort merged logs by timestamp
+- Truncate pod names for display
+- Render LogStream for selected pod
+
+**State:**
+- `selectedPod: string` - Current pod or 'all'
+- `mergedLogs: MergedLogLine[]` - Merged logs from all pods
+
+### LogContext
+**Purpose:** Context panel for clicked log line
+**Responsibilities:**
+- Show surrounding context (±5 lines)
+- Display structured fields (JSON/logfmt)
+- Find similar error occurrences
+- Calculate occurrence stats (count, time range, duration)
+- Copy line or context to clipboard
+
+**Props:**
+- `line: ParsedLogLine` - Selected line
+- `lineIndex: number` - Line position
+- `allLines: ParsedLogLine[]` - All lines for context
+- `onClose: () => void`
+
+## Utilities
+
+### LogParser
+**Purpose:** Parse and detect log formats
+**Functions:**
+- `detectLogFormat(lines: string[]): LogFormat`
+- `parseLogLine(line: string, format?: LogFormat): ParsedLogLine`
+
+**Format detection:**
+1. Try JSON: line starts with `{` and parses as valid JSON
+2. Try logfmt: contains `key=value` patterns
+3. Default to plain text
+
+**K8s timestamp handling:**
+- Strips RFC3339Nano prefix: `2024-01-15T10:04:23.441234567Z`
+- Parses into `timestamp` field
+
+**Level normalization:**
+- Maps various level strings to standard enum
+- Detects level from message content for plain text
+
+### LogCollapse
+**Purpose:** Collapse repeated similar log lines
+**Functions:**
+- `areSimilar(a: string, b: string): boolean`
+- `collapseRepeatedLines(lines: ParsedLogLine[], threshold: number): (ParsedLogLine | CollapsedGroup)[]`
+- `isCollapsedGroup(item): boolean`
+
+**Similarity algorithm:**
+1. Normalize both messages (replace UUIDs, numbers, IPs, timestamps)
+2. Compare normalized versions
+3. If equal, lines are similar
+
+**Collapsing:**
+- Find consecutive similar lines with same level
+- If count >= threshold, create CollapsedGroup
+- Otherwise, keep individual lines
+
+## Data Flow
+
+### Initial Load
+```
+User opens pod logs
+  → LogStream mounts
+    → Fetch /api/kubernetes/.../log?tailLines=1000&timestamps=true
+      → Parse each line with LogParser
+        → Detect format (JSON/logfmt/plain)
+        → Extract timestamp, level, message, fields
+          → Store in lines[] state
+            → Render log lines
+```
+
+### Live Streaming
+```
+User enables Follow
+  → LogStream fetches with follow=true
+    → ReadableStream starts
+      → Read chunks in loop
+        → Decode chunk with TextDecoder
+          → Split by newlines
+            → Parse new lines
+              → Append to lines[] state
+                → Auto-scroll if at bottom
+```
+
+### Search
+```
+User types search query
+  → LogSearch receives query
+    → Auto-detect regex
+      → Filter lines by query
+        → Return match indices
+          → Parent highlights matches
+```
+
+### Context Click
+```
+User clicks log line
+  → onLineClick callback
+    → Parent opens LogContext modal
+      → Get ±5 lines context
+        → Find similar errors
+          → Calculate stats
+            → Render context panel
+```
+
+## Performance Considerations
+
+1. **Line limit:** Max 10,000 lines in memory to prevent slowdown
+2. **Streaming:** Efficient chunk processing with TextDecoder
+3. **No virtualization:** Browser native scrolling is fast enough for 10k lines
+4. **Smart auto-scroll:** Only scrolls when user is at bottom
+5. **Similarity detection:** Regex-based normalization is fast enough
+6. **Memo/useMemo:** Used for expensive computations (filtering, collapsing)
+
+## Styling Strategy
+
+All components use:
+- **Tailwind CSS** for utility classes
+- **Dark theme** with slate color palette
+- **Monospace font** for log content
+- **Consistent spacing** (px-3, py-2, gap-2)
+- **Rounded corners** (rounded, rounded-lg)
+- **Transitions** for interactive elements
+
+**Color palette:**
+- Background: `bg-slate-950` (darkest), `bg-slate-900` (cards)
+- Borders: `border-slate-700`
+- Text: `text-slate-200` (primary), `text-slate-400` (muted)
+- Accents: `text-blue-400`, `text-green-400`, etc.
+
+## Testing Strategy
+
+Unit tests for:
+- **LogParser:** Format detection, line parsing, level normalization
+- **LogCollapse:** Similarity detection, collapsing logic
+
+Integration tests (future):
+- Fetch logs from mock K8s API
+- Stream parsing
+- Search functionality
+- Multi-container merging
+
+## Future Enhancements
+
+1. **Log export formats:** JSON, CSV, structured logs
+2. **Advanced filters:** Level, time range, field values
+3. **Log aggregation:** Group by error message
+4. **Performance profiling:** Identify slow log sources
+5. **Log analytics:** Error rate over time
+6. **Saved searches:** Bookmark common queries
+7. **Share links:** Deep link to specific log line
+8. **Log tailing limits:** Configurable max lines
+9. **Custom parsers:** User-defined log formats
+10. **Log forwarding:** Send to external log aggregator

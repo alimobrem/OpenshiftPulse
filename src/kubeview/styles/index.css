@@ -1,0 +1,154 @@
+/* KubeView Design Tokens */
+:root {
+  --kv-bg: #0f172a;           /* slate-900 */
+  --kv-surface: #1e293b;      /* slate-800 */
+  --kv-surface-hover: #334155; /* slate-700 */
+  --kv-border: #334155;       /* slate-700 */
+  --kv-text: #f1f5f9;         /* slate-100 */
+  --kv-text-muted: #94a3b8;   /* slate-400 */
+  --kv-text-dim: #64748b;     /* slate-500 */
+  --kv-accent: #3b82f6;       /* blue-500 */
+  --kv-accent-hover: #2563eb; /* blue-600 */
+  --kv-success: #10b981;      /* emerald-500 */
+  --kv-warning: #f59e0b;      /* amber-500 */
+  --kv-error: #ef4444;        /* red-500 */
+  --kv-info: #06b6d4;         /* cyan-500 */
+  --kv-radius: 8px;
+  --kv-radius-sm: 4px;
+  --kv-radius-lg: 12px;
+  --kv-font-mono: 'SF Mono', 'Fira Code', 'JetBrains Mono', 'Cascadia Code', monospace;
+}
+
+/* Base reset for KubeView */
+.kubeview {
+  background-color: var(--kv-bg);
+  color: var(--kv-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Scrollbar styling */
+.kubeview ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.kubeview ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.kubeview ::-webkit-scrollbar-thumb {
+  background: var(--kv-border);
+  border-radius: 4px;
+}
+
+.kubeview ::-webkit-scrollbar-thumb:hover {
+  background: var(--kv-text-dim);
+}
+
+/* Live tail pulse animation */
+@keyframes kv-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.kv-pulse {
+  animation: kv-pulse 2s ease-in-out infinite;
+}
+
+/* Success flash */
+@keyframes kv-flash-success {
+  0% { background-color: rgba(16, 185, 129, 0.3); }
+  100% { background-color: transparent; }
+}
+
+.kv-flash-success {
+  animation: kv-flash-success 1s ease-out;
+}
+
+/* Slide-in for toasts */
+@keyframes kv-slide-up {
+  from { transform: translateY(16px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.kv-slide-up {
+  animation: kv-slide-up 0.2s ease-out;
+}
+
+/* Fade overlay */
+@keyframes kv-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.kv-fade-in {
+  animation: kv-fade-in 0.15s ease-out;
+}
+
+/* Skeleton loading shimmer */
+@keyframes kv-shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+.kv-skeleton {
+  background: linear-gradient(90deg, var(--kv-surface) 25%, var(--kv-surface-hover) 50%, var(--kv-surface) 75%);
+  background-size: 2000px 100%;
+  animation: kv-shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--kv-radius-sm);
+}
+
+/* Toast progress bar for undo */
+@keyframes kv-countdown {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+.kv-countdown {
+  animation: kv-countdown 5s linear;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .kv-pulse,
+  .kv-flash-success,
+  .kv-slide-up,
+  .kv-fade-in,
+  .kv-skeleton,
+  .kv-countdown {
+    animation: none;
+  }
+}
+
+/* Focus ring */
+.kubeview :focus-visible {
+  outline: 2px solid var(--kv-accent);
+  outline-offset: 2px;
+}
+
+/* Code blocks */
+.kv-code {
+  font-family: var(--kv-font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Log level colors */
+.kv-log-debug { color: #94a3b8; }
+.kv-log-info { color: #e2e8f0; }
+.kv-log-warn { color: #fbbf24; }
+.kv-log-error { color: #f87171; }
+.kv-log-fatal { color: #ef4444; font-weight: 600; }
+
+/* Search highlight */
+.kv-highlight {
+  background-color: rgba(245, 158, 11, 0.25);
+  border-radius: 2px;
+}
+
+.kv-highlight-active {
+  background-color: rgba(245, 158, 11, 0.5);
+  border-radius: 2px;
+}

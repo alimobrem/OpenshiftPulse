@@ -1,0 +1,193 @@
+import { useState, useRef, useEffect } from 'react';
+import { Minus, X, GripHorizontal } from 'lucide-react';
+import { useUIStore } from '../store/uiStore';
+import { cn } from '@/lib/utils';
+
+export function Dock() {
+  const dockPanel = useUIStore((s) => s.dockPanel);
+  const dockHeight = useUIStore((s) => s.dockHeight);
+  const setDockHeight = useUIStore((s) => s.setDockHeight);
+  const openDock = useUIStore((s) => s.openDock);
+  const closeDock = useUIStore((s) => s.closeDock);
+
+  const [isResizing, setIsResizing] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
+  const startY = useRef(0);
+  const startHeight = useRef(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsResizing(true);
+    startY.current = e.clientY;
+    startHeight.current = dockHeight;
+    e.preventDefault();
+  };
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const delta = startY.current - e.clientY;
+      const newHeight = startHeight.current + delta;
+      setDockHeight(newHeight);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing, setDockHeight]);
+
+  if (isMinimized) {
+    return (
+      <div className="flex h-8 items-center justify-between border-t border-slate-700 bg-slate-800 px-4">
+        <div className="flex items-center gap-3 text-sm text-slate-300">
+          <button
+            onClick={() => openDock('logs')}
+            className={cn(
+              'px-2 py-1 transition-colors',
+              dockPanel === 'logs'
+                ? 'text-emerald-400'
+                : 'text-slate-400 hover:text-slate-200'
+            )}
+          >
+            Logs
+          </button>
+          <button
+            onClick={() => openDock('terminal')}
+            className={cn(
+              'px-2 py-1 transition-colors',
+              dockPanel === 'terminal'
+                ? 'text-emerald-400'
+                : 'text-slate-400 hover:text-slate-200'
+            )}
+          >
+            Terminal
+          </button>
+          <button
+            onClick={() => openDock('events')}
+            className={cn(
+              'px-2 py-1 transition-colors',
+              dockPanel === 'events'
+                ? 'text-emerald-400'
+                : 'text-slate-400 hover:text-slate-200'
+            )}
+          >
+            Events
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsMinimized(false)}
+            className="rounded p-1 text-slate-400 transition-colors hover:bg-slate-700 hover:text-slate-200"
+            title="Restore"
+          >
+            <GripHorizontal className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="flex flex-col border-t border-slate-700 bg-slate-850"
+      style={{ height: dockHeight }}
+    >
+      {/* Resize handle */}
+      <div
+        onMouseDown={handleMouseDown}
+        className={cn(
+          'group flex h-1 cursor-ns-resize items-center justify-center border-b border-slate-700 bg-slate-800 transition-colors hover:bg-slate-700',
+          isResizing && 'bg-emerald-600'
+        )}
+      >
+        <GripHorizontal className="h-3 w-3 text-slate-500 opacity-0 transition-opacity group-hover:opacity-100" />
+      </div>
+
+      {/* Header */}
+      <div className="flex h-9 items-center justify-between border-b border-slate-700 bg-slate-800 px-4">
+        <div className="flex items-center gap-3 text-sm">
+          <button
+            onClick={() => openDock('logs')}
+            className={cn(
+              'px-2 py-1 transition-colors',
+              dockPanel === 'logs'
+                ? 'border-b-2 border-emerald-400 text-emerald-400'
+                : 'text-slate-400 hover:text-slate-200'
+            )}
+          >
+            Logs
+          </button>
+          <button
+            onClick={() => openDock('terminal')}
+            className={cn(
+              'px-2 py-1 transition-colors',
+              dockPanel === 'terminal'
+                ? 'border-b-2 border-emerald-400 text-emerald-400'
+                : 'text-slate-400 hover:text-slate-200'
+            )}
+          >
+            Terminal
+          </button>
+          <button
+            onClick={() => openDock('events')}
+            className={cn(
+              'px-2 py-1 transition-colors',
+              dockPanel === 'events'
+                ? 'border-b-2 border-emerald-400 text-emerald-400'
+                : 'text-slate-400 hover:text-slate-200'
+            )}
+          >
+            Events
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsMinimized(true)}
+            className="rounded p-1 text-slate-400 transition-colors hover:bg-slate-700 hover:text-slate-200"
+            title="Minimize"
+          >
+            <Minus className="h-4 w-4" />
+          </button>
+          <button
+            onClick={closeDock}
+            className="rounded p-1 text-slate-400 transition-colors hover:bg-slate-700 hover:text-slate-200"
+            title="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-auto bg-slate-900 p-4">
+        {dockPanel === 'logs' && (
+          <div className="font-mono text-xs text-slate-300">
+            <div className="text-slate-500">No logs available</div>
+          </div>
+        )}
+
+        {dockPanel === 'terminal' && (
+          <div className="h-full rounded border border-slate-700 bg-black p-3 font-mono text-sm text-green-400">
+            <div className="text-slate-500">$ _</div>
+          </div>
+        )}
+
+        {dockPanel === 'events' && (
+          <div className="text-sm text-slate-300">
+            <div className="text-slate-500">No events</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

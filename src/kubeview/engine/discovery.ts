@@ -1,0 +1,354 @@
+/**
+ * API Discovery Engine
+ * Discovers and caches all available Kubernetes resource types from the API server.
+ */
+
+const BASE = '/api/kubernetes';
+
+export interface ResourceType {
+  group: string;      // "" for core, "apps" etc
+  version: string;    // "v1"
+  kind: string;       // "Deployment"
+  plural: string;     // "deployments"
+  singularName: string;
+  namespaced: boolean;
+  verbs: string[];    // ["get","list","create","update","delete","watch"]
+  shortNames: string[];
+  categories: string[];
+  storageVersionHash?: string;
+}
+
+export interface APIGroup {
+  name: string;        // "apps", "batch", "" for core
+  displayName: string; // "Apps", "Batch", "Core"
+  versions: string[];
+  resources: ResourceType[];
+}
+
+export type ResourceRegistry = Map<string, ResourceType>;
+
+interface APIResourceList {
+  kind: string;
+  apiVersion: string;
+  groupVersion: string;
+  resources: Array<{
+    name: string;
+    singularName: string;
+    namespaced: boolean;
+    kind: string;
+    verbs: string[];
+    shortNames?: string[];
+    categories?: string[];
+    storageVersionHash?: string;
+  }>;
+}
+
+interface APIGroupList {
+  kind: string;
+  apiVersion: string;
+  groups: Array<{
+    name: string;
+    versions: Array<{
+      groupVersion: string;
+      version: string;
+    }>;
+    preferredVersion: {
+      groupVersion: string;
+      version: string;
+    };
+  }>;
+}
+
+interface CoreAPIVersions {
+  kind: string;
+  versions: string[];
+  serverAddressByClientCIDRs: Array<{
+    clientCIDR: string;
+    serverAddress: string;
+  }>;
+}
+
+let cachedRegistry: ResourceRegistry | null = null;
+
+/**
+ * Generate a GVR (Group-Version-Resource) key
+ */
+export function gvrKey(group: string, version: string, plural: string): string {
+  if (group === '') {
+    return `core/${version}/${plural}`;
+  }
+  return `${group}/${version}/${plural}`;
+}
+
+/**
+ * Discover all available resource types from the API server
+ */
+export async function discoverResources(): Promise<ResourceRegistry> {
+  if (cachedRegistry) {
+    return cachedRegistry;
+  }
+
+  const registry: ResourceRegistry = new Map();
+
+  try {
+    // Discover core API resources (v1)
+    await discoverCoreAPI(registry);
+
+    // Discover API groups
+    await discoverAPIGroups(registry);
+
+    cachedRegistry = registry;
+    return registry;
+  } catch (error) {
+    console.error('Failed to discover API resources:', error);
+    throw error;
+  }
+}
+
+/**
+ * Discover core API resources (/api/v1)
+ */
+async function discoverCoreAPI(registry: ResourceRegistry): Promise<void> {
+  try {
+    const response = await fetch(`${BASE}/api/v1`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch core API: ${response.statusText}`);
+    }
+
+    const data: APIResourceList = await response.json();
+
+    for (const resource of data.resources) {
+      // Skip subresources (e.g., "pods/log", "pods/status")
+      if (resource.name.includes('/')) {
+        continue;
+      }
+
+      const resourceType: ResourceType = {
+        group: '',
+        version: 'v1',
+        kind: resource.kind,
+        plural: resource.name,
+        singularName: resource.singularName || resource.name,
+        namespaced: resource.namespaced,
+        verbs: resource.verbs,
+        shortNames: resource.shortNames || [],
+        categories: resource.categories || [],
+        storageVersionHash: resource.storageVersionHash,
+      };
+
+      registry.set(gvrKey('', 'v1', resource.name), resourceType);
+    }
+  } catch (error) {
+    console.error('Failed to discover core API:', error);
+  }
+}
+
+/**
+ * Discover API groups and their resources
+ */
+async function discoverAPIGroups(registry: ResourceRegistry): Promise<void> {
+  try {
+    const response = await fetch(`${BASE}/apis`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch API groups: ${response.statusText}`);
+    }
+
+    const data: APIGroupList = await response.json();
+
+    // Fetch resources for each group version
+    const promises = data.groups.flatMap(group =>
+      group.versions.map(version =>
+        discoverGroupVersion(registry, group.name, version.version)
+      )
+    );
+
+    await Promise.allSettled(promises);
+  } catch (error) {
+    console.error('Failed to discover API groups:', error);
+  }
+}
+
+/**
+ * Discover resources for a specific API group version
+ */
+async function discoverGroupVersion(
+  registry: ResourceRegistry,
+  group: string,
+  version: string
+): Promise<void> {
+  try {
+    const response = await fetch(`${BASE}/apis/${group}/${version}`);
+    if (!response.ok) {
+      return; // Skip if version is not available
+    }
+
+    const data: APIResourceList = await response.json();
+
+    for (const resource of data.resources) {
+      // Skip subresources
+      if (resource.name.includes('/')) {
+        continue;
+      }
+
+      const resourceType: ResourceType = {
+        group,
+        version,
+        kind: resource.kind,
+        plural: resource.name,
+        singularName: resource.singularName || resource.name,
+        namespaced: resource.namespaced,
+        verbs: resource.verbs,
+        shortNames: resource.shortNames || [],
+        categories: resource.categories || [],
+        storageVersionHash: resource.storageVersionHash,
+      };
+
+      registry.set(gvrKey(group, version, resource.name), resourceType);
+    }
+  } catch (error) {
+    console.error(`Failed to discover ${group}/${version}:`, error);
+  }
+}
+
+/**
+ * Group resources by API group for browsing
+ */
+export function groupResources(registry: ResourceRegistry): APIGroup[] {
+  const groups = new Map<string, APIGroup>();
+
+  for (const [, resourceType] of registry) {
+    const groupName = resourceType.group || '';
+
+    if (!groups.has(groupName)) {
+      groups.set(groupName, {
+        name: groupName,
+        displayName: formatGroupName(groupName),
+        versions: [],
+        resources: [],
+      });
+    }
+
+    const group = groups.get(groupName)!;
+
+    // Add version if not already present
+    if (!group.versions.includes(resourceType.version)) {
+      group.versions.push(resourceType.version);
+    }
+
+    group.resources.push(resourceType);
+  }
+
+  // Sort groups and their resources
+  return Array.from(groups.values())
+    .sort((a, b) => {
+      // Core group first
+      if (a.name === '') return -1;
+      if (b.name === '') return 1;
+      return a.name.localeCompare(b.name);
+    })
+    .map(group => ({
+      ...group,
+      versions: group.versions.sort(),
+      resources: group.resources.sort((a, b) => a.kind.localeCompare(b.kind)),
+    }));
+}
+
+/**
+ * Format API group name for display
+ */
+function formatGroupName(group: string): string {
+  if (group === '') {
+    return 'Core';
+  }
+
+  // Remove .k8s.io suffix for cleaner display
+  const cleaned = group.replace(/\.k8s\.io$/, '');
+
+  // Capitalize first letter
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+}
+
+/**
+ * Find a resource by kind, plural, shortName, or GVR key
+ * Examples: "Deployment", "deployments", "deploy", "apps/v1/deployments"
+ */
+export function findResource(
+  registry: ResourceRegistry,
+  query: string
+): ResourceType | undefined {
+  const normalized = query.toLowerCase().trim();
+
+  // Try exact GVR key match first
+  for (const [key, resource] of registry) {
+    if (key.toLowerCase() === normalized) {
+      return resource;
+    }
+  }
+
+  // Try kind match (case-insensitive)
+  for (const [, resource] of registry) {
+    if (resource.kind.toLowerCase() === normalized) {
+      return resource;
+    }
+  }
+
+  // Try plural match
+  for (const [, resource] of registry) {
+    if (resource.plural.toLowerCase() === normalized) {
+      return resource;
+    }
+  }
+
+  // Try singular name match
+  for (const [, resource] of registry) {
+    if (resource.singularName.toLowerCase() === normalized) {
+      return resource;
+    }
+  }
+
+  // Try short name match
+  for (const [, resource] of registry) {
+    for (const shortName of resource.shortNames) {
+      if (shortName.toLowerCase() === normalized) {
+        return resource;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+/**
+ * Clear the cached registry (useful for testing or forcing refresh)
+ */
+export function clearDiscoveryCache(): void {
+  cachedRegistry = null;
+}
+
+/**
+ * Get API path for a resource type
+ */
+export function getAPIPath(resourceType: ResourceType, namespace?: string): string {
+  let path = '';
+
+  if (resourceType.group === '') {
+    path = `/api/${resourceType.version}`;
+  } else {
+    path = `/apis/${resourceType.group}/${resourceType.version}`;
+  }
+
+  if (resourceType.namespaced && namespace) {
+    path += `/namespaces/${namespace}`;
+  }
+
+  path += `/${resourceType.plural}`;
+
+  return path;
+}
+
+/**
+ * Check if a resource type supports a specific verb
+ */
+export function supportsVerb(resourceType: ResourceType, verb: string): boolean {
+  return resourceType.verbs.includes(verb);
+}
