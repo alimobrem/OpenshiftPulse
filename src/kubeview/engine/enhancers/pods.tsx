@@ -59,7 +59,7 @@ export const podEnhancer: ResourceEnhancer = {
       render: (value) => {
         const [ready, total] = String(value).split('/').map(Number);
         const allReady = ready === total && total > 0;
-        const color = allReady ? 'text-green-600' : ready > 0 ? 'text-yellow-600' : 'text-red-600';
+        const color = allReady ? 'text-green-400' : ready > 0 ? 'text-yellow-400' : 'text-red-400';
 
         return (
           <span className={`font-mono text-sm ${color} font-semibold`}>
@@ -79,7 +79,7 @@ export const podEnhancer: ResourceEnhancer = {
       },
       render: (value) => {
         const restarts = Number(value);
-        const color = restarts > 5 ? 'text-red-600' : restarts > 0 ? 'text-yellow-600' : 'text-gray-600';
+        const color = restarts > 5 ? 'text-red-400' : restarts > 0 ? 'text-yellow-400' : 'text-slate-500';
 
         return (
           <span className={`font-mono text-sm ${color}`}>
@@ -99,14 +99,14 @@ export const podEnhancer: ResourceEnhancer = {
       },
       render: (value) => {
         if (!value || value === '-') {
-          return <span className="text-gray-400">-</span>;
+          return <span className="text-slate-500">-</span>;
         }
 
         const nodeName = String(value);
         return (
           <Link
-            to={`/k8s/node/${nodeName}`}
-            className="text-blue-600 hover:text-blue-800 hover:underline text-sm"
+            to={`/r/v1~nodes/_/${nodeName}`}
+            className="text-blue-400 hover:text-blue-300 hover:underline text-sm"
           >
             {nodeName}
           </Link>
@@ -124,11 +124,11 @@ export const podEnhancer: ResourceEnhancer = {
       },
       render: (value) => {
         if (!value || value === '-') {
-          return <span className="text-gray-400">-</span>;
+          return <span className="text-slate-500">-</span>;
         }
 
         return (
-          <span className="font-mono text-sm text-gray-700">
+          <span className="font-mono text-sm text-slate-300">
             {String(value)}
           </span>
         );
@@ -143,28 +143,18 @@ export const podEnhancer: ResourceEnhancer = {
       id: 'logs',
       label: 'View Logs',
       icon: 'scroll-text',
-      render: (resource, onAction) => {
+      render: (resource) => {
         const namespace = resource.metadata.namespace ?? '';
         const name = resource.metadata.name;
 
         return (
           <Link
-            to={`/k8s/ns/${namespace}/pods/${name}?tab=logs`}
-            className="inline-flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+            to={`/logs/${namespace}/${name}`}
+            className="inline-flex items-center px-2 py-1 text-xs bg-blue-900 text-blue-300 rounded hover:bg-blue-800"
             title="View Logs"
           >
-            <svg
-              className="w-3 h-3 mr-1"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
+            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             Logs
           </Link>
@@ -179,21 +169,11 @@ export const podEnhancer: ResourceEnhancer = {
         return (
           <button
             onClick={() => onAction('restart', { resource })}
-            className="inline-flex items-center px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded hover:bg-orange-200"
+            className="inline-flex items-center px-2 py-1 text-xs bg-orange-900 text-orange-300 rounded hover:bg-orange-800"
             title="Restart Pod (delete to trigger recreation)"
           >
-            <svg
-              className="w-3 h-3 mr-1"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              />
+            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
             Restart
           </button>

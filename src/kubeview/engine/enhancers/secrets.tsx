@@ -16,13 +16,13 @@ export const secretEnhancer: ResourceEnhancer = {
         const type = String(value);
         const shortType = type.replace('kubernetes.io/', '');
 
-        let color = 'bg-gray-100 text-gray-800';
+        let color = 'bg-slate-700 text-slate-300';
         if (type.includes('tls')) {
-          color = 'bg-green-100 text-green-800';
+          color = 'bg-green-900 text-green-300';
         } else if (type.includes('token') || type.includes('service-account')) {
-          color = 'bg-blue-100 text-blue-800';
+          color = 'bg-blue-900 text-blue-300';
         } else if (type.includes('dockercfg') || type.includes('dockerconfigjson')) {
-          color = 'bg-purple-100 text-purple-800';
+          color = 'bg-purple-900 text-purple-300';
         }
 
         return (
@@ -48,7 +48,7 @@ export const secretEnhancer: ResourceEnhancer = {
         const keys = data ? Object.keys(data) : [];
 
         if (count === 0) {
-          return <span className="text-gray-400">0</span>;
+          return <span className="text-slate-500">0</span>;
         }
 
         const keyList = keys.slice(0, 3).join(', ');
@@ -57,8 +57,8 @@ export const secretEnhancer: ResourceEnhancer = {
 
         return (
           <div className="flex items-center">
-            <span className="font-mono text-sm text-gray-700 mr-2">{count}</span>
-            <span className="text-xs text-gray-500" title={title}>
+            <span className="font-mono text-sm text-slate-300 mr-2">{count}</span>
+            <span className="text-xs text-slate-400" title={title}>
               {keyList}
               {remaining > 0 && ` +${remaining}`}
             </span>

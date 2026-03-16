@@ -92,12 +92,20 @@ export default function DetailView({ gvrKey, namespace, name }: DetailViewProps)
     // Owner references
     const ownerRefs = resource.metadata.ownerReferences || [];
     for (const owner of ownerRefs) {
+      // Build GVR URL from owner apiVersion + kind
+      const [ownerGroup, ownerVersion] = owner.apiVersion.includes('/')
+        ? owner.apiVersion.split('/')
+        : ['', owner.apiVersion];
+      const ownerPlural = owner.kind.toLowerCase() + 's';
+      const ownerGvr = ownerGroup
+        ? `${ownerGroup}~${ownerVersion}~${ownerPlural}`
+        : `${ownerVersion}~${ownerPlural}`;
+      const ns = namespace || '_';
+
       related.push({
         type: owner.kind,
         name: owner.name,
-        path: namespace
-          ? `/k8s/ns/${namespace}/${owner.kind.toLowerCase()}/${owner.name}`
-          : `/k8s/${owner.kind.toLowerCase()}/${owner.name}`,
+        path: `/r/${ownerGvr}/${ns}/${owner.name}`,
       });
     }
 

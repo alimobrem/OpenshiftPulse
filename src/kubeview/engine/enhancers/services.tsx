@@ -15,14 +15,14 @@ export const serviceEnhancer: ResourceEnhancer = {
       },
       render: (value) => {
         const type = String(value);
-        let color = 'bg-blue-100 text-blue-800';
+        let color = 'bg-blue-900 text-blue-300';
 
         if (type === 'LoadBalancer') {
-          color = 'bg-green-100 text-green-800';
+          color = 'bg-green-900 text-green-300';
         } else if (type === 'NodePort') {
-          color = 'bg-purple-100 text-purple-800';
+          color = 'bg-purple-900 text-purple-300';
         } else if (type === 'ExternalName') {
-          color = 'bg-orange-100 text-orange-800';
+          color = 'bg-orange-900 text-orange-300';
         }
 
         return (
@@ -43,10 +43,10 @@ export const serviceEnhancer: ResourceEnhancer = {
       },
       render: (value) => {
         if (!value || value === '-' || value === 'None') {
-          return <span className="text-gray-400">{String(value)}</span>;
+          return <span className="text-slate-500">{String(value)}</span>;
         }
 
-        return <span className="font-mono text-sm text-gray-700">{String(value)}</span>;
+        return <span className="font-mono text-sm text-slate-300">{String(value)}</span>;
       },
       sortable: false,
       priority: 11,
@@ -79,14 +79,14 @@ export const serviceEnhancer: ResourceEnhancer = {
       },
       render: (value) => {
         if (!value || value === '-') {
-          return <span className="text-gray-400">-</span>;
+          return <span className="text-slate-500">-</span>;
         }
 
         const ports = String(value);
         const shortened = ports.length > 40 ? `${ports.slice(0, 37)}...` : ports;
 
         return (
-          <span className="font-mono text-xs text-gray-700" title={ports}>
+          <span className="font-mono text-xs text-slate-300" title={ports}>
             {shortened}
           </span>
         );
@@ -110,14 +110,14 @@ export const serviceEnhancer: ResourceEnhancer = {
       },
       render: (value) => {
         if (!value || value === '-') {
-          return <span className="text-gray-400">-</span>;
+          return <span className="text-slate-500">-</span>;
         }
 
         const selector = String(value);
         const shortened = selector.length > 35 ? `${selector.slice(0, 32)}...` : selector;
 
         return (
-          <span className="text-xs text-gray-700" title={selector}>
+          <span className="text-xs text-slate-300" title={selector}>
             {shortened}
           </span>
         );

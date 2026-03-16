@@ -12,6 +12,41 @@ function getIcon(iconName?: string) {
   return IconComponent || null;
 }
 
+function getTabTitle(path: string): string {
+  const parts = path.split('/').filter(Boolean);
+
+  // /r/v1~nodes → "Nodes"
+  // /r/apps~v1~deployments → "Deployments"
+  if (parts[0] === 'r' && parts.length >= 2) {
+    const gvrParts = parts[1].split('~');
+    const resource = gvrParts[gvrParts.length - 1];
+    // /r/v1~nodes/_/node-name → "node-name"
+    if (parts.length >= 4) {
+      return parts[parts.length - 1];
+    }
+    return resource.charAt(0).toUpperCase() + resource.slice(1);
+  }
+
+  // /yaml/... → "YAML: name"
+  if (parts[0] === 'yaml' && parts.length >= 4) {
+    return `${parts[parts.length - 1]} (YAML)`;
+  }
+
+  // /logs/ns/name → "name (Logs)"
+  if (parts[0] === 'logs' && parts.length >= 3) {
+    return `${parts[parts.length - 1]} (Logs)`;
+  }
+
+  // /metrics/... → "name (Metrics)"
+  if (parts[0] === 'metrics' && parts.length >= 4) {
+    return `${parts[parts.length - 1]} (Metrics)`;
+  }
+
+  // /timeline, /dashboard, etc.
+  const last = parts[parts.length - 1] || 'Untitled';
+  return last.charAt(0).toUpperCase() + last.slice(1);
+}
+
 export function TabBar() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -34,12 +69,11 @@ export function TabBar() {
         setActiveTab(matchingTab.id);
       }
     } else if (currentPath !== '/pulse') {
-      // Create a new tab for this path (unless it's the default pulse tab)
-      const pathParts = currentPath.split('/').filter(Boolean);
-      const title = pathParts[pathParts.length - 1] || 'Untitled';
+      // Create a new tab for this path
+      const title = getTabTitle(currentPath);
 
       addTab({
-        title: title.charAt(0).toUpperCase() + title.slice(1),
+        title,
         path: currentPath,
         pinned: false,
         closable: true,

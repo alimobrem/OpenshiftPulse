@@ -53,7 +53,7 @@ export const deploymentEnhancer: ResourceEnhancer = {
       render: (value) => {
         const [ready, desired] = String(value).split('/').map(Number);
         const allReady = ready === desired && desired > 0;
-        const color = allReady ? 'text-green-600' : ready > 0 ? 'text-yellow-600' : 'text-red-600';
+        const color = allReady ? 'text-green-400' : ready > 0 ? 'text-yellow-400' : 'text-red-400';
 
         return (
           <span className={`font-mono text-sm ${color} font-semibold`}>
@@ -82,14 +82,14 @@ export const deploymentEnhancer: ResourceEnhancer = {
       },
       render: (value) => {
         if (!value || value === '-') {
-          return <span className="text-gray-400">-</span>;
+          return <span className="text-slate-500">-</span>;
         }
 
         const image = String(value);
         const shortened = image.length > 30 ? `${image.slice(0, 27)}...` : image;
 
         return (
-          <span className="font-mono text-xs text-gray-700" title={image}>
+          <span className="font-mono text-xs text-slate-300" title={image}>
             {shortened}
           </span>
         );
@@ -110,10 +110,10 @@ export const deploymentEnhancer: ResourceEnhancer = {
       },
       render: (value) => {
         if (!value || value === '-') {
-          return <span className="text-gray-400">-</span>;
+          return <span className="text-slate-500">-</span>;
         }
 
-        return <span className="text-sm text-gray-700">{String(value)}</span>;
+        return <span className="text-sm text-slate-300">{String(value)}</span>;
       },
       sortable: false,
       priority: 13,
@@ -132,7 +132,7 @@ export const deploymentEnhancer: ResourceEnhancer = {
           <button
             onClick={() => onAction('scale', { resource, delta: -1 })}
             disabled={status.desired === 0}
-            className="inline-flex items-center px-1.5 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center px-1.5 py-1 text-xs bg-slate-700 text-slate-300 rounded hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
             title="Scale Down"
           >
             <svg
@@ -160,7 +160,7 @@ export const deploymentEnhancer: ResourceEnhancer = {
         const status = getDeploymentStatus(resource);
 
         return (
-          <span className="inline-flex items-center px-2 py-1 text-xs font-mono bg-blue-50 text-blue-700 rounded">
+          <span className="inline-flex items-center px-2 py-1 text-xs font-mono bg-blue-900 text-blue-300 rounded">
             {status.desired}
           </span>
         );
@@ -174,7 +174,7 @@ export const deploymentEnhancer: ResourceEnhancer = {
         return (
           <button
             onClick={() => onAction('scale', { resource, delta: 1 })}
-            className="inline-flex items-center px-1.5 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+            className="inline-flex items-center px-1.5 py-1 text-xs bg-slate-700 text-slate-300 rounded hover:bg-slate-600"
             title="Scale Up"
           >
             <svg
@@ -202,7 +202,7 @@ export const deploymentEnhancer: ResourceEnhancer = {
         return (
           <button
             onClick={() => onAction('restart-rollout', { resource })}
-            className="inline-flex items-center px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded hover:bg-orange-200 ml-2"
+            className="inline-flex items-center px-2 py-1 text-xs bg-orange-900 text-orange-300 rounded hover:bg-orange-800 ml-2"
             title="Restart Rollout"
           >
             <svg

@@ -3,8 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Search, ChevronUp, ChevronDown, Trash2, Tag } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { k8sList } from '../engine/query';
+import { k8sList, k8sPatch, k8sDelete } from '../engine/query';
 import { useClusterStore } from '../store/clusterStore';
+import { useUIStore } from '../store/uiStore';
 import type { K8sResource, ColumnDef } from '../engine/renderers';
 import { getColumnsForResource } from '../engine/enhancers';
 import { getEnhancer } from '../engine/enhancers';
@@ -187,10 +188,65 @@ export default function TableView({ gvrKey, namespace: namespaceProp }: TableVie
     }
   };
 
-  const handleAction = (action: string, payload?: unknown) => {
-    // Handle inline actions from enhancers
-    console.log('Action:', action, payload);
-    // TODO: Implement action handlers (scale, restart, etc.)
+  const addToast = useUIStore((s) => s.addToast);
+  const queryClient = React.useMemo(() => {
+    // Access the query client from the provider
+    return (window as any).__queryClient;
+  }, []);
+
+  const handleAction = async (action: string, payload?: unknown) => {
+    const p = payload as { resource?: any; delta?: number } | undefined;
+    const resource = p?.resource;
+    if (!resource) return;
+
+    const resourceName = resource.metadata?.name || '';
+    const resourceNs = resource.metadata?.namespace;
+    const apiVersion = resource.apiVersion || '';
+    const kind = resource.kind || '';
+
+    // Build API path from resource
+    const [group, version] = apiVersion.includes('/')
+      ? apiVersion.split('/')
+      : ['', apiVersion];
+    let basePath = group ? `/apis/${apiVersion}` : `/api/${version}`;
+    if (resourceNs) basePath += `/namespaces/${resourceNs}`;
+    const plural = kind.toLowerCase() + 's';
+    const resourcePath = `${basePath}/${plural}/${resourceName}`;
+
+    try {
+      if (action === 'restart') {
+        // Delete pod to trigger recreation by controller
+        await k8sDelete(resourcePath);
+        addToast({ type: 'success', title: `Pod "${resourceName}" restarted` });
+      } else if (action === 'restart-rollout') {
+        // Patch deployment with restart annotation
+        await k8sPatch(resourcePath, {
+          spec: { template: { metadata: { annotations: { 'kubectl.kubernetes.io/restartedAt': new Date().toISOString() } } } },
+        });
+        addToast({ type: 'success', title: `Rollout restart triggered for "${resourceName}"` });
+      } else if (action === 'scale') {
+        const delta = p?.delta ?? 0;
+        const currentReplicas = resource.spec?.replicas ?? 0;
+        const newReplicas = Math.max(0, currentReplicas + delta);
+        await k8sPatch(resourcePath, { spec: { replicas: newReplicas } });
+        addToast({ type: 'success', title: `Scaled "${resourceName}" to ${newReplicas} replicas` });
+      } else if (action === 'cordon') {
+        await k8sPatch(resourcePath, { spec: { unschedulable: true } });
+        addToast({ type: 'success', title: `Node "${resourceName}" cordoned` });
+      } else if (action === 'uncordon') {
+        await k8sPatch(resourcePath, { spec: { unschedulable: false } });
+        addToast({ type: 'success', title: `Node "${resourceName}" uncordoned` });
+      } else if (action === 'drain') {
+        await k8sPatch(resourcePath, { spec: { unschedulable: true } });
+        addToast({ type: 'warning', title: `Drain started for "${resourceName}"`, detail: 'Node cordoned. Pod eviction requires manual intervention.' });
+      }
+    } catch (err) {
+      addToast({
+        type: 'error',
+        title: `Action "${action}" failed`,
+        detail: err instanceof Error ? err.message : 'Unknown error',
+      });
+    }
   };
 
   if (error) {
