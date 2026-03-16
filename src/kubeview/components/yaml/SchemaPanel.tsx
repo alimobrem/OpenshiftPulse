@@ -166,7 +166,7 @@ function FieldTree({ field, selectedPath, onSelect, level = 0, searchQuery = '' 
   level?: number;
   searchQuery?: string;
 }) {
-  const [isExpanded, setIsExpanded] = useState(level < 1 || !!searchQuery);
+  const [isExpanded, setIsExpanded] = useState(level < 2 || !!searchQuery);
   const hasChildren = (field.properties && field.properties.length > 0) || (field.items?.properties && field.items.properties.length > 0);
   const isActive = selectedPath === field.path;
   const children = field.properties || field.items?.properties || [];

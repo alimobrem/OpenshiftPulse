@@ -154,7 +154,7 @@ async function fetchOpenAPIV3Schema(
   }
 
   // Parse the schema into our format
-  const fields = parseSchemaObject(schemaObj, '', schemas);
+  const fields = parseSchemaObject(schemaObj, '', schemas, 0, new Set());
 
   return {
     gvk: { group, version, kind },
@@ -208,7 +208,7 @@ async function fetchOpenAPIV2Schema(
     throw new Error(`Schema not found for ${kind} in Swagger`);
   }
 
-  const fields = parseSchemaObject(schemaObj, '', definitions);
+  const fields = parseSchemaObject(schemaObj, '', definitions, 0, new Set());
 
   return {
     gvk: { group, version, kind },
@@ -224,16 +224,23 @@ async function fetchOpenAPIV2Schema(
 function parseSchemaObject(
   obj: SchemaObject,
   basePath: string,
-  definitions: Record<string, SchemaObject>
+  definitions: Record<string, SchemaObject>,
+  depth: number = 0,
+  visited: Set<string> = new Set()
 ): FieldSchema[] {
   const fields: FieldSchema[] = [];
+
+  // Prevent infinite recursion from circular $refs
+  if (depth > 8) return fields;
 
   // Resolve $ref if present
   if (obj.$ref) {
     const refName = obj.$ref.split('/').pop();
-    if (refName && definitions[refName]) {
-      return parseSchemaObject(definitions[refName], basePath, definitions);
+    if (refName && definitions[refName] && !visited.has(refName)) {
+      visited.add(refName);
+      return parseSchemaObject(definitions[refName], basePath, definitions, depth + 1, visited);
     }
+    return fields;
   }
 
   if (!obj.properties) {
@@ -288,13 +295,13 @@ function parseSchemaObject(
 
       // If array items are objects, parse their properties
       if (itemsProp.properties) {
-        field.items.properties = parseSchemaObject(itemsProp, `${path}[]`, definitions);
+        field.items.properties = parseSchemaObject(itemsProp, `${path}[]`, definitions, depth + 1, new Set(visited));
       }
     }
 
     // Handle object properties (but don't recurse too deep)
     if (field.type === 'object' && resolvedProp.properties) {
-      field.properties = parseSchemaObject(resolvedProp, path, definitions);
+      field.properties = parseSchemaObject(resolvedProp, path, definitions, depth + 1, new Set(visited));
     }
 
     fields.push(field);

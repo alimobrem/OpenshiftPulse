@@ -129,6 +129,34 @@ export default function YamlEditor({
   const [sidePanel, setSidePanel] = useState<'none' | 'snippets' | 'help' | 'schema'>('none');
   const [copiedSnippet, setCopiedSnippet] = useState<string | null>(null);
 
+  // Detect kind from YAML for contextual snippets
+  const detectedKind = useMemo(() => {
+    const m = internalValue.match(/^kind:\s*(.+)$/m);
+    return m?.[1]?.trim() || null;
+  }, [internalValue]);
+
+  // Context-aware sub-snippets for the current resource type
+  const contextSnippets = useMemo(() => {
+    const all: Array<{ label: string; description: string; yaml: string; kinds: string[] }> = [
+      { label: 'Container', description: 'Add a container to spec', kinds: ['Deployment', 'StatefulSet', 'DaemonSet', 'Pod', 'Job', 'CronJob'], yaml: '      - name: my-container\n        image: nginx:latest\n        ports:\n        - containerPort: 80' },
+      { label: 'Resource Limits', description: 'CPU and memory limits', kinds: ['Deployment', 'StatefulSet', 'DaemonSet', 'Pod', 'Job'], yaml: '        resources:\n          requests:\n            cpu: 100m\n            memory: 128Mi\n          limits:\n            cpu: 500m\n            memory: 256Mi' },
+      { label: 'Readiness Probe', description: 'HTTP readiness check', kinds: ['Deployment', 'StatefulSet', 'DaemonSet', 'Pod'], yaml: '        readinessProbe:\n          httpGet:\n            path: /healthz\n            port: 8080\n          initialDelaySeconds: 5\n          periodSeconds: 10' },
+      { label: 'Liveness Probe', description: 'HTTP liveness check', kinds: ['Deployment', 'StatefulSet', 'DaemonSet', 'Pod'], yaml: '        livenessProbe:\n          httpGet:\n            path: /healthz\n            port: 8080\n          initialDelaySeconds: 15\n          periodSeconds: 20' },
+      { label: 'Environment Variable', description: 'Add env var', kinds: ['Deployment', 'StatefulSet', 'DaemonSet', 'Pod', 'Job', 'CronJob'], yaml: '        env:\n        - name: MY_VAR\n          value: "my-value"' },
+      { label: 'Env from Secret', description: 'Env from secret key', kinds: ['Deployment', 'StatefulSet', 'DaemonSet', 'Pod', 'Job'], yaml: '        env:\n        - name: DB_PASSWORD\n          valueFrom:\n            secretKeyRef:\n              name: my-secret\n              key: password' },
+      { label: 'Volume Mount', description: 'Mount a ConfigMap/Secret', kinds: ['Deployment', 'StatefulSet', 'DaemonSet', 'Pod', 'Job'], yaml: '        volumeMounts:\n        - name: config-vol\n          mountPath: /etc/config\n      volumes:\n      - name: config-vol\n        configMap:\n          name: my-config' },
+      { label: 'Node Selector', description: 'Schedule on specific nodes', kinds: ['Deployment', 'StatefulSet', 'DaemonSet', 'Pod', 'Job'], yaml: '      nodeSelector:\n        kubernetes.io/os: linux' },
+      { label: 'Toleration', description: 'Tolerate a taint', kinds: ['Deployment', 'StatefulSet', 'DaemonSet', 'Pod'], yaml: '      tolerations:\n      - key: "node-role.kubernetes.io/master"\n        operator: "Exists"\n        effect: "NoSchedule"' },
+      { label: 'Init Container', description: 'Run before main containers', kinds: ['Deployment', 'StatefulSet', 'Pod', 'Job'], yaml: '      initContainers:\n      - name: init\n        image: busybox:latest\n        command: ["sh", "-c", "echo init"]' },
+      { label: 'Service Port', description: 'Add port mapping', kinds: ['Service'], yaml: '  - name: http\n    port: 80\n    targetPort: 8080\n    protocol: TCP' },
+      { label: 'Ingress Rule', description: 'Add HTTP routing rule', kinds: ['Ingress'], yaml: '  - host: example.com\n    http:\n      paths:\n      - path: /\n        pathType: Prefix\n        backend:\n          service:\n            name: my-service\n            port:\n              number: 80' },
+      { label: 'Data Entry', description: 'Add key-value data', kinds: ['ConfigMap', 'Secret'], yaml: '  my-key: my-value' },
+    ];
+
+    if (!detectedKind) return [];
+    return all.filter((s) => s.kinds.includes(detectedKind));
+  }, [detectedKind]);
+
   useEffect(() => { setInternalValue(value); }, [value]);
 
   const hasChanges = useMemo(() => originalValue !== undefined && internalValue !== originalValue, [internalValue, originalValue]);
@@ -271,6 +299,31 @@ export default function YamlEditor({
           <div className="flex-1 overflow-auto">
             {sidePanel === 'snippets' && (
               <div className="p-2 space-y-1">
+                {/* Context-aware sub-snippets based on current YAML */}
+                {detectedKind && (
+                  <>
+                    <div className="px-2 py-1 text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
+                      Add to {detectedKind}
+                    </div>
+                    {contextSnippets.map((cs) => (
+                      <button
+                        key={cs.label}
+                        onClick={() => { handleChange(internalValue + '\n' + cs.yaml); }}
+                        className="w-full flex items-start gap-2 p-2 rounded hover:bg-slate-800 transition-colors text-left"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-slate-200">{cs.label}</div>
+                          <div className="text-xs text-slate-500">{cs.description}</div>
+                        </div>
+                        <Copy className="w-4 h-4 text-slate-500 flex-shrink-0 mt-0.5" />
+                      </button>
+                    ))}
+                    <div className="border-t border-slate-700 my-2" />
+                    <div className="px-2 py-1 text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
+                      Full Resource Templates
+                    </div>
+                  </>
+                )}
                 {snippets.map((snippet) => (
                   <button
                     key={snippet.prefix}
@@ -280,7 +333,6 @@ export default function YamlEditor({
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-slate-200">{snippet.label}</div>
                       <div className="text-xs text-slate-500">{snippet.description}</div>
-                      <div className="text-[10px] text-slate-600 font-mono mt-0.5">prefix: {snippet.prefix}</div>
                     </div>
                     {copiedSnippet === snippet.prefix ? (
                       <Check className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
