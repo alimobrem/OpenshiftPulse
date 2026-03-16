@@ -15,6 +15,7 @@ import {
   RotateCw,
   Plus,
   Minus,
+  GitBranch,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { k8sGet, k8sList, k8sDelete, k8sPatch } from '../engine/query';
@@ -268,6 +269,20 @@ export default function DetailView({ gvrKey, namespace, name }: DetailViewProps)
               >
                 <RotateCw className="w-3 h-3" />
                 Restart
+              </button>
+            )}
+            {namespace && (
+              <button
+                onClick={() => {
+                  const ns = namespace;
+                  const path = `/deps/${gvrUrl}/${ns}/${name}`;
+                  addTab({ title: `${name} (Deps)`, path, pinned: false, closable: true });
+                  navigate(path);
+                }}
+                className="px-3 py-1.5 text-xs bg-slate-800 text-slate-200 rounded hover:bg-slate-700 flex items-center gap-1.5"
+              >
+                <GitBranch className="w-3 h-3" />
+                Dependencies
               </button>
             )}
             <button

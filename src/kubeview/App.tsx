@@ -25,6 +25,7 @@ const MetricsView = lazy(() => import('./views/MetricsView'));
 const CorrelationView = lazy(() => import('./views/CorrelationView'));
 const DashboardView = lazy(() => import('./views/DashboardView'));
 const CreateView = lazy(() => import('./views/CreateView'));
+const DependencyView = lazy(() => import('./views/DependencyView'));
 
 function LoadingFallback() {
   return (
@@ -97,6 +98,17 @@ function CreateRoute() {
   );
 }
 
+function DependencyRoute() {
+  const { gvr, namespace, name } = useParams<{ gvr: string; namespace?: string; name: string }>();
+  if (!gvr || !name) return <Navigate to="/pulse" replace />;
+  const gvrKey = gvr.replace(/~/g, '/');
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <DependencyView gvrKey={gvrKey} namespace={namespace} name={name} />
+    </Suspense>
+  );
+}
+
 function CorrelationRoute() {
   const { gvr, namespace, name } = useParams<{ gvr: string; namespace?: string; name: string }>();
   if (!gvr || !name) return <Navigate to="/pulse" replace />;
@@ -143,6 +155,9 @@ export default function KubeViewApp() {
 
             {/* Correlation view: /investigate/apps~v1~deployments/:namespace/:name */}
             <Route path="investigate/:gvr/:namespace/:name" element={<CorrelationRoute />} />
+
+            {/* Dependencies: /deps/apps~v1~deployments/:namespace/:name */}
+            <Route path="deps/:gvr/:namespace/:name" element={<DependencyRoute />} />
 
             {/* Timeline */}
             <Route path="timeline" element={<TimelineView />} />
