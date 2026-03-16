@@ -19,7 +19,7 @@ function resetStore() {
     connectionStatus: 'connected',
     lastSyncTime: Date.now(),
     activeWatches: 0,
-    selectedNamespace: 'default',
+    selectedNamespace: '*',
     activeOperation: null,
   });
 }
@@ -323,8 +323,8 @@ describe('uiStore', () => {
   // --- Namespace ---
 
   describe('namespace', () => {
-    it('defaults to default', () => {
-      expect(useUIStore.getState().selectedNamespace).toBe('default');
+    it('defaults to all namespaces', () => {
+      expect(useUIStore.getState().selectedNamespace).toBe('*');
     });
 
     it('changes namespace', () => {

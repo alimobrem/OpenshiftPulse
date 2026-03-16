@@ -25,12 +25,16 @@ interface SortState {
 export default function TableView({ gvrKey, namespace: namespaceProp }: TableViewProps) {
   const navigate = useNavigate();
   const resourceRegistry = useClusterStore((s) => s.resourceRegistry);
+  const selectedNamespace = useUIStore((s) => s.selectedNamespace);
 
   // Determine if resource is namespaced
   // Registry uses "core/v1/pods" for core resources, but URL-derived keys are "v1/pods"
   const resourceType = resourceRegistry?.get(gvrKey)
     ?? (gvrKey.split('/').length === 2 ? resourceRegistry?.get(`core/${gvrKey}`) : undefined);
   const isNamespaced = resourceType?.namespaced ?? true;
+
+  // Use prop namespace, or selected namespace for namespaced resources, or undefined for cluster-scoped
+  const activeNamespace = namespaceProp ?? (isNamespaced && selectedNamespace !== '*' ? selectedNamespace : undefined);
 
   // Build API path from GVR key
   const apiPath = React.useMemo(() => {
@@ -49,8 +53,8 @@ export default function TableView({ gvrKey, namespace: namespaceProp }: TableVie
 
   // Fetch resources
   const { data: resources = [], isLoading, error } = useQuery<K8sResource[]>({
-    queryKey: ['table', apiPath, namespaceProp],
-    queryFn: () => k8sList<K8sResource>(apiPath, namespaceProp),
+    queryKey: ['table', apiPath, activeNamespace],
+    queryFn: () => k8sList<K8sResource>(apiPath, activeNamespace),
     enabled: !!apiPath,
     refetchInterval: 30000,
   });
@@ -270,6 +274,7 @@ export default function TableView({ gvrKey, namespace: namespaceProp }: TableVie
             <p className="text-xs text-slate-500 mt-0.5">
               {groupVersion} · {isNamespaced ? 'namespaced' : 'cluster-scoped'} ·{' '}
               {sortedResources.length} found
+              {activeNamespace && ` in ${activeNamespace}`}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -312,7 +317,7 @@ export default function TableView({ gvrKey, namespace: namespaceProp }: TableVie
             <div className="text-center">
               <p className="text-slate-400 text-sm">
                 No {resourceKind.toLowerCase()} found
-                {namespaceProp && ` in ${namespaceProp}`}
+                {activeNamespace && ` in ${activeNamespace}`}
               </p>
               {searchTerm && (
                 <button

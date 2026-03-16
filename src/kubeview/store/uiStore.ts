@@ -248,7 +248,7 @@ export const useUIStore = create<UIState>()(
       setActiveWatches: (count) => set({ activeWatches: count }),
 
       // Namespace
-      selectedNamespace: 'default',
+      selectedNamespace: '*',
       setSelectedNamespace: (ns) => set({ selectedNamespace: ns }),
 
       // Status bar operation
