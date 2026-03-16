@@ -292,10 +292,11 @@ export function autoDetectColumns(resources: K8sResource[]): ColumnDef[] {
   if (resources.length === 0) return [];
 
   const cols: ColumnDef[] = [];
+  const usedHeaders = new Set<string>();
   const sample = resources.slice(0, 5);
 
   // Skip these fields (already shown or not useful in tables)
-  const skip = new Set(['apiVersion', 'kind', 'metadata', '_gvrKey', 'managedFields']);
+  const skip = new Set(['apiVersion', 'kind', 'metadata', '_gvrKey', 'managedFields', 'spec', 'status']);
 
   // Check top-level scalar fields (e.g., "type" on Secrets)
   const topFields = new Set<string>();
@@ -309,8 +310,15 @@ export function autoDetectColumns(resources: K8sResource[]): ColumnDef[] {
     }
   }
 
+  function addCol(col: ColumnDef) {
+    const header = col.header.toLowerCase();
+    if (usedHeaders.has(header)) return;
+    usedHeaders.add(header);
+    cols.push(col);
+  }
+
   for (const field of topFields) {
-    cols.push({
+    addCol({
       id: `top_${field}`,
       header: formatHeader(field),
       accessorFn: (resource) => resource[field] ?? '-',
@@ -346,7 +354,7 @@ export function autoDetectColumns(resources: K8sResource[]): ColumnDef[] {
   });
 
   for (const field of sortedSpecFields.slice(0, 4)) {
-    cols.push({
+    addCol({
       id: `spec_${field}`,
       header: formatHeader(field),
       accessorFn: (resource) => {
@@ -365,6 +373,7 @@ export function autoDetectColumns(resources: K8sResource[]): ColumnDef[] {
     const status = r.status as Record<string, unknown> | undefined;
     if (!status) continue;
     for (const key of Object.keys(status)) {
+      if (statusSkip.has(key)) continue;
       const val = status[key];
       if (val !== null && val !== undefined && typeof val !== 'object') {
         statusFields.add(key);
@@ -372,8 +381,11 @@ export function autoDetectColumns(resources: K8sResource[]): ColumnDef[] {
     }
   }
 
+  // Skip noisy status fields
+  const statusSkip = new Set(['observedGeneration', 'conditions']);
+
   const statusPriority = ['phase', 'ready', 'replicas', 'availableReplicas', 'readyReplicas',
-    'observedGeneration', 'conditions', 'loadBalancer'];
+    'loadBalancer'];
 
   const sortedStatusFields = [...statusFields].sort((a, b) => {
     const ai = statusPriority.indexOf(a);
@@ -382,7 +394,7 @@ export function autoDetectColumns(resources: K8sResource[]): ColumnDef[] {
   });
 
   for (const field of sortedStatusFields.slice(0, 3)) {
-    cols.push({
+    addCol({
       id: `status_${field}`,
       header: formatHeader(field),
       accessorFn: (resource) => {
@@ -398,7 +410,7 @@ export function autoDetectColumns(resources: K8sResource[]): ColumnDef[] {
   // Check data keys count (for ConfigMaps/Secrets-like resources)
   const hasData = sample.some(r => r.data && typeof r.data === 'object');
   if (hasData) {
-    cols.push({
+    addCol({
       id: 'data_keys',
       header: 'Data Keys',
       accessorFn: (resource) => {
