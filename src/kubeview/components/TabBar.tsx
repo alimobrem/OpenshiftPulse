@@ -1,3 +1,4 @@
+import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { X, Plus } from 'lucide-react';
 import * as Icons from 'lucide-react';
@@ -55,8 +56,12 @@ export function TabBar() {
   const activeTabId = useUIStore((s) => s.activeTabId);
   const setActiveTab = useUIStore((s) => s.setActiveTab);
   const closeTab = useUIStore((s) => s.closeTab);
+  const reorderTabs = useUIStore((s) => s.reorderTabs);
   const openCommandPalette = useUIStore((s) => s.openCommandPalette);
   const addTab = useUIStore((s) => s.addTab);
+
+  const [draggedIdx, setDraggedIdx] = React.useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = React.useState<number | null>(null);
 
   // Sync active tab with current route
   useEffect(() => {
@@ -68,7 +73,7 @@ export function TabBar() {
       if (activeTabId !== matchingTab.id) {
         setActiveTab(matchingTab.id);
       }
-    } else if (currentPath !== '/pulse') {
+    } else if (currentPath !== '/pulse' && currentPath !== '/welcome') {
       // Create a new tab for this path
       const title = getTabTitle(currentPath);
 
@@ -111,14 +116,27 @@ export function TabBar() {
 
   return (
     <div className="flex h-9 items-center gap-0.5 border-b border-slate-700 bg-slate-800 px-2">
-      {tabs.map((tab) => {
+      {tabs.map((tab, tabIndex) => {
         const Icon = getIcon(tab.icon);
         const isActive = tab.id === activeTabId;
+        const isDragOver = dragOverIdx === tabIndex && draggedIdx !== tabIndex;
 
         return (
           <div
             key={tab.id}
             role="tab"
+            draggable={!tab.pinned}
+            onDragStart={() => setDraggedIdx(tabIndex)}
+            onDragOver={(e) => { e.preventDefault(); setDragOverIdx(tabIndex); }}
+            onDragLeave={() => setDragOverIdx(null)}
+            onDrop={() => {
+              if (draggedIdx !== null && draggedIdx !== tabIndex) {
+                reorderTabs(draggedIdx, tabIndex);
+              }
+              setDraggedIdx(null);
+              setDragOverIdx(null);
+            }}
+            onDragEnd={() => { setDraggedIdx(null); setDragOverIdx(null); }}
             onClick={() => handleTabClick(tab.id)}
             onMouseDown={(e) => handleMiddleClick(e, tab.id)}
             className={cn(
@@ -126,7 +144,9 @@ export function TabBar() {
               tab.pinned ? 'min-w-0 px-2' : 'min-w-[100px] max-w-[200px]',
               isActive
                 ? 'bg-slate-900 text-slate-100 shadow-sm'
-                : 'text-slate-400 hover:bg-slate-700 hover:text-slate-200'
+                : 'text-slate-400 hover:bg-slate-700 hover:text-slate-200',
+              isDragOver && 'border-l-2 border-blue-500',
+              draggedIdx === tabIndex && 'opacity-50'
             )}
           >
             {/* Icon */}

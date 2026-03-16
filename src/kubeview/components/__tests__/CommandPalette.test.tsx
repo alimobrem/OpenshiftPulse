@@ -223,15 +223,15 @@ describe('OpenShiftView CommandPalette', () => {
 
   it('keyboard navigation cycles through items', () => {
     renderPalette();
-    // First 3 items are pages (Pulse, Timeline, Dashboard), then resources
-    // down, down, up = index 1 (Timeline)
+    // First items are pages (Welcome, Pulse, Timeline, ...), then resources
+    // down, down, up = index 1 (Cluster Pulse)
     fireEvent.keyDown(window, { key: 'ArrowDown' });
     fireEvent.keyDown(window, { key: 'ArrowDown' });
     fireEvent.keyDown(window, { key: 'ArrowUp' });
     fireEvent.keyDown(window, { key: 'Enter' });
     expect(addTabMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        path: '/timeline',
+        path: '/pulse',
       }),
     );
   });

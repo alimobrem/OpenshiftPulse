@@ -187,6 +187,7 @@ function getCommandItems(
 
     // Built-in pages (always shown first)
     const builtinPages: CommandItem[] = [
+      { type: 'nav', id: 'welcome', title: 'Welcome', subtitle: 'Getting started guide', icon: 'Home', path: '/welcome' },
       { type: 'nav', id: 'pulse', title: 'Cluster Pulse', subtitle: 'Health overview', icon: 'Activity', path: '/pulse' },
       { type: 'nav', id: 'timeline', title: 'Timeline', subtitle: 'Cluster event feed', icon: 'Clock', path: '/timeline' },
       { type: 'nav', id: 'dashboard', title: 'Dashboard', subtitle: 'Grafana-style panels', icon: 'LayoutDashboard', path: '/dashboard' },

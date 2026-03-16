@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Suspense, lazy } from 'react';
 import { Shell } from './components/Shell';
 import PulseView from './views/PulseView';
+import WelcomeView from './views/WelcomeView';
 import TableView from './views/TableView';
 import DetailView from './views/DetailView';
 import TimelineView from './views/TimelineView';
@@ -128,7 +129,8 @@ export default function OpenShiftViewApp() {
         <Routes>
           <Route path="/" element={<Shell />}>
             {/* Home */}
-            <Route index element={<Navigate to="/pulse" replace />} />
+            <Route index element={<Navigate to="/welcome" replace />} />
+            <Route path="welcome" element={<WelcomeView />} />
             <Route path="pulse" element={<PulseView />} />
 
             {/* Resource list: /r/apps~v1~deployments */}

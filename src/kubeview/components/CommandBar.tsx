@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Search, ChevronDown } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, ChevronDown, Home } from 'lucide-react';
 import { useUIStore } from '../store/uiStore';
 import { cn } from '@/lib/utils';
 
 export function CommandBar() {
+  const navigate = useNavigate();
   const [clusterName, setClusterName] = useState('cluster');
   const [namespaces, setNamespaces] = useState<string[]>([]);
   const [showNsDropdown, setShowNsDropdown] = useState(false);
@@ -45,7 +47,16 @@ export function CommandBar() {
 
   return (
     <div className="flex h-10 items-center justify-between border-b border-slate-700 bg-slate-800 px-4">
-      {/* Left: Search input */}
+      {/* Left: Home + Search */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => navigate('/welcome')}
+          className="flex items-center gap-1.5 text-slate-400 hover:text-blue-400 transition-colors"
+          title="Home"
+        >
+          <Home className="h-4 w-4" />
+          <span className="text-xs font-semibold hidden sm:inline">OpenShiftView</span>
+        </button>
       <button
         onClick={openCommandPalette}
         className="flex h-7 w-80 items-center gap-2 rounded border border-slate-600 bg-slate-900 px-3 text-sm text-slate-400 transition-colors hover:border-slate-500 hover:text-slate-300"
@@ -54,6 +65,7 @@ export function CommandBar() {
         <span className="flex-1 text-left">Search anything...</span>
         <kbd className="rounded bg-slate-700 px-1.5 py-0.5 text-xs text-slate-300">⌘K</kbd>
       </button>
+      </div>
 
       {/* Right: Cluster context and user */}
       <div className="flex items-center gap-4 text-sm">
