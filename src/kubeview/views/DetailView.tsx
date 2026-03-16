@@ -13,10 +13,11 @@ import {
   FileCode,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { k8sGet, k8sList } from '../engine/query';
+import { k8sGet, k8sList, k8sDelete } from '../engine/query';
 import type { K8sResource } from '../engine/renderers';
 import { diagnoseResource, type Diagnosis } from '../engine/diagnosis';
 import { buildApiPath } from '../hooks/useResourceUrl';
+import { useUIStore } from '../store/uiStore';
 
 interface DetailViewProps {
   gvrKey: string;
@@ -26,6 +27,11 @@ interface DetailViewProps {
 
 export default function DetailView({ gvrKey, namespace, name }: DetailViewProps) {
   const navigate = useNavigate();
+  const addTab = useUIStore((s) => s.addTab);
+  const addToast = useUIStore((s) => s.addToast);
+
+  // Build GVR URL segment for navigation
+  const gvrUrl = gvrKey.replace(/\//g, '~');
 
   // Build API path for this specific resource
   const apiPath = React.useMemo(
@@ -104,10 +110,44 @@ export default function DetailView({ gvrKey, namespace, name }: DetailViewProps)
     // TODO: Implement fix application using k8sPatch
   };
 
-  const handleDelete = () => {
-    console.log('Delete resource:', resource);
-    // TODO: Implement delete with confirmation
-    navigate(-1);
+  const handleDelete = async () => {
+    if (!resource) return;
+    const confirmed = window.confirm(`Delete ${resource.kind} "${resource.metadata.name}"?`);
+    if (!confirmed) return;
+
+    try {
+      await k8sDelete(apiPath);
+      addToast({ type: 'success', title: `${resource.kind} "${resource.metadata.name}" deleted` });
+      // Navigate back to list
+      navigate(`/r/${gvrUrl}`);
+    } catch (err) {
+      addToast({
+        type: 'error',
+        title: 'Delete failed',
+        detail: err instanceof Error ? err.message : 'Unknown error',
+      });
+    }
+  };
+
+  const handleViewYaml = () => {
+    const ns = namespace || '_';
+    const path = `/yaml/${gvrUrl}/${ns}/${name}`;
+    addTab({ title: `${name} (YAML)`, path, pinned: false, closable: true });
+    navigate(path);
+  };
+
+  const handleViewLogs = () => {
+    if (!namespace) return;
+    const path = `/logs/${namespace}/${name}`;
+    addTab({ title: `${name} (Logs)`, path, pinned: false, closable: true });
+    navigate(path);
+  };
+
+  const handleViewMetrics = () => {
+    const ns = namespace || '_';
+    const path = `/metrics/${gvrUrl}/${ns}/${name}`;
+    addTab({ title: `${name} (Metrics)`, path, pinned: false, closable: true });
+    navigate(path);
   };
 
   if (error) {
@@ -153,19 +193,26 @@ export default function DetailView({ gvrKey, namespace, name }: DetailViewProps)
             </p>
           </div>
           <div className="flex gap-2">
-            {resource.kind === 'Pod' && (
-              <>
-                <button className="px-3 py-1.5 text-xs bg-slate-800 text-slate-200 rounded hover:bg-slate-700 flex items-center gap-1.5">
-                  <FileText className="w-3 h-3" />
-                  Logs
-                </button>
-                <button className="px-3 py-1.5 text-xs bg-slate-800 text-slate-200 rounded hover:bg-slate-700 flex items-center gap-1.5">
-                  <Terminal className="w-3 h-3" />
-                  Terminal
-                </button>
-              </>
+            {resource.kind === 'Pod' && namespace && (
+              <button
+                onClick={handleViewLogs}
+                className="px-3 py-1.5 text-xs bg-slate-800 text-slate-200 rounded hover:bg-slate-700 flex items-center gap-1.5"
+              >
+                <FileText className="w-3 h-3" />
+                Logs
+              </button>
             )}
-            <button className="px-3 py-1.5 text-xs bg-slate-800 text-slate-200 rounded hover:bg-slate-700 flex items-center gap-1.5">
+            <button
+              onClick={handleViewMetrics}
+              className="px-3 py-1.5 text-xs bg-slate-800 text-slate-200 rounded hover:bg-slate-700 flex items-center gap-1.5"
+            >
+              <Activity className="w-3 h-3" />
+              Metrics
+            </button>
+            <button
+              onClick={handleViewYaml}
+              className="px-3 py-1.5 text-xs bg-slate-800 text-slate-200 rounded hover:bg-slate-700 flex items-center gap-1.5"
+            >
               <FileCode className="w-3 h-3" />
               YAML
             </button>
