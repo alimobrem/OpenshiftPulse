@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Search, ChevronUp, ChevronDown, Trash2, Tag } from 'lucide-react';
+import { Search, ChevronUp, ChevronDown, Trash2, Tag, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { k8sList, k8sPatch, k8sDelete } from '../engine/query';
 import { useClusterStore } from '../store/clusterStore';
@@ -26,6 +26,7 @@ export default function TableView({ gvrKey, namespace: namespaceProp }: TableVie
   const navigate = useNavigate();
   const resourceRegistry = useClusterStore((s) => s.resourceRegistry);
   const selectedNamespace = useUIStore((s) => s.selectedNamespace);
+  const addTab = useUIStore((s) => s.addTab);
 
   // Determine if resource is namespaced
   // Registry uses "core/v1/pods" for core resources, but URL-derived keys are "v1/pods"
@@ -278,6 +279,19 @@ export default function TableView({ gvrKey, namespace: namespaceProp }: TableVie
             </p>
           </div>
           <div className="flex items-center gap-2">
+            {/* Create button */}
+            <button
+              onClick={() => {
+                const gvrUrl = gvrKey.replace(/\//g, '~');
+                const path = `/create/${gvrUrl}`;
+                addTab({ title: `Create ${resourceKind}`, path, pinned: false, closable: true });
+                navigate(path);
+              }}
+              className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-500 flex items-center gap-1.5 font-medium"
+            >
+              <Plus className="w-3 h-3" />
+              Create
+            </button>
             {/* Batch actions when items selected */}
             {selectedRows.size > 0 && (
               <div className="flex items-center gap-2 mr-4">

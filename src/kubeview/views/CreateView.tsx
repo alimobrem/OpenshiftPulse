@@ -39,7 +39,7 @@ export default function CreateView({ gvrKey }: CreateViewProps) {
       `kind: ${kind}`,
       'metadata:',
       `  name: my-${shortName}`,
-      resourceType?.namespaced ? `  namespace: ${selectedNamespace !== 'all' ? selectedNamespace : 'default'}` : null,
+      resourceType?.namespaced ? `  namespace: ${selectedNamespace !== '*' && selectedNamespace !== 'all' ? selectedNamespace : 'default'}` : null,
       'spec: {}',
     ].filter(Boolean).join('\n');
   }, [gvrKey, kind, selectedNamespace, resourceType]);
@@ -54,8 +54,8 @@ export default function CreateView({ gvrKey }: CreateViewProps) {
     try {
       // Determine namespace from YAML content
       const nsMatch = yaml.match(/namespace:\s*(\S+)/);
-      const ns = nsMatch?.[1] || (resourceType?.namespaced ? selectedNamespace : undefined);
-      const apiPath = buildApiPath(gvrKey, ns !== 'all' ? ns : undefined);
+      const ns = nsMatch?.[1] || (resourceType?.namespaced ? (selectedNamespace !== '*' ? selectedNamespace : 'default') : undefined);
+      const apiPath = buildApiPath(gvrKey, ns);
 
       const res = await fetch(`/api/kubernetes${apiPath}`, {
         method: 'POST',
