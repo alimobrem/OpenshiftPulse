@@ -213,7 +213,7 @@ function getCommandItems(
       { type: 'nav', id: 'compute', title: 'Compute', subtitle: 'Nodes, machines, cluster capacity', icon: 'Server', path: '/compute' },
       { type: 'nav', id: 'storage', title: 'Storage', subtitle: 'PVs, PVCs, StorageClasses', icon: 'HardDrive', path: '/storage' },
       { type: 'nav', id: 'access-control', title: 'Access Control', subtitle: 'RBAC roles, bindings, service accounts', icon: 'Shield', path: '/access-control' },
-      { type: 'nav', id: 'operators', title: 'Operators', subtitle: 'ClusterOperator health & versions', icon: 'Puzzle', path: '/operators' },
+      { type: 'nav', id: 'operators', title: 'Operators', subtitle: 'ClusterOperator health & versions', icon: 'Puzzle', path: '/admin' },
       { type: 'nav', id: 'alerts', title: 'Alerts', subtitle: 'Prometheus alerts, rules, silences', icon: 'Bell', path: '/alerts' },
       { type: 'nav', id: 'admin', title: 'Administration', subtitle: 'Cluster settings, nodes, CRDs, quotas', icon: 'Settings', path: '/admin' },
       { type: 'nav', id: 'troubleshoot', title: 'Troubleshoot', subtitle: 'Auto-diagnose cluster issues', icon: 'Stethoscope', path: '/troubleshoot' },

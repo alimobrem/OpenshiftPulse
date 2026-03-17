@@ -111,7 +111,7 @@ describe('AdminView', () => {
 
   it('shows operators summary panel on overview', () => {
     renderAdmin();
-    expect(screen.getByText(/Operators/)).toBeDefined();
+    expect(screen.getAllByText(/Operators/).length).toBeGreaterThanOrEqual(1);
     // With 0 operators loaded, shows "0 healthy"
     expect(screen.getByText(/0 healthy/)).toBeDefined();
   });

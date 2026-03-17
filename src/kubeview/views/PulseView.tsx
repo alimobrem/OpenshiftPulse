@@ -164,7 +164,7 @@ export default function PulseView() {
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatCard label="Nodes" value={`${healthyNodes}/${nodes.length}`} icon={<Server className="w-4 h-4" />} issues={unreadyNodes.length + pressureNodes.length} onClick={() => go('/r/v1~nodes', 'Nodes')} />
-          <StatCard label="Operators" value={`${operators.length - degradedOperators.length}/${operators.length}`} icon={<Puzzle className="w-4 h-4" />} issues={degradedOperators.length} onClick={() => go('/operators', 'Operators')} />
+          <StatCard label="Operators" value={`${operators.length - degradedOperators.length}/${operators.length}`} icon={<Puzzle className="w-4 h-4" />} issues={degradedOperators.length} onClick={() => go('/admin', 'Administration')} />
           <StatCard label="CPU" value={cpuPercent !== null ? `${Math.round(cpuPercent)}%` : '—'} icon={<Cpu className="w-4 h-4" />} issues={cpuPercent !== null && cpuPercent > 80 ? 1 : 0} />
           <StatCard label="Memory" value={memPercent !== null ? `${Math.round(memPercent)}%` : '—'} icon={<Activity className="w-4 h-4" />} issues={memPercent !== null && memPercent > 80 ? 1 : 0} />
         </div>

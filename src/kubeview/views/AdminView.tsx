@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Settings, Server, Puzzle, FileCode, Shield, Database, ArrowRight,
   CheckCircle, XCircle, RefreshCw, Download, Upload, GitCompare, Loader2, Minus,
-  ArrowUpCircle, AlertTriangle,
+  ArrowUpCircle, AlertTriangle, AlertCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { k8sList, k8sGet, k8sPatch } from '../engine/query';
@@ -13,7 +13,7 @@ import { useUIStore } from '../store/uiStore';
 import { K8S_BASE as BASE } from '../engine/gvr';
 import ClusterConfig from '../components/ClusterConfig';
 
-type Tab = 'overview' | 'config' | 'updates' | 'snapshots' | 'quotas';
+type Tab = 'overview' | 'operators' | 'config' | 'updates' | 'snapshots' | 'quotas';
 
 // --- Snapshot types & logic (merged from ConfigCompareView) ---
 
@@ -359,8 +359,12 @@ export default function AdminView() {
   const changedCount = diff?.filter(r => r.changed).length ?? 0;
   const displayRows = diff && showOnlyChanges ? diff.filter(r => r.changed) : diff;
 
+  // Operator stats
+  const opDegradedCount = operators.filter((o: any) => o.status?.conditions?.find((c: any) => c.type === 'Degraded' && c.status === 'True')).length;
+
   const tabs: Array<{ id: Tab; label: string; icon: React.ReactNode }> = [
     { id: 'overview', label: 'Overview', icon: <Settings className="w-3.5 h-3.5" /> },
+    { id: 'operators', label: `Operators (${operators.length})${opDegradedCount > 0 ? ` · ${opDegradedCount} degraded` : ''}`, icon: <Puzzle className="w-3.5 h-3.5" /> },
     { id: 'config', label: 'Cluster Config', icon: <Database className="w-3.5 h-3.5" /> },
     { id: 'updates', label: `Updates${availableUpdates.length > 0 ? ` (${availableUpdates.length})` : ''}`, icon: <ArrowUpCircle className="w-3.5 h-3.5" /> },
     { id: 'snapshots', label: `Snapshots (${savedSnapshots.length})`, icon: <GitCompare className="w-3.5 h-3.5" /> },
@@ -469,6 +473,66 @@ export default function AdminView() {
             </div>
           </>
         )}
+
+        {/* ===== OPERATORS ===== */}
+        {activeTab === 'operators' && (() => {
+          const operatorList = operators.map((co: any) => {
+            const conditions = co.status?.conditions || [];
+            const available = conditions.find((c: any) => c.type === 'Available')?.status === 'True';
+            const degraded = conditions.find((c: any) => c.type === 'Degraded')?.status === 'True';
+            const progressing = conditions.find((c: any) => c.type === 'Progressing')?.status === 'True';
+            const version = co.status?.versions?.find((v: any) => v.name === 'operator')?.version || '';
+            const message = degraded ? conditions.find((c: any) => c.type === 'Degraded')?.message || '' : progressing ? conditions.find((c: any) => c.type === 'Progressing')?.message || '' : '';
+            return { name: co.metadata.name, available, degraded, progressing, version, message };
+          }).sort((a: any, b: any) => {
+            if (a.degraded && !b.degraded) return -1;
+            if (!a.degraded && b.degraded) return 1;
+            if (a.progressing && !b.progressing) return -1;
+            return a.name.localeCompare(b.name);
+          });
+          const degradedOps = operatorList.filter((o: any) => o.degraded);
+          const progressingOps = operatorList.filter((o: any) => o.progressing);
+          const availableOps = operatorList.filter((o: any) => o.available && !o.degraded);
+
+          return (
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-slate-900 rounded-lg border border-slate-800 p-3">
+                  <div className="flex items-center gap-2 text-green-400 mb-1"><CheckCircle className="w-4 h-4" /><span className="text-xs">Available</span></div>
+                  <div className="text-xl font-bold text-slate-100">{availableOps.length}</div>
+                </div>
+                <div className={cn('bg-slate-900 rounded-lg border p-3', degradedOps.length > 0 ? 'border-red-800' : 'border-slate-800')}>
+                  <div className="flex items-center gap-2 text-red-400 mb-1"><XCircle className="w-4 h-4" /><span className="text-xs">Degraded</span></div>
+                  <div className="text-xl font-bold text-slate-100">{degradedOps.length}</div>
+                </div>
+                <div className={cn('bg-slate-900 rounded-lg border p-3', progressingOps.length > 0 ? 'border-yellow-800' : 'border-slate-800')}>
+                  <div className="flex items-center gap-2 text-yellow-400 mb-1"><RefreshCw className="w-4 h-4" /><span className="text-xs">Progressing</span></div>
+                  <div className="text-xl font-bold text-slate-100">{progressingOps.length}</div>
+                </div>
+              </div>
+              <div className="bg-slate-900 rounded-lg border border-slate-800">
+                <div className="divide-y divide-slate-800">
+                  {operatorList.map((op: any) => (
+                    <div key={op.name} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-800/50 cursor-pointer transition-colors" onClick={() => go(`/r/config.openshift.io~v1~clusteroperators/_/${op.name}`, op.name)}>
+                      {op.degraded ? <XCircle className="w-4 h-4 text-red-500 shrink-0" /> :
+                       op.progressing ? <RefreshCw className="w-4 h-4 text-yellow-500 shrink-0 animate-spin" /> :
+                       op.available ? <CheckCircle className="w-4 h-4 text-green-500 shrink-0" /> :
+                       <AlertCircle className="w-4 h-4 text-slate-500 shrink-0" />}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-slate-200">{op.name}</span>
+                          {op.version && <span className="text-xs text-slate-500 font-mono">{op.version}</span>}
+                        </div>
+                        {op.message && <div className="text-xs text-slate-400 mt-0.5 line-clamp-1">{op.message}</div>}
+                      </div>
+                      <ArrowRight className="w-3 h-3 text-slate-600 shrink-0" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ===== CLUSTER CONFIG ===== */}
         {activeTab === 'config' && <ClusterConfig />}
