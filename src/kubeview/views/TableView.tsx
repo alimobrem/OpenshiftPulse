@@ -1,5 +1,5 @@
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Search, ChevronUp, ChevronDown, Trash2, Tag, Plus, Filter, Columns3, X, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -27,6 +27,7 @@ interface SortState {
 
 export default function TableView({ gvrKey, namespace: namespaceProp }: TableViewProps) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const resourceRegistry = useClusterStore((s) => s.resourceRegistry);
   const selectedNamespace = useUIStore((s) => s.selectedNamespace);
   const addTab = useUIStore((s) => s.addTab);
@@ -326,6 +327,7 @@ export default function TableView({ gvrKey, namespace: namespaceProp }: TableVie
         await k8sPatch(resourcePath, { spec: { unschedulable: true } });
         addToast({ type: 'warning', title: `Drain started for "${resourceName}"`, detail: 'Node cordoned. Pod eviction requires manual intervention.' });
       }
+      queryClient.invalidateQueries({ queryKey: ['k8s', 'list'] });
     } catch (err) {
       addToast({
         type: 'error',
@@ -403,12 +405,13 @@ export default function TableView({ gvrKey, namespace: namespaceProp }: TableVie
     }
 
     setSelectedRows(new Set());
+    queryClient.invalidateQueries({ queryKey: ['k8s', 'list'] });
     if (failed > 0) {
       addToast({ type: 'warning', title: `Deleted ${deleted}, failed ${failed}`, detail: `${failed} resource${failed !== 1 ? 's' : ''} could not be deleted` });
     } else {
       addToast({ type: 'success', title: `Deleted ${deleted} resource${deleted !== 1 ? 's' : ''}` });
     }
-  }, [selectedRows, stampedResources, addToast]);
+  }, [selectedRows, stampedResources, addToast, queryClient]);
 
   // Row click: single = preview, double = navigate
   const handleRowClick = React.useCallback((resource: K8sResource, e: React.MouseEvent) => {
