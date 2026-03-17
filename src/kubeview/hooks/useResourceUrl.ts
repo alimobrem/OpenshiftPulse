@@ -63,11 +63,13 @@ export function buildApiPath(gvrKey: string, namespace?: string, name?: string):
  * Works for any resource returned by the API — no GVR key needed.
  */
 export function buildApiPathFromResource(resource: {
-  apiVersion: string;
-  kind: string;
+  apiVersion?: string;
+  kind?: string;
   metadata: { name: string; namespace?: string };
 }): string {
-  const { apiVersion, kind, metadata } = resource;
+  const apiVersion = resource.apiVersion || 'v1';
+  const kind = resource.kind || 'Unknown';
+  const metadata = resource.metadata;
   const [group, version] = apiVersion.includes('/')
     ? apiVersion.split('/')
     : ['', apiVersion];
