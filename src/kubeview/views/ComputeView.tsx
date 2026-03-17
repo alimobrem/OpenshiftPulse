@@ -398,15 +398,31 @@ export default function ComputeView() {
             </div>
             <div className="p-4 space-y-3">
               {clusterAutoscaler.length === 0 && machineAutoscalers.length === 0 ? (
-                <div className="text-center py-4">
-                  <div className="text-sm text-slate-500 mb-2">Autoscaling is not configured</div>
-                  <div className="text-xs text-slate-600">Create a ClusterAutoscaler and MachineAutoscaler resources to enable automatic node scaling based on workload demand.</div>
-                  <div className="flex items-center justify-center gap-3 mt-3">
-                    <button onClick={() => go('/create/autoscaling.openshift.io~v1~clusterautoscalers', 'Create ClusterAutoscaler')} className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
+                <div className="py-3 space-y-4">
+                  <div className="text-sm text-slate-400">Autoscaling is not configured</div>
+
+                  <div className="space-y-3 text-xs text-slate-500">
+                    <div className="flex gap-3">
+                      <span className="text-blue-400 font-bold shrink-0">Step 1</span>
+                      <div>
+                        <div className="text-slate-300 font-medium">Create a ClusterAutoscaler</div>
+                        <div>Sets cluster-wide limits: max total nodes, max cores, max memory. Only one per cluster.</div>
+                      </div>
+                    </div>
+                    <div className="flex gap-3">
+                      <span className="text-blue-400 font-bold shrink-0">Step 2</span>
+                      <div>
+                        <div className="text-slate-300 font-medium">Create MachineAutoscalers (one per MachineSet)</div>
+                        <div>Sets min/max replicas per MachineSet. The autoscaler adds nodes when pods are pending due to insufficient resources, and removes them when utilization is low.</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => go('/create/autoscaling.openshift.io~v1~clusterautoscalers', 'Create ClusterAutoscaler')} className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-500 flex items-center gap-1">
                       Create ClusterAutoscaler <ArrowRight className="w-3 h-3" />
                     </button>
-                    <span className="text-slate-700">·</span>
-                    <button onClick={() => go('/create/autoscaling.openshift.io~v1beta1~machineautoscalers', 'Create MachineAutoscaler')} className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
+                    <button onClick={() => go('/create/autoscaling.openshift.io~v1beta1~machineautoscalers', 'Create MachineAutoscaler')} className="px-3 py-1.5 text-xs bg-slate-800 text-slate-200 rounded hover:bg-slate-700 flex items-center gap-1">
                       Create MachineAutoscaler <ArrowRight className="w-3 h-3" />
                     </button>
                   </div>

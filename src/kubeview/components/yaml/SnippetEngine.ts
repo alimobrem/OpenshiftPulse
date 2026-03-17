@@ -235,6 +235,47 @@ spec:
     - protocol: TCP
       port: \${10:8080}`,
   },
+  {
+    prefix: 'clusterautoscaler',
+    label: 'ClusterAutoscaler',
+    description: 'Enable cluster-wide node autoscaling',
+    body: `apiVersion: autoscaling.openshift.io/v1
+kind: ClusterAutoscaler
+metadata:
+  name: default
+spec:
+  resourceLimits:
+    maxNodesTotal: \${1:24}
+    cores:
+      min: \${2:8}
+      max: \${3:128}
+    memory:
+      min: \${4:32}
+      max: \${5:512}
+  scaleDown:
+    enabled: true
+    delayAfterAdd: \${6:10m}
+    delayAfterDelete: \${7:5m}
+    unneededTime: \${8:5m}
+  logVerbosity: 4`,
+  },
+  {
+    prefix: 'machineautoscaler',
+    label: 'MachineAutoscaler',
+    description: 'Set min/max replicas for a MachineSet',
+    body: `apiVersion: autoscaling.openshift.io/v1beta1
+kind: MachineAutoscaler
+metadata:
+  name: \${1:worker-us-east-1a}
+  namespace: openshift-machine-api
+spec:
+  minReplicas: \${2:1}
+  maxReplicas: \${3:6}
+  scaleTargetRef:
+    apiVersion: machine.openshift.io/v1beta1
+    kind: MachineSet
+    name: \${4:my-cluster-worker-us-east-1a}`,
+  },
 ];
 
 /**
