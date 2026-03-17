@@ -351,19 +351,26 @@ export default function OperatorCatalogView() {
   );
 
   // Fetch CSV for installed operator to get provided APIs
-  const selectedSub = selectedOp ? subscriptions.find((s: any) => (s.spec?.name || s.metadata?.name) === selectedOp.metadata.name) : null;
+  // Fetch subscription directly for selected operator (don't rely on readiness cache)
+  const { data: selectedSub } = useQuery({
+    queryKey: ['operator-sub', selectedOp?.metadata?.name],
+    queryFn: async () => {
+      if (!selectedOp) return null;
+      const allSubs = await k8sList<any>('/apis/operators.coreos.com/v1alpha1/subscriptions');
+      return allSubs.find((s: any) => (s.spec?.name || s.metadata?.name) === selectedOp.metadata.name) || null;
+    },
+    enabled: !!selectedOp,
+    staleTime: 15000,
+  });
+
   const installedCsvName = selectedSub?.status?.installedCSV;
   const installedCsvNs = selectedSub?.metadata?.namespace;
 
   const { data: installedCsv } = useQuery({
     queryKey: ['csv-detail', installedCsvName, installedCsvNs],
-    queryFn: async () => {
-      if (!installedCsvName || !installedCsvNs) return null;
-      return k8sGet<any>(`/apis/operators.coreos.com/v1alpha1/namespaces/${installedCsvNs}/clusterserviceversions/${installedCsvName}`).catch(() => null);
-    },
+    queryFn: () => k8sGet<any>(`/apis/operators.coreos.com/v1alpha1/namespaces/${installedCsvNs}/clusterserviceversions/${installedCsvName}`).catch(() => null),
     enabled: !!installedCsvName && !!installedCsvNs,
     staleTime: 30000,
-    refetchOnMount: true,
   });
 
   const providedApis = useMemo(() => {
