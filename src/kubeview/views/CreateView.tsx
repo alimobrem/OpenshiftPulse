@@ -14,6 +14,7 @@ import { useNavigateTab } from '../hooks/useNavigateTab';
 import YamlEditor from '../components/yaml/YamlEditor';
 import { snippets, resolveSnippet, getSnippetSuggestions, type Snippet } from '../components/yaml/SnippetEngine';
 import { K8S_BASE as BASE } from '../engine/gvr';
+import DeployProgress from '../components/DeployProgress';
 
 interface CreateViewProps {
   gvrKey: string;
@@ -248,6 +249,7 @@ function QuickDeployTab() {
   const [replicas, setReplicas] = useState('1');
   const [createRoute, setCreateRoute] = useState(true);
   const [deploying, setDeploying] = useState(false);
+  const [deployedApp, setDeployedApp] = useState<{ name: string; ns: string } | null>(null);
 
   const ns = selectedNamespace !== '*' ? selectedNamespace : 'default';
 
@@ -326,8 +328,8 @@ function QuickDeployTab() {
         }
       }
 
-      addToast({ type: 'success', title: `Application "${name}" deployed`, detail: `${replicas} replica(s) in ${ns}` });
-      go(`/r/apps~v1~deployments/${ns}/${name.trim()}`, name.trim());
+      addToast({ type: 'success', title: `Application "${name}" created`, detail: `Watching rollout in ${ns}` });
+      setDeployedApp({ name: name.trim(), ns });
     } catch (err) {
       addToast({ type: 'error', title: 'Deploy failed', detail: err instanceof Error ? err.message : 'Unknown error' });
     }
@@ -336,6 +338,16 @@ function QuickDeployTab() {
 
   return (
     <div className="space-y-6">
+      {/* Deploy progress */}
+      {deployedApp && (
+        <DeployProgress
+          type="deployment"
+          name={deployedApp.name}
+          namespace={deployedApp.ns}
+          onClose={() => setDeployedApp(null)}
+        />
+      )}
+
       <div className="bg-slate-900 rounded-lg border border-slate-800 p-6 space-y-4">
         <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
           <Image className="w-4 h-4 text-blue-400" />
@@ -408,6 +420,7 @@ function HelmTab() {
   const [installing, setInstalling] = useState<string | null>(null);
   const [releaseName, setReleaseName] = useState('');
   const [selectedChart, setSelectedChart] = useState<HelmChart | null>(null);
+  const [installedJob, setInstalledJob] = useState<{ name: string; ns: string } | null>(null);
 
   const ns = selectedNamespace !== '*' ? selectedNamespace : 'default';
 
@@ -489,6 +502,7 @@ function HelmTab() {
       }
 
       addToast({ type: 'success', title: `Helm install started`, detail: `${selectedChart.name} as "${releaseName}" in ${ns}` });
+      setInstalledJob({ name: `helm-install-${releaseName.trim()}`, ns });
       setSelectedChart(null);
       setReleaseName('');
     } catch (err) {
@@ -499,6 +513,16 @@ function HelmTab() {
 
   return (
     <div className="space-y-6">
+      {/* Install progress */}
+      {installedJob && (
+        <DeployProgress
+          type="job"
+          name={installedJob.name}
+          namespace={installedJob.ns}
+          onClose={() => setInstalledJob(null)}
+        />
+      )}
+
       {/* Installed releases */}
       {helmReleases.length > 0 && (
         <div className="bg-slate-900 rounded-lg border border-slate-800 p-4">
