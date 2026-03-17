@@ -294,34 +294,78 @@ export default function TroubleshootView() {
           </>
         )}
 
-        {/* Runbooks tab */}
+        {/* Runbooks tab — interactive with affected resources */}
         {activeTab === 'runbooks' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {runbooks.map((rb) => (
-              <div key={rb.id} className={cn('bg-slate-900 rounded-lg border', rb.count > 0 ? (rb.severity === 'critical' ? 'border-red-900/50' : 'border-yellow-900/50') : 'border-slate-800')}>
-                <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
-                    <span>{rb.icon}</span>
-                    {rb.title}
-                  </h3>
-                  {rb.count > 0 ? (
-                    <span className={cn('text-xs px-2 py-0.5 rounded font-medium', rb.severity === 'critical' ? 'bg-red-900/50 text-red-300' : 'bg-yellow-900/50 text-yellow-300')}>{rb.count} affected</span>
-                  ) : (
-                    <span className="text-xs px-2 py-0.5 bg-green-900/50 text-green-300 rounded">None</span>
+          <div className="space-y-4">
+            {runbooks.map((rb) => {
+              const affected = rb.id === 'crashloop' ? pods.filter((p) => getPodStatus(p).reason === 'CrashLoopBackOff') :
+                rb.id === 'imagepull' ? pods.filter((p) => getPodStatus(p).reason === 'ImagePullBackOff' || getPodStatus(p).reason === 'ErrImagePull') :
+                rb.id === 'pending' ? pods.filter((p) => getPodStatus(p).phase === 'Pending') :
+                rb.id === 'deploy' ? deployments.filter((d) => !getDeploymentStatus(d).available) :
+                rb.id === 'node' ? nodes.filter((n) => !getNodeStatus(n).ready) :
+                rb.id === 'pvc' ? pvcs.filter((p) => (p.status as any)?.phase === 'Pending') : [];
+
+              return (
+                <div key={rb.id} className={cn('bg-slate-900 rounded-lg border', rb.count > 0 ? (rb.severity === 'critical' ? 'border-red-900/50' : 'border-yellow-900/50') : 'border-slate-800')}>
+                  <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+                      <span>{rb.icon}</span>
+                      {rb.title}
+                    </h3>
+                    {rb.count > 0 ? (
+                      <span className={cn('text-xs px-2 py-0.5 rounded font-medium', rb.severity === 'critical' ? 'bg-red-900/50 text-red-300' : 'bg-yellow-900/50 text-yellow-300')}>{rb.count} affected</span>
+                    ) : (
+                      <span className="text-xs px-2 py-0.5 bg-green-900/50 text-green-300 rounded">✓ None</span>
+                    )}
+                  </div>
+
+                  {/* Affected resources */}
+                  {affected.length > 0 && (
+                    <div className="px-4 py-2 border-b border-slate-800 bg-slate-950/50">
+                      <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">Affected Resources</div>
+                      <div className="space-y-1">
+                        {affected.slice(0, 3).map((r) => (
+                          <div key={r.metadata.uid} onClick={() => go(resourceDetailUrl(r), r.metadata.name)} className="flex items-center justify-between py-1 px-2 rounded hover:bg-slate-800/50 cursor-pointer text-xs">
+                            <div className="flex items-center gap-2">
+                              <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                              <span className="text-slate-200">{r.metadata.name}</span>
+                              {r.metadata.namespace && <span className="text-slate-500">{r.metadata.namespace}</span>}
+                            </div>
+                            <ArrowRight className="w-3 h-3 text-slate-600" />
+                          </div>
+                        ))}
+                        {affected.length > 3 && <div className="text-[10px] text-slate-500 px-2">+{affected.length - 3} more</div>}
+                      </div>
+                    </div>
                   )}
+
+                  {/* Steps */}
+                  <div className="p-4">
+                    <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Investigation Steps</div>
+                    <ol className="space-y-2">
+                      {rb.steps.map((step, i) => (
+                        <li key={i} className="flex items-start gap-2.5 text-xs">
+                          <span className={cn('w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold mt-0.5', rb.count === 0 ? 'bg-green-900/50 text-green-400' : 'bg-slate-800 text-slate-400')}>{rb.count === 0 ? '✓' : i + 1}</span>
+                          <span className={cn('leading-relaxed', rb.count === 0 ? 'text-slate-500 line-through' : 'text-slate-300')}>{step}</span>
+                        </li>
+                      ))}
+                    </ol>
+                    {rb.count > 0 && affected.length > 0 && (
+                      <div className="flex gap-2 mt-3 pt-3 border-t border-slate-800">
+                        <button onClick={() => go(resourceDetailUrl(affected[0]), affected[0].metadata.name)} className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors">
+                          Investigate first resource →
+                        </button>
+                        {affected[0].kind === 'Pod' && affected[0].metadata.namespace && (
+                          <button onClick={() => go(`/logs/${affected[0].metadata.namespace}/${affected[0].metadata.name}`, `${affected[0].metadata.name} (Logs)`)} className="px-3 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 rounded transition-colors">
+                            View Logs
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="p-4">
-                  <ol className="space-y-2">
-                    {rb.steps.map((step, i) => (
-                      <li key={i} className="flex items-start gap-2.5 text-xs">
-                        <span className="w-5 h-5 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center flex-shrink-0 text-[10px] font-bold mt-0.5">{i + 1}</span>
-                        <span className="text-slate-300 leading-relaxed">{step}</span>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
