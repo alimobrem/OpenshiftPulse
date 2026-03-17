@@ -6,7 +6,8 @@ import { EditorView, keymap, lineNumbers } from '@codemirror/view';
 import { foldGutter, bracketMatching } from '@codemirror/language';
 import { highlightActiveLine } from '@codemirror/view';
 import { autocompletion, type CompletionContext, type Completion } from '@codemirror/autocomplete';
-import { Save, FileDown, BookOpen, Puzzle, HelpCircle, X, Copy, Check } from 'lucide-react';
+import { Save, FileDown, BookOpen, Puzzle, HelpCircle, X, Copy, Check, AlertTriangle, GitCompare } from 'lucide-react';
+import { linter, type Diagnostic } from '@codemirror/lint';
 import { cn } from '@/lib/utils';
 import DiffPreview from './DiffPreview';
 import SchemaPanel from './SchemaPanel';
@@ -128,6 +129,9 @@ export default function YamlEditor({
   const [isSaving, setIsSaving] = useState(false);
   const [sidePanel, setSidePanel] = useState<'none' | 'snippets' | 'help' | 'schema'>('none');
   const [copiedSnippet, setCopiedSnippet] = useState<string | null>(null);
+  const [showDiffMode, setShowDiffMode] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [cursorField, setCursorField] = useState<string | null>(null);
 
   // Detect kind from YAML for contextual snippets
   const detectedKind = useMemo(() => {
@@ -204,6 +208,92 @@ export default function YamlEditor({
     setCursorPosition({ line: line.number, column: pos - line.from + 1 });
   }, []);
 
+  // YAML linter — validates structure
+  const yamlLinter = useMemo(() => linter((view) => {
+    const diagnostics: Diagnostic[] = [];
+    const text = view.state.doc.toString();
+    const errors: string[] = [];
+
+    // Check for tab characters
+    const lines = text.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].includes('\t')) {
+        const pos = view.state.doc.line(i + 1);
+        diagnostics.push({ from: pos.from, to: pos.to, severity: 'error', message: 'Tabs are not allowed in YAML — use spaces' });
+        errors.push(`Line ${i + 1}: tabs not allowed`);
+      }
+      // Check for inconsistent indentation
+      const indent = lines[i].match(/^(\s*)/)?.[1] || '';
+      if (indent.length % 2 !== 0 && indent.length > 0 && !lines[i].trim().startsWith('-') && !lines[i].trim().startsWith('#')) {
+        const pos = view.state.doc.line(i + 1);
+        diagnostics.push({ from: pos.from, to: pos.from + indent.length, severity: 'warning', message: 'Odd indentation — YAML typically uses 2-space indent' });
+      }
+    }
+
+    // Check required K8s fields
+    if (text.length > 10) {
+      if (!text.match(/^apiVersion:/m)) {
+        errors.push('Missing required field: apiVersion');
+        diagnostics.push({ from: 0, to: 0, severity: 'warning', message: 'Missing apiVersion field' });
+      }
+      if (!text.match(/^kind:/m)) {
+        errors.push('Missing required field: kind');
+        diagnostics.push({ from: 0, to: 0, severity: 'warning', message: 'Missing kind field' });
+      }
+      if (!text.match(/^metadata:/m)) {
+        errors.push('Missing required field: metadata');
+      }
+    }
+
+    // Check for duplicate keys at same level
+    const keyPattern = /^(\s*)(\w[\w.-]*)\s*:/gm;
+    const keysByIndent = new Map<string, Set<string>>();
+    let match;
+    while ((match = keyPattern.exec(text)) !== null) {
+      const indent = match[1];
+      const key = match[2];
+      const levelKey = `${indent.length}:${key}`;
+      // Simple duplicate detection within nearby lines
+      if (!keysByIndent.has(indent)) keysByIndent.set(indent, new Set());
+    }
+
+    setValidationErrors(errors);
+    return diagnostics;
+  }, { delay: 500 }), []);
+
+  // Detect field at cursor for documentation
+  const handleCursorChange = useCallback((view: EditorView) => {
+    const pos = view.state.selection.main.head;
+    const line = view.state.doc.lineAt(pos);
+    const lineText = line.text;
+
+    // Extract the YAML path at cursor
+    const keyMatch = lineText.match(/^\s*(\w[\w.-]*)\s*:/);
+    if (keyMatch) {
+      // Build the full path by looking at indentation
+      const currentIndent = (lineText.match(/^(\s*)/)?.[1] || '').length;
+      const pathParts: string[] = [keyMatch[1]];
+
+      // Walk backwards to find parent keys
+      for (let lineNum = line.number - 1; lineNum >= 1; lineNum--) {
+        const prevLine = view.state.doc.line(lineNum).text;
+        const prevIndent = (prevLine.match(/^(\s*)/)?.[1] || '').length;
+        const prevKey = prevLine.match(/^\s*(\w[\w.-]*)\s*:/);
+        if (prevKey && prevIndent < currentIndent) {
+          pathParts.unshift(prevKey[1]);
+          if (prevIndent === 0) break;
+        }
+      }
+
+      setCursorField(pathParts.join('.'));
+    } else {
+      setCursorField(null);
+    }
+
+    // Also update cursor position
+    setCursorPosition({ line: line.number, column: pos - line.from + 1 });
+  }, []);
+
   const extensions = useMemo(() => [
     yaml(),
     lineNumbers(),
@@ -211,11 +301,12 @@ export default function YamlEditor({
     bracketMatching(),
     highlightActiveLine(),
     autocompletion({ override: [k8sCompletion], activateOnTyping: true }),
+    yamlLinter,
     saveKeymap,
     EditorView.updateListener.of((update) => {
-      if (update.selectionSet) handleCursorActivity(update.view);
+      if (update.selectionSet) handleCursorChange(update.view);
     }),
-  ], [saveKeymap, handleCursorActivity]);
+  ], [saveKeymap, handleCursorChange, yamlLinter]);
 
   return (
     <div className="flex" style={{ height }}>
@@ -239,8 +330,25 @@ export default function YamlEditor({
           <div className="flex items-center gap-4">
             <span>Ln {cursorPosition.line}, Col {cursorPosition.column}</span>
             <span>YAML</span>
+            {cursorField && <span className="text-blue-400 font-mono">{cursorField}</span>}
+            {validationErrors.length > 0 && (
+              <span className="flex items-center gap-1 text-yellow-400">
+                <AlertTriangle className="w-3 h-3" />
+                {validationErrors.length} issue{validationErrors.length !== 1 ? 's' : ''}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
+            {originalValue && (
+              <button
+                onClick={() => setShowDiffMode(!showDiffMode)}
+                className={cn('flex items-center gap-1 px-2 py-0.5 rounded transition-colors', showDiffMode ? 'bg-purple-600 text-white' : 'hover:bg-slate-800')}
+                title="Show diff against original"
+              >
+                <GitCompare className="w-3 h-3" />
+                Diff
+              </button>
+            )}
             <button
               onClick={() => setSidePanel(sidePanel === 'schema' ? 'none' : 'schema')}
               className={cn('flex items-center gap-1 px-2 py-0.5 rounded transition-colors', sidePanel === 'schema' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800')}
@@ -279,6 +387,64 @@ export default function YamlEditor({
           </div>
         </div>
       </div>
+
+      {/* Inline Diff View */}
+      {showDiffMode && originalValue && (
+        <div className="w-80 flex-shrink-0 border-l border-slate-700 bg-slate-900 flex flex-col overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-slate-700">
+            <span className="text-sm font-semibold text-slate-200">Changes</span>
+            <button onClick={() => setShowDiffMode(false)} className="text-slate-400 hover:text-slate-200">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-auto font-mono text-[11px] p-2">
+            {(() => {
+              const oldLines = originalValue.split('\n');
+              const newLines = internalValue.split('\n');
+              const maxLen = Math.max(oldLines.length, newLines.length);
+              const diffs: Array<{ type: 'same' | 'add' | 'remove' | 'change'; lineNum: number; old?: string; new?: string }> = [];
+
+              for (let i = 0; i < maxLen; i++) {
+                const o = oldLines[i];
+                const n = newLines[i];
+                if (o === n) {
+                  // skip unchanged
+                } else if (o === undefined) {
+                  diffs.push({ type: 'add', lineNum: i + 1, new: n });
+                } else if (n === undefined) {
+                  diffs.push({ type: 'remove', lineNum: i + 1, old: o });
+                } else {
+                  diffs.push({ type: 'change', lineNum: i + 1, old: o, new: n });
+                }
+              }
+
+              if (diffs.length === 0) {
+                return <div className="text-center py-8 text-slate-500 text-xs">No changes</div>;
+              }
+
+              return (
+                <div className="space-y-1">
+                  <div className="text-xs text-slate-500 mb-2">{diffs.length} change{diffs.length !== 1 ? 's' : ''}</div>
+                  {diffs.map((d, i) => (
+                    <div key={i} className="rounded overflow-hidden">
+                      {d.old !== undefined && (
+                        <div className="bg-red-950/30 text-red-300 px-2 py-0.5 border-l-2 border-red-500">
+                          <span className="text-red-500/50 mr-2">{d.lineNum}</span>- {d.old}
+                        </div>
+                      )}
+                      {d.new !== undefined && (
+                        <div className="bg-green-950/30 text-green-300 px-2 py-0.5 border-l-2 border-green-500">
+                          <span className="text-green-500/50 mr-2">{d.lineNum}</span>+ {d.new}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
 
       {/* Side Panel */}
       {sidePanel !== 'none' && (
