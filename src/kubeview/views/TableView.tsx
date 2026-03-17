@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Search, ChevronUp, ChevronDown, Trash2, Tag, Plus, Filter, Columns3, X, Download, Loader2 } from 'lucide-react';
+import { Search, ChevronUp, ChevronDown, Trash2, Tag, Plus, Filter, Columns3, X, Download, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { k8sPatch, k8sDelete } from '../engine/query';
 import { useK8sListWatch } from '../hooks/useK8sListWatch';
@@ -388,7 +388,7 @@ export default function TableView({ gvrKey, namespace: namespaceProp }: TableVie
   }, [sortedResources, visibleColumns, resourceKind, addToast]);
 
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = React.useState(false);
-  const [deleteProgress, setDeleteProgress] = React.useState<{ name: string; ns: string; kind: string } | null>(null);
+  const [deleteProgress, setDeleteProgress] = React.useState<Array<{ name: string; ns: string; kind: string; status: 'deleting' | 'done' | 'error'; error?: string }>>([]);
   const [pendingDelete, setPendingDelete] = React.useState<{ resource: any; path: string } | null>(null);
   const [singleDeleting, setSingleDeleting] = React.useState(false);
   const [showExport, setShowExport] = React.useState(false);
@@ -407,8 +407,7 @@ export default function TableView({ gvrKey, namespace: namespaceProp }: TableVie
       const name = pendingDelete.resource.metadata?.name || '';
       const ns = pendingDelete.resource.metadata?.namespace || 'default';
       setPendingDelete(null);
-      // Show teardown progress
-      setDeleteProgress({ name, ns, kind });
+      setDeleteProgress([{ name, ns, kind, status: 'done' }]);
       queryClient.invalidateQueries({ queryKey: ['k8s', 'list'] });
     } catch (err) {
       addToast({ type: 'error', title: 'Delete failed', detail: err instanceof Error ? err.message : 'Unknown error' });
@@ -421,42 +420,44 @@ export default function TableView({ gvrKey, namespace: namespaceProp }: TableVie
   const handleBulkDelete = React.useCallback(async () => {
     if (selectedRows.size === 0) return;
 
-    let deleted = 0;
-    const errors: string[] = [];
+    // Build progress list
+    const items: Array<{ name: string; ns: string; kind: string; uid: string; path: string }> = [];
     for (const uid of selectedRows) {
       const resource = stampedResources.find((r) => r.metadata.uid === uid);
       if (!resource) continue;
-
       const apiVersion = resource.apiVersion || '';
       const kind = resource.kind || '';
       const [group, version] = apiVersion.includes('/') ? apiVersion.split('/') : ['', apiVersion];
       let basePath = group ? `/apis/${apiVersion}` : `/api/${version}`;
       if (resource.metadata.namespace) basePath += `/namespaces/${resource.metadata.namespace}`;
       const plural = kindToPlural(kind);
-      const resourcePath = `${basePath}/${plural}/${resource.metadata.name}`;
+      items.push({ name: resource.metadata.name, ns: resource.metadata.namespace || 'default', kind, uid, path: `${basePath}/${plural}/${resource.metadata.name}` });
+    }
 
+    // Show progress immediately
+    setDeleteProgress(items.map(i => ({ name: i.name, ns: i.ns, kind: i.kind, status: 'deleting' })));
+
+    // Delete each resource
+    const results = [...items];
+    for (let idx = 0; idx < results.length; idx++) {
+      const item = results[idx];
       try {
-        await k8sDelete(resourcePath);
-        deleted++;
+        await k8sDelete(item.path);
+        setDeleteProgress(prev => prev.map((p, i) => i === idx ? { ...p, status: 'done' } : p));
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Unknown error';
-        errors.push(`${resource.metadata.name}: ${msg}`);
+        setDeleteProgress(prev => prev.map((p, i) => i === idx ? { ...p, status: 'error', error: msg } : p));
       }
     }
 
     setSelectedRows(new Set());
-    // Optimistically remove deleted resources from cache
     queryClient.setQueriesData({ queryKey: ['k8s', 'list'] }, (old: any) => {
       if (!old || !Array.isArray(old)) return old;
-      return old.filter((r: any) => !selectedRows.has(r.metadata?.uid));
+      const deletedUids = new Set(items.map(i => i.uid));
+      return old.filter((r: any) => !deletedUids.has(r.metadata?.uid));
     });
     queryClient.invalidateQueries({ queryKey: ['k8s', 'list'] });
-    if (errors.length > 0) {
-      addToast({ type: 'error', title: `Deleted ${deleted}, failed ${errors.length}`, detail: errors.join('\n') });
-    } else {
-      addToast({ type: 'success', title: `Deleted ${deleted} resource${deleted !== 1 ? 's' : ''}` });
-    }
-  }, [selectedRows, stampedResources, addToast, queryClient]);
+  }, [selectedRows, stampedResources, queryClient]);
 
   // Row click: single = preview, double = navigate
   const handleRowClick = React.useCallback((resource: K8sResource, e: React.MouseEvent) => {
@@ -825,16 +826,58 @@ export default function TableView({ gvrKey, namespace: namespaceProp }: TableVie
       </div>
 
       {/* Delete Progress */}
-      {deleteProgress && (
+      {deleteProgress.length > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
-          <div className="w-full max-w-2xl">
-            <DeployProgress
-              type={deleteProgress.kind === 'Job' ? 'job' : 'deployment'}
-              name={deleteProgress.name}
-              namespace={deleteProgress.ns}
-              mode="delete"
-              onClose={() => setDeleteProgress(null)}
-            />
+          <div className="w-full max-w-2xl space-y-3 max-h-[80vh] overflow-auto">
+            {deleteProgress.length === 1 ? (
+              // Single delete — show full teardown progress
+              <DeployProgress
+                type={deleteProgress[0].kind === 'Job' ? 'job' : 'deployment'}
+                name={deleteProgress[0].name}
+                namespace={deleteProgress[0].ns}
+                mode="delete"
+                onClose={() => setDeleteProgress([])}
+              />
+            ) : (
+              // Bulk delete — show per-resource status
+              <div className="bg-slate-900 rounded-lg border border-slate-800 overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Trash2 className="w-5 h-5 text-slate-400" />
+                    <div>
+                      <div className="text-sm font-medium text-slate-200">Deleting {deleteProgress.length} resources</div>
+                      <div className="text-xs text-slate-500">
+                        {deleteProgress.filter(d => d.status === 'done').length} done · {deleteProgress.filter(d => d.status === 'deleting').length} in progress · {deleteProgress.filter(d => d.status === 'error').length} failed
+                      </div>
+                    </div>
+                  </div>
+                  <button onClick={() => setDeleteProgress([])} className="text-xs text-slate-400 hover:text-slate-200 px-2 py-1">
+                    {deleteProgress.every(d => d.status !== 'deleting') ? 'Close' : 'Hide'}
+                  </button>
+                </div>
+                <div className="divide-y divide-slate-800 max-h-80 overflow-auto">
+                  {deleteProgress.map((item, i) => (
+                    <div key={i} className="px-4 py-2.5 flex items-center gap-3">
+                      {item.status === 'deleting' && <Loader2 className="w-4 h-4 text-blue-400 animate-spin shrink-0" />}
+                      {item.status === 'done' && <CheckCircle className="w-4 h-4 text-green-400 shrink-0" />}
+                      {item.status === 'error' && <XCircle className="w-4 h-4 text-red-400 shrink-0" />}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm text-slate-200 truncate">{item.name}</div>
+                        <div className="text-xs text-slate-500">{item.kind} · {item.ns}</div>
+                        {item.error && <div className="text-xs text-red-400 mt-0.5">{item.error}</div>}
+                      </div>
+                      <span className={cn('text-[10px] px-1.5 py-0.5 rounded',
+                        item.status === 'done' ? 'bg-green-900/50 text-green-300' :
+                        item.status === 'error' ? 'bg-red-900/50 text-red-300' :
+                        'bg-blue-900/50 text-blue-300'
+                      )}>
+                        {item.status === 'deleting' ? 'Deleting...' : item.status === 'done' ? 'Deleted' : 'Failed'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
