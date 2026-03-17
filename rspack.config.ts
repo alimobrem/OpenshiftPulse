@@ -73,6 +73,7 @@ export default defineConfig({
         test: /\.css$/,
         use: ['postcss-loader'],
         type: 'css',
+        sideEffects: true,
       },
       {
         test: /\.(png|jpg|jpeg|gif|svg)$/,
@@ -101,6 +102,13 @@ export default defineConfig({
           test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
           name: 'react',
           priority: 20,
+        },
+        styles: {
+          type: 'css',
+          name: 'styles',
+          chunks: 'all',
+          enforce: true,
+          priority: 30,
         },
       },
     },

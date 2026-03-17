@@ -1,6 +1,34 @@
 import React from 'react';
 import { AlertCircle, RefreshCw, Home } from 'lucide-react';
 
+// Detect if CSS failed to load by checking if Tailwind classes work
+function checkCssLoaded(): boolean {
+  const el = document.createElement('div');
+  el.className = 'bg-slate-950';
+  el.style.position = 'absolute';
+  el.style.visibility = 'hidden';
+  document.body.appendChild(el);
+  const computed = window.getComputedStyle(el);
+  const bgColor = computed.backgroundColor;
+  document.body.removeChild(el);
+  // bg-slate-950 should be rgb(2, 6, 23) — if it's transparent, CSS didn't load
+  return bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent';
+}
+
+// Auto-reload if CSS fails to load (runs once on mount)
+export function CssHealthCheck() {
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!checkCssLoaded()) {
+        console.warn('CSS not loaded, reloading...');
+        window.location.reload();
+      }
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
+  return null;
+}
+
 interface Props {
   children: React.ReactNode;
   fallbackTitle?: string;
