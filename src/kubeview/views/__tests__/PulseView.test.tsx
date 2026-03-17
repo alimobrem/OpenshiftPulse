@@ -293,6 +293,43 @@ describe('PulseView', () => {
     expect(screen.getByText('NotReady')).toBeDefined();
   });
 
+  it('shows "Cluster-wide" label for node/operator issues', () => {
+    setMockData({
+      '/api/v1/nodes': { data: [makeNode('bad-node', false)], isLoading: false },
+      '/api/v1/pods': { data: [], isLoading: false },
+      '/apis/apps/v1/deployments': { data: [], isLoading: false },
+      '/api/v1/persistentvolumeclaims': { data: [], isLoading: false },
+      '/apis/config.openshift.io/v1/clusteroperators': { data: [makeOperator('auth', true)], isLoading: false },
+    });
+
+    renderPulse();
+    expect(screen.getByText('Cluster-wide issues')).toBeDefined();
+    expect(screen.getByText('Cluster-wide')).toBeDefined();
+  });
+
+  it('shows separate namespace and cluster stat sections', () => {
+    setMockData({
+      '/api/v1/nodes': { data: [makeNode('node-1', true)], isLoading: false },
+      '/api/v1/pods': { data: [makePod('pod-1', 'Running')], isLoading: false },
+      '/apis/apps/v1/deployments': { data: [makeDeployment('d1', 1, 1)], isLoading: false },
+      '/api/v1/persistentvolumeclaims': { data: [], isLoading: false },
+      '/apis/config.openshift.io/v1/clusteroperators': { data: [makeOperator('dns', false)], isLoading: false },
+    });
+
+    renderPulse();
+    // Cluster-wide label always shows
+    expect(screen.getByText('Cluster-wide')).toBeDefined();
+    // Cluster stats
+    expect(screen.getByText('Nodes')).toBeDefined();
+    expect(screen.getByText('Operators')).toBeDefined();
+    expect(screen.getByText('CPU')).toBeDefined();
+    expect(screen.getByText('Memory')).toBeDefined();
+    // Namespace stats
+    expect(screen.getByText('Pods')).toBeDefined();
+    expect(screen.getByText('Deployments')).toBeDefined();
+    expect(screen.getByText('PVCs')).toBeDefined();
+  });
+
   it('shows the issue count badge when there are issues', () => {
     setMockData({
       '/api/v1/nodes': { data: [makeNode('bad-node', false)], isLoading: false },

@@ -89,8 +89,9 @@ export default function PulseView() {
     });
   }, [nodes]);
 
-  // Pending PVCs
-  const pendingPVCs = React.useMemo(() => pvcs.filter((pvc) => (pvc.status as any)?.phase === 'Pending'), [pvcs]);
+  // Pending PVCs (namespace-filtered)
+  const filteredPVCs = React.useMemo(() => filterByNamespace(pvcs as any[], selectedNamespace), [pvcs, selectedNamespace]);
+  const pendingPVCs = React.useMemo(() => filteredPVCs.filter((pvc) => (pvc.status as any)?.phase === 'Pending'), [filteredPVCs]);
 
   // Degraded operators
   const degradedOperators = React.useMemo(() => {
@@ -143,11 +144,26 @@ export default function PulseView() {
           )}
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <StatCard label="Nodes" value={`${healthyNodes}/${nodes.length}`} icon={<Server className="w-4 h-4" />} issues={unreadyNodes.length + pressureNodes.length} onClick={() => go('/r/v1~nodes', 'Nodes')} />
+        {/* Namespace stats */}
+        {selectedNamespace !== '*' && (
+          <div className="text-xs text-blue-400 font-medium flex items-center gap-1.5">
+            <Box className="w-3 h-3" />
+            Namespace: {selectedNamespace}
+          </div>
+        )}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <StatCard label="Pods" value={`${healthyPods}/${filteredPods.length}`} icon={<Box className="w-4 h-4" />} issues={failingPods.length} onClick={() => go('/r/v1~pods', 'Pods')} />
           <StatCard label="Deployments" value={`${healthyDeploys}/${filteredDeployments.length}`} icon={<Package className="w-4 h-4" />} issues={unhealthyDeploys.length} onClick={() => go('/r/apps~v1~deployments', 'Deployments')} />
+          <StatCard label="PVCs" value={`${filteredPVCs.length - pendingPVCs.length}/${filteredPVCs.length}`} icon={<HardDrive className="w-4 h-4" />} issues={pendingPVCs.length} onClick={() => go('/r/v1~persistentvolumeclaims', 'PVCs')} />
+        </div>
+
+        {/* Cluster stats */}
+        <div className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
+          <Server className="w-3 h-3" />
+          Cluster-wide
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <StatCard label="Nodes" value={`${healthyNodes}/${nodes.length}`} icon={<Server className="w-4 h-4" />} issues={unreadyNodes.length + pressureNodes.length} onClick={() => go('/r/v1~nodes', 'Nodes')} />
           <StatCard label="Operators" value={`${operators.length - degradedOperators.length}/${operators.length}`} icon={<Puzzle className="w-4 h-4" />} issues={degradedOperators.length} onClick={() => go('/operators', 'Operators')} />
           <StatCard label="CPU" value={cpuPercent !== null ? `${Math.round(cpuPercent)}%` : '—'} icon={<Cpu className="w-4 h-4" />} issues={cpuPercent !== null && cpuPercent > 80 ? 1 : 0} />
           <StatCard label="Memory" value={memPercent !== null ? `${Math.round(memPercent)}%` : '—'} icon={<Activity className="w-4 h-4" />} issues={memPercent !== null && memPercent > 80 ? 1 : 0} />
@@ -169,72 +185,80 @@ export default function PulseView() {
           </div>
         )}
 
-        {/* Degraded Operators */}
-        {degradedOperators.length > 0 && (
-          <IssueSection title={`Degraded Operators (${degradedOperators.length})`} icon={<Puzzle className="w-4 h-4 text-red-500" />} severity="critical">
-            {degradedOperators.map((op: any) => {
-              const msg = (op.status?.conditions || []).find((c: any) => c.type === 'Degraded')?.message || '';
-              return (
-                <IssueRow key={op.metadata.uid} name={op.metadata.name} status="Degraded" detail={msg} onClick={() => go(`/r/config.openshift.io~v1~clusteroperators/_/${op.metadata.name}`, op.metadata.name)} />
-              );
-            })}
-          </IssueSection>
+        {/* === Namespace issues === */}
+        {(failingPods.length > 0 || unhealthyDeploys.length > 0 || pendingPVCs.length > 0) && (
+          <div className="space-y-3">
+            {selectedNamespace !== '*' && <div className="text-xs text-blue-400 font-medium">Issues in {selectedNamespace}</div>}
+
+            {failingPods.length > 0 && (
+              <IssueSection title={`Failing Pods (${failingPods.length})`} icon={<XCircle className="w-4 h-4 text-red-500" />} severity="critical">
+                {failingPods.slice(0, 5).map((pod) => {
+                  const status = getPodStatus(pod);
+                  return (
+                    <IssueRow key={pod.metadata.uid} name={pod.metadata.name} namespace={pod.metadata.namespace} status={status.reason || status.phase} onClick={() => go(resourceDetailUrl(pod), pod.metadata.name)} />
+                  );
+                })}
+                {failingPods.length > 5 && <button onClick={() => go('/r/v1~pods', 'Pods')} className="w-full text-center text-xs text-blue-400 hover:text-blue-300 pt-2">View all {failingPods.length} →</button>}
+              </IssueSection>
+            )}
+
+            {unhealthyDeploys.length > 0 && (
+              <IssueSection title={`Unhealthy Deployments (${unhealthyDeploys.length})`} icon={<AlertCircle className="w-4 h-4 text-yellow-500" />} severity="warning">
+                {unhealthyDeploys.slice(0, 5).map((deploy) => {
+                  const status = getDeploymentStatus(deploy);
+                  return (
+                    <IssueRow key={deploy.metadata.uid} name={deploy.metadata.name} namespace={deploy.metadata.namespace} status={`${status.ready}/${status.desired} ready`} onClick={() => go(resourceDetailUrl(deploy), deploy.metadata.name)} />
+                  );
+                })}
+              </IssueSection>
+            )}
+
+            {pendingPVCs.length > 0 && (
+              <IssueSection title={`Pending PVCs (${pendingPVCs.length})`} icon={<HardDrive className="w-4 h-4 text-yellow-500" />} severity="warning">
+                {pendingPVCs.slice(0, 5).map((pvc) => (
+                  <IssueRow key={pvc.metadata.uid} name={pvc.metadata.name} namespace={pvc.metadata.namespace} status="Pending" detail="No volume bound" onClick={() => go(resourceDetailUrl(pvc), pvc.metadata.name)} />
+                ))}
+              </IssueSection>
+            )}
+          </div>
         )}
 
-        {/* Failing Pods */}
-        {failingPods.length > 0 && (
-          <IssueSection title={`Failing Pods (${failingPods.length})`} icon={<XCircle className="w-4 h-4 text-red-500" />} severity="critical">
-            {failingPods.slice(0, 5).map((pod) => {
-              const status = getPodStatus(pod);
-              return (
-                <IssueRow key={pod.metadata.uid} name={pod.metadata.name} namespace={pod.metadata.namespace} status={status.reason || status.phase} onClick={() => go(resourceDetailUrl(pod), pod.metadata.name)} />
-              );
-            })}
-            {failingPods.length > 5 && <button onClick={() => go('/r/v1~pods', 'Pods')} className="w-full text-center text-xs text-blue-400 hover:text-blue-300 pt-2">View all {failingPods.length} →</button>}
-          </IssueSection>
-        )}
+        {/* === Cluster-wide issues === */}
+        {(degradedOperators.length > 0 || unreadyNodes.length > 0 || pressureNodes.length > 0) && (
+          <div className="space-y-3">
+            <div className="text-xs text-slate-500 font-medium">Cluster-wide issues</div>
 
-        {/* Unhealthy Deployments */}
-        {unhealthyDeploys.length > 0 && (
-          <IssueSection title={`Unhealthy Deployments (${unhealthyDeploys.length})`} icon={<AlertCircle className="w-4 h-4 text-yellow-500" />} severity="warning">
-            {unhealthyDeploys.slice(0, 5).map((deploy) => {
-              const status = getDeploymentStatus(deploy);
-              return (
-                <IssueRow key={deploy.metadata.uid} name={deploy.metadata.name} namespace={deploy.metadata.namespace} status={`${status.ready}/${status.desired} ready`} onClick={() => go(resourceDetailUrl(deploy), deploy.metadata.name)} />
-              );
-            })}
-          </IssueSection>
-        )}
+            {degradedOperators.length > 0 && (
+              <IssueSection title={`Degraded Operators (${degradedOperators.length})`} icon={<Puzzle className="w-4 h-4 text-red-500" />} severity="critical">
+                {degradedOperators.map((op: any) => {
+                  const msg = (op.status?.conditions || []).find((c: any) => c.type === 'Degraded')?.message || '';
+                  return (
+                    <IssueRow key={op.metadata.uid} name={op.metadata.name} status="Degraded" detail={msg} onClick={() => go(`/r/config.openshift.io~v1~clusteroperators/_/${op.metadata.name}`, op.metadata.name)} />
+                  );
+                })}
+              </IssueSection>
+            )}
 
-        {/* Unready Nodes */}
-        {unreadyNodes.length > 0 && (
-          <IssueSection title={`Unready Nodes (${unreadyNodes.length})`} icon={<XCircle className="w-4 h-4 text-red-500" />} severity="critical">
-            {unreadyNodes.map((node) => (
-              <IssueRow key={node.metadata.uid} name={node.metadata.name} status="NotReady" onClick={() => go(`/r/v1~nodes/_/${node.metadata.name}`, node.metadata.name)} />
-            ))}
-          </IssueSection>
-        )}
+            {unreadyNodes.length > 0 && (
+              <IssueSection title={`Unready Nodes (${unreadyNodes.length})`} icon={<XCircle className="w-4 h-4 text-red-500" />} severity="critical">
+                {unreadyNodes.map((node) => (
+                  <IssueRow key={node.metadata.uid} name={node.metadata.name} status="NotReady" onClick={() => go(`/r/v1~nodes/_/${node.metadata.name}`, node.metadata.name)} />
+                ))}
+              </IssueSection>
+            )}
 
-        {/* Nodes with Pressure */}
-        {pressureNodes.length > 0 && (
-          <IssueSection title={`Nodes Under Pressure (${pressureNodes.length})`} icon={<AlertCircle className="w-4 h-4 text-yellow-500" />} severity="warning">
-            {pressureNodes.map((node) => {
-              const s = getNodeStatus(node);
-              const pressures = [s.pressure.disk && 'Disk', s.pressure.memory && 'Memory', s.pressure.pid && 'PID'].filter(Boolean).join(', ');
-              return (
-                <IssueRow key={node.metadata.uid} name={node.metadata.name} status={`${pressures} Pressure`} onClick={() => go(`/r/v1~nodes/_/${node.metadata.name}`, node.metadata.name)} />
-              );
-            })}
-          </IssueSection>
-        )}
-
-        {/* Pending PVCs */}
-        {pendingPVCs.length > 0 && (
-          <IssueSection title={`Pending PVCs (${pendingPVCs.length})`} icon={<HardDrive className="w-4 h-4 text-yellow-500" />} severity="warning">
-            {pendingPVCs.slice(0, 5).map((pvc) => (
-              <IssueRow key={pvc.metadata.uid} name={pvc.metadata.name} namespace={pvc.metadata.namespace} status="Pending" detail="No volume bound" onClick={() => go(resourceDetailUrl(pvc), pvc.metadata.name)} />
-            ))}
-          </IssueSection>
+            {pressureNodes.length > 0 && (
+              <IssueSection title={`Nodes Under Pressure (${pressureNodes.length})`} icon={<AlertCircle className="w-4 h-4 text-yellow-500" />} severity="warning">
+                {pressureNodes.map((node) => {
+                  const s = getNodeStatus(node);
+                  const pressures = [s.pressure.disk && 'Disk', s.pressure.memory && 'Memory', s.pressure.pid && 'PID'].filter(Boolean).join(', ');
+                  return (
+                    <IssueRow key={node.metadata.uid} name={node.metadata.name} status={`${pressures} Pressure`} onClick={() => go(`/r/v1~nodes/_/${node.metadata.name}`, node.metadata.name)} />
+                  );
+                })}
+              </IssueSection>
+            )}
+          </div>
         )}
 
         {/* All healthy */}
