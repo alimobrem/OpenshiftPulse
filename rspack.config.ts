@@ -153,6 +153,7 @@ export default defineConfig({
         target: process.env.K8S_API_URL || 'http://localhost:8001',
         changeOrigin: true,
         secure: false,
+        ws: true,
         pathRewrite: (path: string) => path.replace(/^\/api\/kubernetes/, ''),
       },
       {

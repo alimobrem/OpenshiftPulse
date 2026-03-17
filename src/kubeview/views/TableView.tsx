@@ -336,6 +336,11 @@ export default function TableView({ gvrKey, namespace: namespaceProp }: TableVie
           return;
         }
         await k8sDelete(resourcePath);
+        // Optimistically remove from cache immediately
+        queryClient.setQueriesData({ queryKey: ['k8s', 'list'] }, (old: any) => {
+          if (!old || !Array.isArray(old)) return old;
+          return old.filter((r: any) => r.metadata?.uid !== resource.metadata?.uid);
+        });
         addToast({ type: 'success', title: `${kind} "${resourceName}" deleted` });
       }
       queryClient.invalidateQueries({ queryKey: ['k8s', 'list'] });
@@ -419,6 +424,11 @@ export default function TableView({ gvrKey, namespace: namespaceProp }: TableVie
     }
 
     setSelectedRows(new Set());
+    // Optimistically remove deleted resources from cache
+    queryClient.setQueriesData({ queryKey: ['k8s', 'list'] }, (old: any) => {
+      if (!old || !Array.isArray(old)) return old;
+      return old.filter((r: any) => !selectedRows.has(r.metadata?.uid));
+    });
     queryClient.invalidateQueries({ queryKey: ['k8s', 'list'] });
     if (errors.length > 0) {
       addToast({ type: 'error', title: `Deleted ${deleted}, failed ${errors.length}`, detail: errors.join('\n') });
