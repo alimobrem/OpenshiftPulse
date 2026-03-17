@@ -169,16 +169,12 @@ export function ResourceBrowser() {
           {[
             { label: 'Cluster Pulse', icon: Icons.Activity, path: '/pulse', color: 'text-emerald-400' },
             { label: 'Timeline', icon: Icons.Clock, path: '/timeline', color: 'text-blue-400' },
-            { label: 'Dashboard', icon: Icons.LayoutDashboard, path: '/dashboard', color: 'text-purple-400' },
-            { label: 'Workloads', icon: Icons.Package, path: '/workloads', color: 'text-blue-400' },
-            { label: 'Networking', icon: Icons.Globe, path: '/networking', color: 'text-cyan-400' },
             { label: 'Storage', icon: Icons.HardDrive, path: '/storage', color: 'text-orange-400' },
             { label: 'Access Control', icon: Icons.Shield, path: '/access-control', color: 'text-indigo-400' },
             { label: 'Operators', icon: Icons.Puzzle, path: '/operators', color: 'text-violet-400' },
             { label: 'Alerts', icon: Icons.Bell, path: '/alerts', color: 'text-red-400' },
             { label: 'Administration', icon: Icons.Settings, path: '/admin', color: 'text-slate-400' },
             { label: 'Troubleshoot', icon: Icons.Activity, path: '/troubleshoot', color: 'text-orange-400' },
-            { label: 'Config Compare', icon: Icons.GitCompare, path: '/config-compare', color: 'text-pink-400' },
             { label: 'Create Resource', icon: Icons.FilePlus, path: '/create/v1~pods', color: 'text-amber-400' },
           ].map((page) => (
             <button

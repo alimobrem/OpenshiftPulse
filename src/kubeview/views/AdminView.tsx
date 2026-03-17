@@ -239,7 +239,7 @@ export default function AdminView() {
     try {
       await k8sPatch('/apis/config.openshift.io/v1/clusterversions/version', {
         spec: { desiredUpdate: { version } },
-      });
+      }, 'application/merge-patch+json');
       addToast({ type: 'success', title: 'Cluster update started', detail: `Updating to ${version}` });
       queryClient.invalidateQueries({ queryKey: ['admin', 'clusterversion'] });
     } catch (err) {
@@ -253,7 +253,7 @@ export default function AdminView() {
     try {
       await k8sPatch('/apis/config.openshift.io/v1/clusterversions/version', {
         spec: { channel: channelEdit },
-      });
+      }, 'application/merge-patch+json');
       addToast({ type: 'success', title: 'Channel updated', detail: channelEdit });
       setShowChannelEdit(false);
       queryClient.invalidateQueries({ queryKey: ['admin', 'clusterversion'] });
@@ -313,15 +313,29 @@ export default function AdminView() {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
       try {
-        const snap = JSON.parse(await file.text()) as ClusterSnapshot;
-        if (!snap.id) snap.id = `snap-${Date.now()}`;
-        if (!snap.label) snap.label = file.name.replace('.json', '');
+        const raw = JSON.parse(await file.text());
+        if (!raw.timestamp || !raw.nodes || !Array.isArray(raw.clusterOperators) || !Array.isArray(raw.crds)) {
+          addToast({ type: 'error', title: 'Invalid snapshot format', detail: 'Missing required fields (timestamp, nodes, clusterOperators, crds)' });
+          return;
+        }
+        const snap: ClusterSnapshot = {
+          id: raw.id || `snap-${Date.now()}`,
+          label: raw.label || file.name.replace('.json', ''),
+          timestamp: raw.timestamp,
+          clusterVersion: raw.clusterVersion || '',
+          platform: raw.platform || '',
+          nodes: { count: raw.nodes?.count || 0, versions: raw.nodes?.versions || [] },
+          clusterOperators: raw.clusterOperators,
+          crds: raw.crds,
+          storageClasses: raw.storageClasses || [],
+          namespaceCount: raw.namespaceCount || 0,
+        };
         const updated = [snap, ...savedSnapshots].slice(0, 20);
         setSavedSnapshots(updated);
         saveSnapshots(updated);
         addToast({ type: 'success', title: 'Snapshot imported', detail: snap.label });
       } catch {
-        addToast({ type: 'error', title: 'Invalid snapshot file' });
+        addToast({ type: 'error', title: 'Invalid snapshot file', detail: 'Could not parse JSON' });
       }
     };
     input.click();
@@ -373,7 +387,7 @@ export default function AdminView() {
           <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <InfoCard label="Cluster Version" value={cvVersion || '—'} sub={cvChannel} />
-              <InfoCard label="Platform" value={platform || '—'} sub={apiUrl ? new URL(apiUrl).hostname : ''} />
+              <InfoCard label="Platform" value={platform || '—'} sub={(() => { try { return apiUrl ? new URL(apiUrl).hostname : ''; } catch { return ''; } })()} />
               <InfoCard label="Nodes" value={String(nodes.length)} sub={nodeRoles.map(([r, c]) => `${c} ${r}`).join(', ')} />
               <InfoCard label="CRDs" value={String(crds.length)} sub={`${crdGroupCount} API groups`} />
             </div>

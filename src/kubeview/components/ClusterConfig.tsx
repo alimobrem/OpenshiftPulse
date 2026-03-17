@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Shield, Globe, Image, Network, Cpu, Lock, ChevronDown, ChevronRight,
-  Save, Loader2, Plus, Trash2, AlertTriangle, CheckCircle,
+  Save, Loader2, Plus, Trash2, AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { k8sGet, k8sPatch } from '../engine/query';

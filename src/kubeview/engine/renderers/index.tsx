@@ -13,7 +13,7 @@ export type K8sResource = {
     labels?: Record<string, string>;
     annotations?: Record<string, string>;
     creationTimestamp?: string;
-    ownerReferences?: Array<{ apiVersion: string; kind: string; name: string; uid: string }>;
+    ownerReferences?: Array<{ apiVersion: string; kind: string; name: string; uid: string; controller?: boolean; blockOwnerDeletion?: boolean }>;
     deletionTimestamp?: string;
   };
   spec?: Record<string, unknown>;

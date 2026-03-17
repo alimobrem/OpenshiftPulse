@@ -192,7 +192,7 @@ describe('OpenShiftView ResourceBrowser', () => {
     renderBrowser();
     expect(screen.getByText('Cluster Pulse')).toBeDefined();
     expect(screen.getByText('Timeline')).toBeDefined();
-    expect(screen.getByText('Dashboard')).toBeDefined();
+    expect(screen.getByText('Administration')).toBeDefined();
   });
 
   it('navigates to pulse on page click', () => {

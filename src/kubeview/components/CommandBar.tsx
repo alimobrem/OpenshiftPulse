@@ -236,8 +236,16 @@ export function CommandBar() {
                 <button
                   onClick={async () => {
                     setShowUserMenu(false);
-                    const server = window.location.origin.replace('localhost:9000', 'api.rhamilto.devcluster.openshift.com:6443');
-                    const loginCmd = `oc login --server=${clusterInfo?.name ? `https://api.${clusterInfo.name.split('-')[0]}.devcluster.openshift.com:6443` : server}`;
+                    // Use the API server URL from cluster info, fallback to current origin
+                    let server = window.location.origin;
+                    try {
+                      const infraRes = await fetch('/api/kubernetes/apis/config.openshift.io/v1/infrastructures/cluster');
+                      if (infraRes.ok) {
+                        const infraData = await infraRes.json();
+                        server = infraData.status?.apiServerURL || server;
+                      }
+                    } catch {}
+                    const loginCmd = `oc login --server=${server}`;
                     try {
                       await navigator.clipboard.writeText(loginCmd);
                       addToast({ type: 'success', title: 'Login command copied', detail: loginCmd });
