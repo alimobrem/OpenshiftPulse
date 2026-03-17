@@ -250,7 +250,7 @@ export default function OperatorCatalogView() {
       { title: 'Connect logging to Loki', description: 'Create or update a ClusterLogForwarder to send logs to your LokiStack', path: '/create/observability.openshift.io~v1~clusterlogforwarders', label: 'Create ClusterLogForwarder' },
     ];
     if (name.includes('observability')) return [
-      { title: 'Create a UIPlugin', description: 'Enable observability dashboards in the OpenShift console', path: '/create/observability.openshift.io~v1alpha1~uiplugins', label: 'Create UIPlugin' },
+      { title: 'COO is ready', description: 'The Cluster Observability Operator manages the monitoring stack, distributed tracing, and log correlation. It works automatically with the built-in Prometheus and Alertmanager — no additional configuration required.', path: '/alerts', label: 'View Alerts' },
     ];
     if (name.includes('oadp') || name.includes('data-protection')) return [
       { title: 'Create a DataProtectionApplication', description: 'Configure backup storage location (S3, Azure, GCS) and schedule', path: '/create/oadp.openshift.io~v1alpha1~dataprotectionapplications', label: 'Create DPA' },
