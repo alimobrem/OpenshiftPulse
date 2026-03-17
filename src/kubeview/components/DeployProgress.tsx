@@ -100,14 +100,13 @@ export default function DeployProgress({ type, name, namespace, mode = 'deploy',
   }, [resource, pods, type]);
 
   // === DELETE phase logic ===
+  // We already sent the delete — so if the resource still exists, it's
+  // being torn down (even if deletionTimestamp hasn't propagated yet).
   const deletePhase = React.useMemo(() => {
     if (!resource && pods.length === 0) return 'gone';
     if (!resource && pods.length > 0) return 'cleaning-pods';
-    const hasTimestamp = !!resource?.metadata?.deletionTimestamp;
-    if (!hasTimestamp) return 'deleting'; // not yet marked
-    const terminating = pods.filter((p: any) => p.status?.phase === 'Running' || p.metadata?.deletionTimestamp);
-    if (terminating.length > 0) return 'terminating';
-    if (pods.length > 0) return 'cleaning-pods';
+    // Resource still exists — it's being deleted (GC working)
+    if (pods.length > 0) return 'terminating';
     return 'cleaning';
   }, [resource, pods]);
 
@@ -133,8 +132,8 @@ export default function DeployProgress({ type, name, namespace, mode = 'deploy',
   // Steps
   const steps = isDelete
     ? [
-        { id: 'deleting', label: 'Mark for Deletion', done: phase !== 'deleting' },
-        { id: 'terminating', label: 'Terminating Pods', done: phase === 'cleaning-pods' || phase === 'cleaning' || phase === 'gone' },
+        { id: 'deleting', label: 'Delete Sent', done: true },
+        { id: 'terminating', label: 'Terminating Pods', done: phase === 'cleaning' || phase === 'gone' || (phase === 'cleaning-pods') },
         { id: 'cleaning', label: 'Cleanup', done: phase === 'gone' },
       ]
     : type === 'deployment'
@@ -151,7 +150,7 @@ export default function DeployProgress({ type, name, namespace, mode = 'deploy',
       ];
 
   const phaseLabel = isDelete
-    ? { deleting: 'Marking for deletion...', terminating: 'Terminating pods...', 'cleaning-pods': 'Cleaning up pods...', cleaning: 'Cleaning up resources...', gone: 'Deleted' }[phase] || phase
+    ? { deleting: 'Deleting...', terminating: 'Terminating pods...', 'cleaning-pods': 'Cleaning up pods...', cleaning: 'Waiting for cleanup...', gone: 'Deleted' }[phase] || phase
     : { creating: 'Creating...', pulling: 'Pulling image...', starting: 'Starting...', running: 'Running', failed: 'Failed', succeeded: 'Completed' }[phase] || phase;
 
   return (
