@@ -9,42 +9,20 @@ A next-generation OpenShift Console built with React, TypeScript, and real-time 
 ### Cluster Pulse — Your Landing Page
 See only what matters: failing pods, degraded operators, unhealthy deployments, unready nodes, and cluster CPU/memory at a glance. When everything is healthy, it tells you so.
 
-![Pulse View](docs/screenshots/pulse-healthy.png)
-
 ### Auto-Generated Resource Tables
 Every resource type in your cluster gets a fully functional table with sortable columns, search, per-column filters, bulk operations, keyboard navigation (j/k/Enter), CSV/JSON export, and a preview panel — all auto-detected from the resource data.
 
 ![Table View](docs/screenshots/table-view.png)
-
-### Resource Detail with Actions
-Full resource detail with inline actions: scale deployments, restart pods, open terminal, view logs, edit YAML, navigate dependencies. Smart diagnosis automatically identifies CrashLoopBackOff, OOM, scheduling failures, and suggests fixes.
-
-![Detail View](docs/screenshots/detail-view.png)
 
 ### Interactive Troubleshooting
 Auto-diagnose cluster issues with interactive runbooks. Six built-in playbooks cover CrashLoopBackOff, ImagePull errors, pending pods, deployment rollout failures, node issues, and storage problems — each showing affected resources inline with direct action buttons.
 
 ![Troubleshoot View](docs/screenshots/troubleshoot.png)
 
-### Cluster Config Editor
-Configure OAuth identity providers, proxy settings, image registry policies, scheduler profiles, TLS security, and ingress — all with proper forms, validation, and real API patches.
+### Administration — Config, Updates, Snapshots
+Configure OAuth identity providers, proxy settings, image registries, scheduler profiles, TLS security. Initiate cluster upgrades, change update channels, capture and compare config snapshots.
 
-![Cluster Config](docs/screenshots/cluster-config.png)
-
-### Cluster Updates & Snapshots
-Initiate cluster upgrades, change update channels, and track update history. Capture cluster configuration snapshots, persist them across sessions, and compare side-by-side to see what changed.
-
-![Admin Updates](docs/screenshots/admin-updates.png)
-
-### YAML Editor with Intelligence
-Edit resources with syntax highlighting, live validation, diff view against the original, context-aware snippets for 12+ resource types, and OpenAPI schema documentation.
-
-![YAML Editor](docs/screenshots/yaml-editor.png)
-
-### Dependency Graph
-Visualize relationships between deployments, replicasets, pods, services, secrets, and configmaps as an interactive SVG graph. Right-click any node to highlight its blast radius.
-
-![Dependency Graph](docs/screenshots/dependency-graph.png)
+![Admin View](docs/screenshots/admin-updates.png)
 
 ### Prometheus Alerts
 View firing alerts with direct links to affected resources, browse alerting rules with copyable PromQL, and manage Alertmanager silences.
@@ -55,6 +33,18 @@ View firing alerts with direct links to affected resources, browse alerting rule
 Chronological event feed with time range filters and type filtering. Click any event to navigate to the involved resource.
 
 ![Timeline View](docs/screenshots/timeline.png)
+
+### YAML Editor
+Edit resources with syntax highlighting, live validation, diff view, context-aware snippets for 12+ resource types, and OpenAPI schema documentation.
+
+![YAML Editor](docs/screenshots/yaml-editor.png)
+
+### And More
+- **Resource Detail**: Inline actions (scale, restart, terminal, logs, YAML), smart diagnosis, conditions, events
+- **Dependency Graph**: Interactive SVG with blast radius analysis
+- **Operators**: ClusterOperator health and version tracking
+- **Storage**: PVC/PV status, capacity by storage class
+- **Access Control**: RBAC overview with cluster-admin audit
 
 ## Tech Stack
 
@@ -169,16 +159,6 @@ src/kubeview/
 | `/deps/:gvr/:ns/:name` | Dependency graph |
 | `/investigate/:gvr/:ns/:name` | Correlation analysis |
 | `/create/:gvr` | Create from YAML template |
-
-## Screenshots
-
-> **Note**: To add screenshots, take them from the running app and save to `docs/screenshots/`. The README references these paths.
-
-To capture screenshots:
-1. Start the app with `npm run dev`
-2. Navigate to each view
-3. Use your browser's screenshot tool or `⌘⇧4` on macOS
-4. Save as PNG to `docs/screenshots/` with the filenames referenced above
 
 ## Testing
 
