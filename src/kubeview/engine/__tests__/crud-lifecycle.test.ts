@@ -210,7 +210,7 @@ describe('delete resource (k8sDelete)', () => {
       expect(url).toContain(detailPath);
       expect(opts.method).toBe('DELETE');
       const body = JSON.parse(opts.body);
-      expect(body.propagationPolicy).toBe('Foreground');
+      expect(body.propagationPolicy).toBe('Background');
       expect(body.kind).toBe('DeleteOptions');
     });
   });

@@ -163,7 +163,7 @@ export async function k8sDelete(apiPath: string): Promise<void> {
     body: JSON.stringify({
       kind: 'DeleteOptions',
       apiVersion: 'v1',
-      propagationPolicy: 'Foreground',
+      propagationPolicy: 'Background',
     }),
   });
 

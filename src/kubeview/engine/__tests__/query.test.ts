@@ -150,7 +150,7 @@ describe('k8sDelete', () => {
       '/api/kubernetes/api/v1/namespaces/default/pods/test',
       expect.objectContaining({
         method: 'DELETE',
-        body: JSON.stringify({ kind: 'DeleteOptions', apiVersion: 'v1', propagationPolicy: 'Foreground' }),
+        body: JSON.stringify({ kind: 'DeleteOptions', apiVersion: 'v1', propagationPolicy: 'Background' }),
       }),
     );
   });
