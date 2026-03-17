@@ -143,6 +143,13 @@ export default function ProductionReadiness() {
     staleTime: 60000,
   });
 
+  // Operator subscriptions (OLM)
+  const { data: subscriptions = [] } = useQuery<any[]>({
+    queryKey: ['readiness', 'subscriptions'],
+    queryFn: () => k8sList('/apis/operators.coreos.com/v1alpha1/subscriptions').catch(() => []),
+    staleTime: 60000,
+  });
+
   const { data: etcdBackup } = useQuery({
     queryKey: ['readiness', 'etcdbackup'],
     queryFn: () => k8sList('/apis/config.openshift.io/v1/backups').then((items: any[]) => items.length > 0).catch(() => false),
@@ -415,8 +422,65 @@ export default function ProductionReadiness() {
       detail: etcdBackup ? 'Backup configured' : 'No automated backup — manual recovery only',
     });
 
+    // OPERATORS / OBSERVABILITY STACK
+    const subNames = subscriptions.map((s: any) => (s.spec?.name || s.metadata?.name || '').toLowerCase());
+    const hasLogging = subNames.some(n => n.includes('cluster-logging') || n.includes('logging'));
+    const hasLoki = subNames.some(n => n.includes('loki'));
+    const hasCOO = subNames.some(n => n.includes('cluster-observability') || n.includes('observability-operator'));
+    const hasServiceMesh = subNames.some(n => n.includes('servicemesh') || n.includes('istio'));
+
+    results.push({
+      id: 'logging-operator', category: 'Observability',
+      title: 'Logging Operator',
+      description: 'Cluster Logging Operator (CLO) for log collection and forwarding',
+      status: hasLogging ? 'pass' : 'warn',
+      detail: hasLogging ? 'Installed' : 'Not installed — install from OperatorHub',
+      action: hasLogging ? undefined : { label: 'Install', path: '/r/operators.coreos.com~v1alpha1~subscriptions' },
+    });
+
+    results.push({
+      id: 'loki-operator', category: 'Observability',
+      title: 'Loki (Log Storage)',
+      description: 'LokiStack for scalable log storage — replaces Elasticsearch',
+      status: hasLoki ? 'pass' : 'warn',
+      detail: hasLoki ? 'Installed' : 'Not installed — recommended for log storage',
+      action: hasLoki ? undefined : { label: 'Install', path: '/r/operators.coreos.com~v1alpha1~subscriptions' },
+    });
+
+    results.push({
+      id: 'coo', category: 'Observability',
+      title: 'Cluster Observability Operator',
+      description: 'COO for managing monitoring, distributed tracing, and observability dashboards',
+      status: hasCOO ? 'pass' : 'warn',
+      detail: hasCOO ? 'Installed' : 'Not installed — enables UIPlugin, dashboards, and tracing',
+      action: hasCOO ? undefined : { label: 'Install', path: '/r/operators.coreos.com~v1alpha1~subscriptions' },
+    });
+
+    if (hasServiceMesh) {
+      results.push({
+        id: 'service-mesh', category: 'Networking',
+        title: 'Service Mesh',
+        description: 'OpenShift Service Mesh (Istio) for traffic management and mTLS',
+        status: 'pass',
+        detail: 'Installed',
+      });
+    }
+
+    // INSTALLED OPERATORS summary
+    const operatorCount = subscriptions.length;
+    if (operatorCount > 0) {
+      results.push({
+        id: 'olm-operators', category: 'Infrastructure',
+        title: 'OLM Operators',
+        description: 'Operators installed via OperatorHub',
+        status: 'pass',
+        detail: `${operatorCount} operator${operatorCount !== 1 ? 's' : ''}: ${subNames.slice(0, 5).join(', ')}${operatorCount > 5 ? `, +${operatorCount - 5} more` : ''}`,
+        action: { label: 'View', path: '/r/operators.coreos.com~v1alpha1~subscriptions' },
+      });
+    }
+
     return results;
-  }, [nodes, clusterVersion, oauth, apiServer, storageClasses, netpols, quotas, healthChecks, clusterAutoscaler, kubeadminSecret, monitoringPods, logForwarder, ingress, imageRegistry, limitRanges, pdbs, externalSecrets, sealedSecrets, proxy, etcdBackup]);
+  }, [nodes, clusterVersion, oauth, apiServer, storageClasses, netpols, quotas, healthChecks, clusterAutoscaler, kubeadminSecret, monitoringPods, logForwarder, ingress, imageRegistry, limitRanges, pdbs, externalSecrets, sealedSecrets, proxy, etcdBackup, subscriptions]);
 
   // Summary
   const passCount = checks.filter(c => c.status === 'pass').length;
