@@ -73,12 +73,30 @@ export default function PulseView() {
     return findNeedsAttention(all);
   }, [filteredPods, nodes, pvcs]);
 
-  // Failing pods
+  // Failing pods — exclude completed jobs and installer pods
   const failingPods = React.useMemo(() => {
     return filteredPods.filter((pod) => {
       const status = getPodStatus(pod);
-      return status.reason === 'CrashLoopBackOff' || status.reason === 'ImagePullBackOff' ||
-        status.reason === 'ErrImagePull' || status.phase === 'Failed';
+      const name = pod.metadata.name;
+      const owners = pod.metadata.ownerReferences || [];
+
+      // Skip pods owned by Jobs (run-to-completion workloads)
+      const ownedByJob = owners.some((o) => o.kind === 'Job');
+
+      // Skip installer/revision pods (OpenShift internal)
+      const isInstaller = name.startsWith('installer-') || name.startsWith('revision-pruner-');
+
+      // Only flag actively broken pods, not historical failures
+      if (status.reason === 'CrashLoopBackOff' || status.reason === 'ImagePullBackOff' ||
+          status.reason === 'ErrImagePull') {
+        return true; // These are always problems
+      }
+
+      if (status.phase === 'Failed' && !ownedByJob && !isInstaller) {
+        return true; // Failed but not a job or installer
+      }
+
+      return false;
     });
   }, [filteredPods]);
 

@@ -437,6 +437,16 @@ export function findNeedsAttention(resources: K8sResource[]): NeedsAttentionItem
   const items: NeedsAttentionItem[] = [];
 
   for (const resource of resources) {
+    // Skip installer pods and job-owned pods (expected completions)
+    if (resource.kind === 'Pod') {
+      const name = resource.metadata.name;
+      const owners = resource.metadata.ownerReferences || [];
+      if (name.startsWith('installer-') || name.startsWith('revision-pruner-') || owners.some((o) => o.kind === 'Job')) {
+        const phase = (resource.status as any)?.phase;
+        if (phase === 'Failed' || phase === 'Succeeded') continue;
+      }
+    }
+
     const diagnoses = diagnoseResource(resource);
 
     for (const diagnosis of diagnoses) {
