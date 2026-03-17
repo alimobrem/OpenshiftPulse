@@ -276,6 +276,122 @@ spec:
     kind: MachineSet
     name: \${4:my-cluster-worker-us-east-1a}`,
   },
+  {
+    prefix: 'sub-logging',
+    label: 'Cluster Logging Operator',
+    description: 'Install the Cluster Logging Operator (CLO) for log collection',
+    body: `apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: cluster-logging
+  namespace: openshift-logging
+spec:
+  channel: \${1:stable-6.1}
+  name: cluster-logging
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: \${2:Automatic}`,
+  },
+  {
+    prefix: 'sub-loki',
+    label: 'Loki Operator',
+    description: 'Install Loki for scalable log storage',
+    body: `apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: loki-operator
+  namespace: openshift-operators-redhat
+spec:
+  channel: \${1:stable-6.1}
+  name: loki-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: \${2:Automatic}`,
+  },
+  {
+    prefix: 'sub-coo',
+    label: 'Cluster Observability Operator',
+    description: 'Install COO for monitoring, tracing, and dashboards',
+    body: `apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: cluster-observability-operator
+  namespace: openshift-operators
+spec:
+  channel: \${1:stable}
+  name: cluster-observability-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: \${2:Automatic}`,
+  },
+  {
+    prefix: 'sub-externalsecrets',
+    label: 'External Secrets Operator',
+    description: 'Install External Secrets for Vault/AWS/GCP secret sync',
+    body: `apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: external-secrets-operator
+  namespace: openshift-operators
+spec:
+  channel: \${1:stable}
+  name: external-secrets-operator
+  source: community-operators
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: \${2:Automatic}`,
+  },
+  {
+    prefix: 'lokistack',
+    label: 'LokiStack',
+    description: 'Create a LokiStack instance for log storage',
+    body: `apiVersion: loki.grafana.com/v1
+kind: LokiStack
+metadata:
+  name: \${1:logging-loki}
+  namespace: openshift-logging
+spec:
+  size: \${2:1x.small}
+  storage:
+    schemas:
+    - version: v13
+      effectiveDate: "2024-10-25"
+    secret:
+      name: \${3:logging-loki-s3}
+      type: \${4:s3}
+  storageClassName: \${5:gp3-csi}
+  tenants:
+    mode: openshift-logging`,
+  },
+  {
+    prefix: 'clusterlogforwarder',
+    label: 'ClusterLogForwarder',
+    description: 'Configure log collection and forwarding to LokiStack',
+    body: `apiVersion: observability.openshift.io/v1
+kind: ClusterLogForwarder
+metadata:
+  name: \${1:collector}
+  namespace: openshift-logging
+spec:
+  serviceAccount:
+    name: \${2:cluster-logging}
+  outputs:
+  - name: default-lokistack
+    type: lokiStack
+    lokiStack:
+      target:
+        name: \${3:logging-loki}
+        namespace: openshift-logging
+      authentication:
+        token:
+          from: serviceAccount
+  pipelines:
+  - name: default
+    inputRefs:
+    - application
+    - infrastructure
+    outputRefs:
+    - default-lokistack`,
+  },
 ];
 
 /**

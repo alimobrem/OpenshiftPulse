@@ -380,7 +380,17 @@ export default function ProductionReadiness() {
       detail: hasExternalSecrets ? `${externalSecrets.length} ExternalSecret${externalSecrets.length !== 1 ? 's' : ''}` : hasSealedSecrets ? `${sealedSecrets.length} SealedSecret${sealedSecrets.length !== 1 ? 's' : ''}` : 'No external secrets operator detected — secrets stored as base64 in etcd',
     });
 
-    // IMAGE REGISTRY
+    // IMAGE REGISTRY & CONTAINER REGISTRY
+    const hasQuay = subNames.some(n => n.includes('quay'));
+    results.push({
+      id: 'external-registry', category: 'Storage',
+      title: 'External Container Registry',
+      description: 'Dedicated registry (Quay, Harbor, ACR) for production image management, vulnerability scanning, and image signing',
+      status: hasQuay ? 'pass' : 'warn',
+      detail: hasQuay ? 'Quay operator installed' : 'No external registry detected — consider Quay for image scanning, signing, and geo-replication',
+      action: hasQuay ? undefined : { label: 'Install Quay', path: '/create/operators.coreos.com~v1alpha1~subscriptions' },
+    });
+
     const registryManagementState = imageRegistry?.spec?.managementState;
     const registryStorage = imageRegistry?.spec?.storage;
     const hasRegistryStorage = registryStorage && !registryStorage.emptyDir;
@@ -435,7 +445,7 @@ export default function ProductionReadiness() {
       description: 'Cluster Logging Operator (CLO) for log collection and forwarding',
       status: hasLogging ? 'pass' : 'warn',
       detail: hasLogging ? 'Installed' : 'Not installed — install from OperatorHub',
-      action: hasLogging ? undefined : { label: 'Install', path: '/r/operators.coreos.com~v1alpha1~subscriptions' },
+      action: hasLogging ? undefined : { label: 'Install', path: '/create/operators.coreos.com~v1alpha1~subscriptions' },
     });
 
     results.push({
@@ -444,7 +454,7 @@ export default function ProductionReadiness() {
       description: 'LokiStack for scalable log storage — replaces Elasticsearch',
       status: hasLoki ? 'pass' : 'warn',
       detail: hasLoki ? 'Installed' : 'Not installed — recommended for log storage',
-      action: hasLoki ? undefined : { label: 'Install', path: '/r/operators.coreos.com~v1alpha1~subscriptions' },
+      action: hasLoki ? undefined : { label: 'Install', path: '/create/operators.coreos.com~v1alpha1~subscriptions' },
     });
 
     results.push({
@@ -453,7 +463,7 @@ export default function ProductionReadiness() {
       description: 'COO for managing monitoring, distributed tracing, and observability dashboards',
       status: hasCOO ? 'pass' : 'warn',
       detail: hasCOO ? 'Installed' : 'Not installed — enables UIPlugin, dashboards, and tracing',
-      action: hasCOO ? undefined : { label: 'Install', path: '/r/operators.coreos.com~v1alpha1~subscriptions' },
+      action: hasCOO ? undefined : { label: 'Install', path: '/create/operators.coreos.com~v1alpha1~subscriptions' },
     });
 
     if (hasServiceMesh) {
