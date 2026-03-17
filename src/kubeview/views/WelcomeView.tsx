@@ -1,7 +1,7 @@
 import {
   HeartPulse, Clock, Search, GitBranch, Terminal, FilePlus,
   Keyboard, ArrowRight, Zap, Eye, Shield, Bell, Settings,
-  HardDrive, Activity, Cpu, Package, Globe, Server,
+  HardDrive, Activity, Cpu, Package, Globe, Server, Puzzle,
 } from 'lucide-react';
 import { useUIStore } from '../store/uiStore';
 import { useNavigateTab } from '../hooks/useNavigateTab';
@@ -83,7 +83,8 @@ export default function WelcomeView() {
             <PageLink icon={<Server className="w-5 h-5 text-blue-400" />} title="Compute" description="Nodes, machines, capacity, autoscaling" onClick={() => go('/compute', 'Compute')} />
             <PageLink icon={<HardDrive className="w-5 h-5 text-orange-400" />} title="Storage" description="PVCs, PVs, StorageClasses, capacity" onClick={() => go('/storage', 'Storage')} />
             <PageLink icon={<Shield className="w-5 h-5 text-indigo-400" />} title="Access Control" description="RBAC roles, cluster-admin audit" onClick={() => go('/access-control', 'Access Control')} />
-            <PageLink icon={<Settings className="w-5 h-5 text-slate-400" />} title="Administration" description="Operators, config, updates, snapshots, quotas" onClick={() => go('/admin', 'Administration')} />
+            <PageLink icon={<Puzzle className="w-5 h-5 text-violet-400" />} title="Operator Catalog" description="Browse and install 500+ operators" onClick={() => go('/operatorhub', 'Operator Catalog')} />
+            <PageLink icon={<Settings className="w-5 h-5 text-slate-400" />} title="Administration" description="Readiness, operators, config, updates, snapshots" onClick={() => go('/admin', 'Administration')} />
             <PageLink icon={<FilePlus className="w-5 h-5 text-amber-400" />} title="Create Resource" description="YAML templates with autocomplete" onClick={() => go('/create/v1~pods', 'Create')} />
           </div>
         </div>
@@ -95,14 +96,14 @@ export default function WelcomeView() {
             Key Capabilities
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <Feature title="Auto-Generated Tables" description="Every resource type gets sortable columns, search, filters, and pagination — auto-detected from the data." />
-            <Feature title="Smart Diagnosis" description="Pods, deployments, and nodes are automatically diagnosed for CrashLoopBackOff, OOM, scheduling failures, and more." />
-            <Feature title="Cluster Config Editor" description="Configure OAuth providers, proxy, image registries, scheduler profiles, TLS, and initiate cluster upgrades." />
-            <Feature title="Config Snapshots" description="Capture cluster state, persist snapshots, and compare side-by-side to track what changed." />
+            <Feature title="Operator Catalog" description="Browse 500+ operators, one-click install with progress tracking, and post-install configuration guidance." />
+            <Feature title="Production Readiness" description="32 automated checks across 6 categories — infrastructure, storage, security, networking, observability, reliability." />
+            <Feature title="Smart Diagnosis" description="Fetches pod logs, detects 10 error patterns (Permission denied, OOM, DNS), shows actual error with specific fix." />
+            <Feature title="Cluster Config Editor" description="Configure OAuth, proxy, image registries, scheduler, TLS, initiate upgrades, manage snapshots." />
+            <Feature title="Auto-Generated Tables" description="Every resource type gets sortable columns, search, filters, per-row delete, and auto-generated YAML from CRD schemas." />
+            <Feature title="Compute Overview" description="Per-node metrics with utilization bars, Machine Management, autoscaling guidance, health checks." />
+            <Feature title="Deployment Logs" description="View logs from all pods in a deployment with pod selector tabs and merged view." />
             <Feature title="Dependency Graph" description="Visualize relationships between deployments, services, pods, and config maps with blast radius analysis." />
-            <Feature title="YAML Editor" description="Edit resources with syntax highlighting, validation, diff view, and context-aware snippets for 12+ resource types." />
-            <Feature title="Inline Actions" description="Scale deployments, restart pods, cordon nodes, and delete resources directly from any view." />
-            <Feature title="Metrics & Correlation" description="View CPU, memory, and custom Prometheus metrics with auto-generated PromQL. Correlate with events for root cause analysis." />
           </div>
         </div>
 
