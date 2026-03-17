@@ -1,4 +1,5 @@
 import { useUIStore } from '../store/uiStore';
+import { kindToPlural } from '../engine/renderers/index';
 
 /**
  * Builds an API path from a GVR key (Group/Version/Resource).
@@ -54,6 +55,27 @@ export function buildApiPath(gvrKey: string, namespace?: string, name?: string):
     path += `/${sanitizePathSegment(name)}`;
   }
 
+  return path;
+}
+
+/**
+ * Build an API path from a K8s resource object (apiVersion + kind + metadata).
+ * Works for any resource returned by the API — no GVR key needed.
+ */
+export function buildApiPathFromResource(resource: {
+  apiVersion: string;
+  kind: string;
+  metadata: { name: string; namespace?: string };
+}): string {
+  const { apiVersion, kind, metadata } = resource;
+  const [group, version] = apiVersion.includes('/')
+    ? apiVersion.split('/')
+    : ['', apiVersion];
+  const plural = kindToPlural(kind);
+
+  let path = group ? `/apis/${apiVersion}` : `/api/${version}`;
+  if (metadata.namespace) path += `/namespaces/${metadata.namespace}`;
+  path += `/${plural}/${metadata.name}`;
   return path;
 }
 

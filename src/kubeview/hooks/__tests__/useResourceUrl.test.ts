@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildApiPath } from '../useResourceUrl';
+import { buildApiPath, buildApiPathFromResource } from '../useResourceUrl';
 
 describe('buildApiPath', () => {
   describe('core resources (2-part GVR)', () => {
@@ -100,5 +100,57 @@ describe('buildApiPath', () => {
       const path = buildApiPath('rbac.authorization.k8s.io/v1/clusterroles', '_', 'admin');
       expect(path).toBe('/apis/rbac.authorization.k8s.io/v1/clusterroles/admin');
     });
+  });
+});
+
+describe('buildApiPathFromResource', () => {
+  it('builds path for namespaced core resource', () => {
+    const path = buildApiPathFromResource({
+      apiVersion: 'v1', kind: 'Pod',
+      metadata: { name: 'nginx', namespace: 'default' },
+    });
+    expect(path).toBe('/api/v1/namespaces/default/pods/nginx');
+  });
+
+  it('builds path for namespaced grouped resource', () => {
+    const path = buildApiPathFromResource({
+      apiVersion: 'apps/v1', kind: 'Deployment',
+      metadata: { name: 'my-app', namespace: 'production' },
+    });
+    expect(path).toBe('/apis/apps/v1/namespaces/production/deployments/my-app');
+  });
+
+  it('builds path for cluster-scoped resource', () => {
+    const path = buildApiPathFromResource({
+      apiVersion: 'v1', kind: 'Node',
+      metadata: { name: 'worker-1' },
+    });
+    expect(path).toBe('/api/v1/nodes/worker-1');
+  });
+
+  it('builds path for CRD resource', () => {
+    const path = buildApiPathFromResource({
+      apiVersion: 'networking.k8s.io/v1', kind: 'Ingress',
+      metadata: { name: 'my-ingress', namespace: 'default' },
+    });
+    expect(path).toBe('/apis/networking.k8s.io/v1/namespaces/default/ingresses/my-ingress');
+  });
+
+  it('matches buildApiPath output for deployments', () => {
+    const fromResource = buildApiPathFromResource({
+      apiVersion: 'apps/v1', kind: 'Deployment',
+      metadata: { name: 'nginx', namespace: 'default' },
+    });
+    const fromGvr = buildApiPath('apps/v1/deployments', 'default', 'nginx');
+    expect(fromResource).toBe(fromGvr);
+  });
+
+  it('matches buildApiPath output for cluster-scoped', () => {
+    const fromResource = buildApiPathFromResource({
+      apiVersion: 'rbac.authorization.k8s.io/v1', kind: 'ClusterRole',
+      metadata: { name: 'admin' },
+    });
+    const fromGvr = buildApiPath('rbac.authorization.k8s.io/v1/clusterroles', '_', 'admin');
+    expect(fromResource).toBe(fromGvr);
   });
 });

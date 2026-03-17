@@ -5,13 +5,13 @@ import { Search, ChevronUp, ChevronDown, Trash2, Tag, Plus, Filter, Columns3, X,
 import { cn } from '@/lib/utils';
 import { k8sPatch, k8sDelete } from '../engine/query';
 import { useK8sListWatch } from '../hooks/useK8sListWatch';
+import { buildApiPathFromResource } from '../hooks/useResourceUrl';
 import { jsonToYaml } from '../engine/yamlUtils';
 import { ConfirmDialog } from '../components/feedback/ConfirmDialog';
 import DeployProgress from '../components/DeployProgress';
 import { useClusterStore } from '../store/clusterStore';
 import { useUIStore } from '../store/uiStore';
 import type { K8sResource, ColumnDef } from '../engine/renderers';
-import { kindToPlural } from '../engine/renderers/index';
 import { getColumnsForResource } from '../engine/enhancers';
 import { getEnhancer } from '../engine/enhancers';
 
@@ -293,17 +293,8 @@ export default function TableView({ gvrKey, namespace: namespaceProp }: TableVie
 
     const resourceName = resource.metadata?.name || '';
     const resourceNs = resource.metadata?.namespace;
-    const apiVersion = resource.apiVersion || '';
     const kind = resource.kind || '';
-
-    // Build API path from resource
-    const [group, version] = apiVersion.includes('/')
-      ? apiVersion.split('/')
-      : ['', apiVersion];
-    let basePath = group ? `/apis/${apiVersion}` : `/api/${version}`;
-    if (resourceNs) basePath += `/namespaces/${resourceNs}`;
-    const plural = kindToPlural(kind);
-    const resourcePath = `${basePath}/${plural}/${resourceName}`;
+    const resourcePath = buildApiPathFromResource(resource);
 
     try {
       if (action === 'restart') {
@@ -425,13 +416,9 @@ export default function TableView({ gvrKey, namespace: namespaceProp }: TableVie
     for (const uid of selectedRows) {
       const resource = stampedResources.find((r) => r.metadata.uid === uid);
       if (!resource) continue;
-      const apiVersion = resource.apiVersion || '';
       const kind = resource.kind || '';
-      const [group, version] = apiVersion.includes('/') ? apiVersion.split('/') : ['', apiVersion];
-      let basePath = group ? `/apis/${apiVersion}` : `/api/${version}`;
-      if (resource.metadata.namespace) basePath += `/namespaces/${resource.metadata.namespace}`;
-      const plural = kindToPlural(kind);
-      items.push({ name: resource.metadata.name, ns: resource.metadata.namespace || 'default', kind, uid, path: `${basePath}/${plural}/${resource.metadata.name}` });
+      const path = buildApiPathFromResource(resource);
+      items.push({ name: resource.metadata.name, ns: resource.metadata.namespace || 'default', kind, uid, path });
     }
 
     // Show progress immediately
