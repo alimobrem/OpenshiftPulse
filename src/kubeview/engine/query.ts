@@ -142,6 +142,14 @@ export async function k8sPatch<T>(
 export async function k8sDelete(apiPath: string): Promise<void> {
   const response = await fetch(`${BASE}${apiPath}`, {
     method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      kind: 'DeleteOptions',
+      apiVersion: 'v1',
+      propagationPolicy: 'Background',
+    }),
   });
 
   if (!response.ok && response.status !== 404) {

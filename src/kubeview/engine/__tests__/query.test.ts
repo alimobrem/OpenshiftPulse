@@ -142,13 +142,17 @@ describe('k8sPatch', () => {
 });
 
 describe('k8sDelete', () => {
-  it('sends DELETE', async () => {
+  it('sends DELETE with propagationPolicy', async () => {
     mockFetch.mockResolvedValueOnce({ ok: true, status: 200 });
 
     await k8sDelete('/api/v1/namespaces/default/pods/test');
     expect(mockFetch).toHaveBeenCalledWith(
       '/api/kubernetes/api/v1/namespaces/default/pods/test',
-      expect.objectContaining({ method: 'DELETE' }),
+      expect.objectContaining({
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'DeleteOptions', apiVersion: 'v1', propagationPolicy: 'Background' }),
+      }),
     );
   });
 
