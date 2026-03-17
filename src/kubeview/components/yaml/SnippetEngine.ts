@@ -424,6 +424,22 @@ spec:
   sourceNamespace: openshift-marketplace
   installPlanApproval: \${2:Automatic}`,
   },
+  {
+    prefix: 'sub-gitops',
+    label: 'OpenShift GitOps (ArgoCD)',
+    description: 'Install OpenShift GitOps for declarative cluster management',
+    body: `apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: openshift-gitops-operator
+  namespace: openshift-operators
+spec:
+  channel: \${1:latest}
+  name: openshift-gitops-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: \${2:Automatic}`,
+  },
 ];
 
 /**

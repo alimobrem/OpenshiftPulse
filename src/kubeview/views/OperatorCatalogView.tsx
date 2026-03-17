@@ -274,6 +274,11 @@ export default function OperatorCatalogView() {
     if (name.includes('odf') || name.includes('openshift-data-foundation')) return [
       { title: 'Create a StorageSystem', description: 'Configure the storage backend (Ceph, NooBaa)', path: '/create/odf.openshift.io~v1alpha1~storagesystems', label: 'Create StorageSystem' },
     ];
+    if (name.includes('gitops') || name.includes('argocd')) return [
+      { title: 'Access ArgoCD Console', description: 'OpenShift GitOps creates an ArgoCD instance in openshift-gitops namespace. Access it via the ArgoCD route.', path: '/r/route.openshift.io~v1~routes', label: 'View Routes' },
+      { title: 'Create an Application', description: 'Create an ArgoCD Application that syncs a Git repo to your cluster', path: '/create/argoproj.io~v1alpha1~applications', label: 'Create Application' },
+      { title: 'Add cluster config to Git', description: 'Move your cluster configuration (operators, namespaces, RBAC, quotas) into a Git repository for declarative management', path: '/admin', label: 'View Config' },
+    ];
 
     // Generic fallback
     return [];
