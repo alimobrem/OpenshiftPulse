@@ -78,5 +78,27 @@ describe('buildApiPath', () => {
       expect(path).toBe('/apis/apps/v1/deployments/nginx');
       expect(path).not.toContain('namespaces');
     });
+
+    it('treats "_" as cluster-scoped (no namespace segment)', () => {
+      const path = buildApiPath('v1/nodes', '_', 'node-1');
+      expect(path).toBe('/api/v1/nodes/node-1');
+      expect(path).not.toContain('namespaces');
+    });
+
+    it('treats "_" as cluster-scoped for grouped resources', () => {
+      const path = buildApiPath('config.openshift.io/v1/clusteroperators', '_', 'authentication');
+      expect(path).toBe('/apis/config.openshift.io/v1/clusteroperators/authentication');
+      expect(path).not.toContain('namespaces');
+    });
+
+    it('builds correct delete path for namespaced deployment', () => {
+      const path = buildApiPath('apps/v1/deployments', 'default', 'nginx');
+      expect(path).toBe('/apis/apps/v1/namespaces/default/deployments/nginx');
+    });
+
+    it('builds correct delete path for cluster-scoped resource via _', () => {
+      const path = buildApiPath('rbac.authorization.k8s.io/v1/clusterroles', '_', 'admin');
+      expect(path).toBe('/apis/rbac.authorization.k8s.io/v1/clusterroles/admin');
+    });
   });
 });

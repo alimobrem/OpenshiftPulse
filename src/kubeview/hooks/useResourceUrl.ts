@@ -41,8 +41,8 @@ export function buildApiPath(gvrKey: string, namespace?: string, name?: string):
     path = `/apis/${group}/${version}`;
   }
 
-  // Add namespace segment if provided
-  if (namespace) {
+  // Add namespace segment if provided ("_" means cluster-scoped, no namespace)
+  if (namespace && namespace !== '_') {
     path += `/namespaces/${sanitizePathSegment(namespace)}`;
   }
 
