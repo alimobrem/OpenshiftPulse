@@ -134,7 +134,6 @@ export class WatchManager {
       connection.ws = ws;
 
       ws.onopen = () => {
-        console.log(`Watch connected: ${normalizedPath}`);
         connection.reconnectAttempt = 0;
         this.status = 'connected';
         this.startHeartbeat(key, connection);
@@ -175,12 +174,13 @@ export class WatchManager {
         }
       };
 
-      ws.onerror = (error) => {
-        console.error(`Watch error: ${normalizedPath}`, error);
+      ws.onerror = () => {
+        // WebSocket errors are expected when oc proxy doesn't support WS.
+        // Polling fallback handles updates. Suppress to avoid console noise.
       };
 
       ws.onclose = (event) => {
-        console.log(`Watch closed: ${normalizedPath}`, event.code, event.reason);
+        if (event.code !== 1006) console.log(`Watch closed: ${normalizedPath}`, event.code);
         this.stopHeartbeat(connection);
 
         // Handle 410 Gone (resourceVersion too old)
