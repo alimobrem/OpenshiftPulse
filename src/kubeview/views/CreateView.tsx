@@ -16,6 +16,46 @@ import { snippets, resolveSnippet, getSnippetSuggestions, type Snippet } from '.
 import { K8S_BASE as BASE } from '../engine/gvr';
 import DeployProgress from '../components/DeployProgress';
 
+// Generate YAML spec from OpenAPI schema (top-level required fields)
+function generateSpecFromSchema(properties: Record<string, any>, indent = 2): string {
+  const lines: string[] = [];
+  const pad = ' '.repeat(indent);
+
+  for (const [key, prop] of Object.entries(properties)) {
+    if (key.startsWith('x-') || key === 'status') continue;
+    const desc = prop.description ? ` # ${prop.description.slice(0, 60)}` : '';
+
+    if (prop.type === 'object' && prop.properties) {
+      lines.push(`${pad}${key}:${desc}`);
+      lines.push(generateSpecFromSchema(prop.properties, indent + 2));
+    } else if (prop.type === 'array') {
+      lines.push(`${pad}${key}:${desc}`);
+      if (prop.items?.properties) {
+        lines.push(`${pad}- `);
+        const itemLines = generateSpecFromSchema(prop.items.properties, indent + 4);
+        lines.push(itemLines);
+      } else {
+        lines.push(`${pad}- ""`);
+      }
+    } else if (prop.type === 'integer' || prop.type === 'number') {
+      lines.push(`${pad}${key}: ${prop.default ?? 0}${desc}`);
+    } else if (prop.type === 'boolean') {
+      lines.push(`${pad}${key}: ${prop.default ?? false}${desc}`);
+    } else if (prop.enum) {
+      lines.push(`${pad}${key}: ${prop.enum[0]}${desc} # options: ${prop.enum.join(', ')}`);
+    } else {
+      lines.push(`${pad}${key}: ""${desc}`);
+    }
+
+    // Only include first 15 fields to keep template manageable
+    if (lines.length > 30) {
+      lines.push(`${pad}# ... more fields available (see API docs)`);
+      break;
+    }
+  }
+  return lines.join('\n');
+}
+
 interface CreateViewProps {
   gvrKey: string;
 }
@@ -102,24 +142,40 @@ export default function CreateView({ gvrKey }: CreateViewProps) {
     setError(null);
   }
 
-  function selectBlankYaml(gvr: string) {
+  async function selectBlankYaml(gvr: string) {
     const parts = gvr.split('/');
     const group = parts.length === 3 ? parts[0] : '';
     const version = parts.length === 3 ? parts[1] : parts[0];
     const plural = parts[parts.length - 1];
     const apiVersion = group ? `${group}/${version}` : version;
-    const shortName = plural.replace(/s$/, '');
-    const kindName = shortName.charAt(0).toUpperCase() + shortName.slice(1);
     const ns = selectedNamespace !== '*' ? selectedNamespace : 'default';
+
+    // Look up kind from registry (handles CRD names correctly)
     const rt = registry?.get(gvr) ?? (parts.length === 2 ? registry?.get(`core/${gvr}`) : undefined);
+    const kindName = rt?.kind || plural.replace(/s$/, '').replace(/^./, c => c.toUpperCase());
+
+    // Try to fetch CRD schema for better template
+    let schemaYaml = '';
+    if (group) {
+      try {
+        const crd = await fetch(`${BASE}/apis/apiextensions.k8s.io/v1/customresourcedefinitions/${plural}.${group}`).then(r => r.ok ? r.json() : null);
+        if (crd) {
+          const versionSpec = crd.spec?.versions?.find((v: any) => v.name === version) || crd.spec?.versions?.[0];
+          const schema = versionSpec?.schema?.openAPIV3Schema?.properties?.spec?.properties;
+          if (schema) {
+            schemaYaml = generateSpecFromSchema(schema);
+          }
+        }
+      } catch {}
+    }
 
     setYaml([
       `apiVersion: ${apiVersion}`,
       `kind: ${kindName}`,
       'metadata:',
-      `  name: my-${shortName}`,
+      `  name: my-${kindName.toLowerCase()}`,
       rt?.namespaced !== false ? `  namespace: ${ns}` : null,
-      'spec: {}',
+      schemaYaml ? `spec:\n${schemaYaml}` : 'spec: {}',
     ].filter(Boolean).join('\n'));
     setActiveGvr(gvr);
     setEditMode(true);
