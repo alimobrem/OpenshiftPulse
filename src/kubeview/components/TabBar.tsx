@@ -133,7 +133,7 @@ export function TabBar() {
   }
 
   return (
-    <div className="flex h-9 items-center gap-0.5 border-b border-slate-700 bg-slate-800 px-2">
+    <div className="flex h-9 items-center gap-0.5 border-b border-slate-700 bg-slate-800 px-2 overflow-x-auto scrollbar-none">
       {tabs.map((tab, tabIndex) => {
         const Icon = getIcon(tab.icon);
         const isActive = tab.id === activeTabId;
@@ -163,7 +163,7 @@ export function TabBar() {
             }}
             className={cn(
               'group flex h-7 items-center gap-1.5 rounded px-2.5 text-sm transition-colors cursor-pointer select-none',
-              tab.pinned ? 'min-w-0 px-1.5' : 'min-w-[100px] max-w-[200px]',
+              tab.pinned ? 'px-2.5 shrink-0' : 'min-w-[100px] max-w-[200px]',
               isActive
                 ? 'bg-slate-900 text-slate-100 shadow-sm'
                 : 'text-slate-400 hover:bg-slate-700 hover:text-slate-200',
@@ -182,7 +182,7 @@ export function TabBar() {
             )}
 
             {/* Title */}
-            <span className={cn('truncate', tab.pinned ? 'text-xs max-w-[60px]' : 'flex-1')}>
+            <span className={cn('truncate', tab.pinned ? 'text-xs' : 'flex-1')}>
               {tab.title}
             </span>
 
