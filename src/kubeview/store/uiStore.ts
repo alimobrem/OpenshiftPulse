@@ -171,9 +171,9 @@ export const useUIStore = create<UIState>()(
 
         set({ tabs: newTabs, activeTabId: newActiveTabId });
 
-        // Navigate to the new active tab (uses window.location for React Router)
+        // Navigate after persist middleware has flushed
         if (navigateTo && window.location.pathname !== navigateTo) {
-          window.location.href = navigateTo;
+          setTimeout(() => { window.location.href = navigateTo!; }, 50);
         }
       },
 

@@ -97,7 +97,7 @@ function ConfigEditor({ section, data }: { section: ConfigSection; data: any }) 
     case 'dns': return <DNSViewer data={data} />;
     case 'network': return <NetworkViewer data={data} />;
     case 'featuregate': return <FeatureGateViewer data={data} />;
-    case 'console': return <ConsoleViewer data={data} />;
+    case 'console': return <ConsoleEditor data={data} apiPath={section.apiPath} />;
     default: return null;
   }
 }
@@ -698,48 +698,86 @@ function FeatureGateViewer({ data }: { data: any }) {
 }
 
 // ===== Console =====
-function ConsoleViewer({ data }: { data: any }) {
+function ConsoleEditor({ data, apiPath }: { data: any; apiPath: string }) {
   const status = data.status || {};
   const spec = data.spec || {};
+  const addToast = useUIStore((s) => s.addToast);
+  const queryClient = useQueryClient();
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+
+  const [customProductName, setCustomProductName] = useState(spec.customization?.customProductName || '');
+  const [routeHostname, setRouteHostname] = useState(spec.route?.hostname || '');
+  const [routeSecret, setRouteSecret] = useState(spec.route?.secret?.name || '');
+  const [logoConfigMap, setLogoConfigMap] = useState(spec.customization?.customLogoFile?.name || '');
+  const [logoKey, setLogoKey] = useState(spec.customization?.customLogoFile?.key || '');
+  const [statuspageId, setStatuspageId] = useState(spec.providers?.statuspage?.pageID || '');
+
+  const markDirty = (setter: (v: string) => void) => (v: string) => { setter(v); setDirty(true); };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const patch: any = { spec: {} };
+      // Customization
+      const customization: any = {};
+      if (customProductName) customization.customProductName = customProductName;
+      if (logoConfigMap) customization.customLogoFile = { name: logoConfigMap, key: logoKey || 'logo.png' };
+      if (Object.keys(customization).length > 0) patch.spec.customization = customization;
+      // Route
+      if (routeHostname) {
+        patch.spec.route = { hostname: routeHostname };
+        if (routeSecret) patch.spec.route.secret = { name: routeSecret };
+      }
+      // Statuspage
+      if (statuspageId) patch.spec.providers = { statuspage: { pageID: statuspageId } };
+
+      await k8sPatch(apiPath, patch, MERGE_PATCH);
+      addToast({ type: 'success', title: 'Console configuration updated' });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'config', 'console'] });
+      setDirty(false);
+    } catch (err) {
+      addToast({ type: 'error', title: 'Failed to update console', detail: err instanceof Error ? err.message : 'Unknown error' });
+    }
+    setSaving(false);
+  };
 
   return (
     <div className="space-y-3">
       {status.consoleURL && (
         <div>
-          <div className="text-xs text-slate-400 mb-1">Console URL</div>
-          <a
-            href={status.consoleURL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-blue-400 hover:text-blue-300 underline font-mono"
-          >
-            {status.consoleURL}
-          </a>
+          <div className="text-xs text-slate-400 mb-1">Console URL (read-only)</div>
+          <a href={status.consoleURL} target="_blank" rel="noopener noreferrer"
+            className="text-sm text-blue-400 hover:text-blue-300 underline font-mono">{status.consoleURL}</a>
         </div>
       )}
 
-      {spec.route?.hostname && (
-        <InfoRow label="Custom Route Hostname" value={spec.route.hostname} />
+      <div className="border-t border-slate-800 pt-3 text-xs text-slate-500 font-medium">Branding</div>
+      <FieldRow label="Custom Product Name" value={customProductName} onChange={markDirty(setCustomProductName)} placeholder="My Platform (replaces 'Red Hat OpenShift')" />
+      <FieldRow label="Custom Logo ConfigMap" value={logoConfigMap} onChange={markDirty(setLogoConfigMap)} placeholder="ConfigMap name in openshift-config (e.g., custom-logo)" />
+      {logoConfigMap && (
+        <FieldRow label="Logo Key in ConfigMap" value={logoKey} onChange={markDirty(setLogoKey)} placeholder="logo.png" />
       )}
 
-      {spec.route?.secret?.name && (
-        <InfoRow label="Custom TLS Secret" value={spec.route.secret.name} />
+      <div className="border-t border-slate-800 pt-3 text-xs text-slate-500 font-medium">Custom Route</div>
+      <FieldRow label="Console Hostname" value={routeHostname} onChange={markDirty(setRouteHostname)} placeholder="console.example.com (custom domain for the console)" />
+      {routeHostname && (
+        <FieldRow label="TLS Secret Name" value={routeSecret} onChange={markDirty(setRouteSecret)} placeholder="Secret in openshift-config with tls.crt + tls.key" />
       )}
 
-      {spec.customization?.branding && (
-        <InfoRow label="Branding" value={spec.customization.branding} />
-      )}
+      <div className="border-t border-slate-800 pt-3 text-xs text-slate-500 font-medium">Integrations</div>
+      <FieldRow label="Statuspage.io Page ID" value={statuspageId} onChange={markDirty(setStatuspageId)} placeholder="abc123 (shows external status incidents in console)" />
 
-      {spec.customization?.customProductName && (
-        <InfoRow label="Custom Product Name" value={spec.customization.customProductName} />
-      )}
-
-      {spec.customization?.customLogoFile?.name && (
-        <InfoRow label="Custom Logo ConfigMap" value={spec.customization.customLogoFile.name} />
-      )}
-
-      {spec.providers?.statuspage?.pageID && (
-        <InfoRow label="Statuspage.io Page ID" value={spec.providers.statuspage.pageID} />
+      {dirty && (
+        <SaveBar saving={saving} onSave={handleSave} onReset={() => {
+          setCustomProductName(spec.customization?.customProductName || '');
+          setRouteHostname(spec.route?.hostname || '');
+          setRouteSecret(spec.route?.secret?.name || '');
+          setLogoConfigMap(spec.customization?.customLogoFile?.name || '');
+          setLogoKey(spec.customization?.customLogoFile?.key || '');
+          setStatuspageId(spec.providers?.statuspage?.pageID || '');
+          setDirty(false);
+        }} />
       )}
     </div>
   );
