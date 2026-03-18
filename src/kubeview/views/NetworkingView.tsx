@@ -2,7 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Globe, Network, Shield, ArrowRight, ExternalLink, AlertCircle,
-  AlertTriangle, Info, Plus, Lock, Unlock, Server, Activity,
+  AlertTriangle, Info, Plus, Lock, Unlock, Server, Activity, CheckCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { k8sList } from '../engine/query';
@@ -360,57 +360,355 @@ export default function NetworkingView() {
           )}
         </Panel>
 
-        {/* Guidance */}
-        <Panel title="Networking Best Practices" icon={<Info className="w-4 h-4 text-blue-500" />}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
-                <div>
-                  <span className="font-medium text-slate-200">Use TLS on all Routes</span>
-                  <p className="text-slate-500">Set <code className="text-slate-400">spec.tls.termination: edge</code> for automatic certificate management</p>
+        {/* Networking Health Audit */}
+        <NetworkingHealthAudit
+          routes={routes as any[]}
+          services={services as any[]}
+          netpols={netpols as any[]}
+          ingressControllers={ingressControllers as any[]}
+          nsFilter={nsFilter}
+          go={go}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ===== Networking Health Audit =====
+
+interface AuditCheck {
+  id: string;
+  title: string;
+  description: string;
+  why: string;
+  passing: any[];
+  failing: any[];
+  yamlExample: string;
+}
+
+function NetworkingHealthAudit({
+  routes,
+  services,
+  netpols,
+  ingressControllers,
+  nsFilter,
+  go,
+}: {
+  routes: any[];
+  services: any[];
+  netpols: any[];
+  ingressControllers: any[];
+  nsFilter?: string;
+  go: (path: string, title: string) => void;
+}) {
+  const [expandedCheck, setExpandedCheck] = React.useState<string | null>(null);
+
+  // Get all unique namespaces from services (for network policy checks)
+  const allNamespaces = React.useMemo(() => {
+    const nsSet = new Set<string>();
+    for (const s of services) {
+      if (s.metadata?.namespace && s.metadata.namespace !== 'default' && s.metadata.namespace !== 'kube-system' && !s.metadata.namespace.startsWith('openshift-')) {
+        nsSet.add(s.metadata.namespace);
+      }
+    }
+    return Array.from(nsSet);
+  }, [services]);
+
+  // Namespaces with network policies
+  const namespacesWithPolicies = React.useMemo(() => {
+    const nsSet = new Set<string>();
+    for (const np of netpols) nsSet.add(np.metadata.namespace);
+    return nsSet;
+  }, [netpols]);
+
+  // Check for egress policies
+  const namespacesWithEgressPolicies = React.useMemo(() => {
+    const nsSet = new Set<string>();
+    for (const np of netpols) {
+      const policyTypes = np.spec?.policyTypes || [];
+      const hasEgress = policyTypes.includes('Egress') || np.spec?.egress;
+      if (hasEgress) nsSet.add(np.metadata.namespace);
+    }
+    return nsSet;
+  }, [netpols]);
+
+  const checks: AuditCheck[] = React.useMemo(() => {
+    const allChecks: AuditCheck[] = [];
+
+    // 1. TLS on Routes
+    const routesWithTLS = routes.filter(r => r.spec?.tls);
+    const routesWithoutTLS = routes.filter(r => !r.spec?.tls);
+    allChecks.push({
+      id: 'route-tls',
+      title: 'TLS on Routes',
+      description: 'All Routes should use TLS encryption to protect data in transit',
+      why: 'Without TLS, traffic between clients and your application is unencrypted. This exposes sensitive data (credentials, session tokens, PII) to network sniffing and man-in-the-middle attacks.',
+      passing: routesWithTLS,
+      failing: routesWithoutTLS,
+      yamlExample: `spec:
+  tls:
+    termination: edge           # TLS terminated at router
+    insecureEdgeTerminationPolicy: Redirect  # HTTP → HTTPS
+  # Alternative: passthrough (TLS to pod) or reencrypt (TLS to router, then to pod)`,
+    });
+
+    // 2. Network Policies per Namespace
+    const namespacesWithoutPolicies = allNamespaces.filter(ns => !namespacesWithPolicies.has(ns));
+    const namespacesWithPoliciesArray = allNamespaces.filter(ns => namespacesWithPolicies.has(ns));
+    allChecks.push({
+      id: 'network-policies',
+      title: 'Network Policies',
+      description: 'Every namespace with workloads should have NetworkPolicies to restrict traffic',
+      why: 'By default, all pods can communicate with each other. Without NetworkPolicies, a compromised pod can access any other pod in the cluster, enabling lateral movement and data exfiltration.',
+      passing: namespacesWithPoliciesArray.map(ns => ({ metadata: { name: ns, namespace: ns } })),
+      failing: namespacesWithoutPolicies.map(ns => ({ metadata: { name: ns, namespace: ns } })),
+      yamlExample: `apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+spec:
+  podSelector: {}           # applies to all pods in namespace
+  policyTypes:
+  - Ingress
+  # No ingress rules = deny all ingress
+  # Then create additional policies to allow specific traffic`,
+    });
+
+    // 3. Avoid NodePort Services
+    const nodePortServices = services.filter(s => s.spec?.type === 'NodePort');
+    const nonNodePortServices = services.filter(s => s.spec?.type !== 'NodePort');
+    allChecks.push({
+      id: 'nodeport-services',
+      title: 'Avoid NodePort Services',
+      description: 'NodePort services expose ports on every node — use Routes or LoadBalancer instead',
+      why: 'NodePort services open ports (30000-32767) on every cluster node, bypassing ingress controllers and network policies. This increases attack surface and makes firewall management difficult.',
+      passing: nonNodePortServices,
+      failing: nodePortServices,
+      yamlExample: `# Instead of NodePort:
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-app
+spec:
+  type: ClusterIP        # internal only
+  selector:
+    app: my-app
+  ports:
+  - port: 8080
+---
+# Then expose via Route:
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: my-app
+spec:
+  to:
+    kind: Service
+    name: my-app
+  tls:
+    termination: edge`,
+    });
+
+    // 4. Ingress Controller Health
+    const healthyControllers = ingressControllers.filter((ic: any) => {
+      const available = ic.status?.conditions?.find((c: any) => c.type === 'Available');
+      return available?.status === 'True';
+    });
+    const unhealthyControllers = ingressControllers.filter((ic: any) => {
+      const available = ic.status?.conditions?.find((c: any) => c.type === 'Available');
+      return available?.status !== 'True';
+    });
+    allChecks.push({
+      id: 'ingress-health',
+      title: 'Ingress Controller Health',
+      description: 'All IngressControllers should be Available',
+      why: 'A degraded IngressController cannot route traffic to your applications. This causes HTTP 503 errors for all Routes handled by that controller, resulting in complete application outages.',
+      passing: healthyControllers,
+      failing: unhealthyControllers,
+      yamlExample: `# Check controller status:
+oc get ingresscontroller -n openshift-ingress-operator
+
+# Common fixes:
+# 1. Check router pods: oc get pods -n openshift-ingress
+# 2. Check router logs: oc logs -n openshift-ingress -l ingresscontroller.operator.openshift.io/deployment-ingresscontroller=default
+# 3. Verify DNS: nslookup *.apps.<cluster-domain>
+# 4. Check certificates: oc get secret -n openshift-ingress`,
+    });
+
+    // 5. Route Admission
+    const admittedRoutes = routes.filter(r => {
+      const admitted = r.status?.ingress?.some((i: any) =>
+        i.conditions?.some((c: any) => c.type === 'Admitted' && c.status === 'True')
+      );
+      return admitted !== false;
+    });
+    const notAdmittedRoutes = routes.filter(r => {
+      const admitted = r.status?.ingress?.some((i: any) =>
+        i.conditions?.some((c: any) => c.type === 'Admitted' && c.status === 'True')
+      );
+      return admitted === false;
+    });
+    allChecks.push({
+      id: 'route-admission',
+      title: 'Route Admission',
+      description: 'All Routes should be admitted by the IngressController',
+      why: 'Not-admitted Routes are not served by the ingress controller. The hostname is not routable, causing 404 errors for all requests to that Route.',
+      passing: admittedRoutes,
+      failing: notAdmittedRoutes,
+      yamlExample: `# Common causes:
+# 1. Host conflicts — another Route in the same namespace already uses that hostname
+# 2. TLS certificate missing — check that spec.tls.certificate/key Secret exists
+# 3. Invalid hostname — must match IngressController domain (*.apps.<cluster>)
+
+# Check Route status:
+oc describe route <name>
+
+# Fix host conflict:
+spec:
+  host: unique-name.apps.<cluster-domain>  # ensure unique per namespace`,
+    });
+
+    // 6. Egress Network Policies
+    const namespacesWithIngressNoEgress = Array.from(namespacesWithPolicies).filter(
+      ns => !namespacesWithEgressPolicies.has(ns)
+    );
+    const namespacesWithEgress = Array.from(namespacesWithEgressPolicies);
+    allChecks.push({
+      id: 'egress-policies',
+      title: 'Egress Network Policies',
+      description: 'Namespaces with ingress policies should also have egress policies',
+      why: 'Ingress policies alone do not prevent compromised pods from making outbound connections. Egress policies restrict what external services pods can reach, limiting data exfiltration and lateral movement.',
+      passing: namespacesWithEgress.map(ns => ({ metadata: { name: ns, namespace: ns } })),
+      failing: namespacesWithIngressNoEgress.map(ns => ({ metadata: { name: ns, namespace: ns } })),
+      yamlExample: `apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-egress
+spec:
+  podSelector: {}           # applies to all pods in namespace
+  policyTypes:
+  - Egress
+  # No egress rules = deny all egress
+  # Then create policies to allow specific destinations (DNS, APIs, etc)`,
+    });
+
+    return allChecks;
+  }, [routes, services, netpols, ingressControllers, allNamespaces, namespacesWithPolicies, namespacesWithEgressPolicies]);
+
+  // Calculate score
+  const totalPassing = checks.reduce((s, c) => s + (c.failing.length === 0 ? 1 : 0), 0);
+  const score = checks.length > 0 ? Math.round((totalPassing / checks.length) * 100) : 100;
+
+  return (
+    <div className="bg-slate-900 rounded-lg border border-slate-800">
+      <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+          <Activity className="w-4 h-4 text-cyan-400" /> Networking Health Audit
+        </h2>
+        <div className="flex items-center gap-2">
+          <span className={cn('text-sm font-bold', score === 100 ? 'text-green-400' : score >= 60 ? 'text-amber-400' : 'text-red-400')}>{score}%</span>
+          <span className="text-xs text-slate-500">{totalPassing}/{checks.length} passing</span>
+        </div>
+      </div>
+      <div className="divide-y divide-slate-800">
+        {checks.map((check) => {
+          const pass = check.failing.length === 0;
+          const expanded = expandedCheck === check.id;
+          return (
+            <div key={check.id}>
+              <button
+                onClick={() => setExpandedCheck(expanded ? null : check.id)}
+                className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-800/30 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  {pass ? <CheckCircle className="w-4 h-4 text-green-400 shrink-0" /> : <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />}
+                  <div>
+                    <span className="text-sm text-slate-200">{check.title}</span>
+                    <span className="text-xs text-slate-500 ml-2">
+                      {pass ? `${check.passing.length} pass` : `${check.failing.length} of ${check.failing.length + check.passing.length} need attention`}
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <div className="flex gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
-                <div>
-                  <span className="font-medium text-slate-200">Apply network policies per namespace</span>
-                  <p className="text-slate-500">Default-deny ingress + allow specific traffic patterns. Start with deny-all then whitelist.</p>
+                <span className="text-xs text-slate-600">{expanded ? '▾' : '▸'}</span>
+              </button>
+
+              {expanded && (
+                <div className="px-4 pb-4 space-y-3">
+                  <p className="text-xs text-slate-400">{check.description}</p>
+
+                  {/* Why it matters */}
+                  <div className="bg-blue-950/20 border border-blue-900/50 rounded p-3">
+                    <div className="text-xs font-medium text-blue-300 mb-1">Why it matters</div>
+                    <p className="text-xs text-slate-400">{check.why}</p>
+                  </div>
+
+                  {/* Failing resources */}
+                  {check.failing.length > 0 && (
+                    <div>
+                      <div className="text-xs text-amber-400 font-medium mb-1.5">Missing ({check.failing.length})</div>
+                      <div className="space-y-1 max-h-32 overflow-auto">
+                        {check.failing.slice(0, 10).map((resource: any, idx: number) => {
+                          const isNamespace = check.id === 'network-policies' || check.id === 'egress-policies';
+                          const name = resource.metadata.name;
+                          const ns = resource.metadata.namespace;
+
+                          // Determine edit path
+                          let editPath = '';
+                          if (check.id === 'route-tls' || check.id === 'route-admission') {
+                            editPath = `/yaml/route.openshift.io~v1~routes/${ns}/${name}`;
+                          } else if (check.id === 'nodeport-services') {
+                            editPath = `/yaml/v1~services/${ns}/${name}`;
+                          } else if (check.id === 'network-policies' || check.id === 'egress-policies') {
+                            editPath = `/create/networking.k8s.io~v1~networkpolicies`;
+                          } else if (check.id === 'ingress-health') {
+                            editPath = `/r/operator.openshift.io~v1~ingresscontrollers/_/${name}`;
+                          }
+
+                          return (
+                            <button
+                              key={resource.metadata.uid || idx}
+                              onClick={() => go(editPath, isNamespace ? `Create NetworkPolicy (${name})` : `${name} (YAML)`)}
+                              className="flex items-center justify-between w-full py-1 px-2 rounded hover:bg-slate-800/50 text-left transition-colors"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                                <span className="text-xs text-slate-300">{name}</span>
+                                {!isNamespace && ns && <span className="text-[10px] text-slate-600">{ns}</span>}
+                              </div>
+                              <span className="text-[10px] text-blue-400">{isNamespace ? 'Create Policy →' : 'Edit YAML →'}</span>
+                            </button>
+                          );
+                        })}
+                        {check.failing.length > 10 && <div className="text-[10px] text-slate-600 px-2">+{check.failing.length - 10} more</div>}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Passing resources */}
+                  {check.passing.length > 0 && (
+                    <div>
+                      <div className="text-xs text-green-400 font-medium mb-1">Passing ({check.passing.length})</div>
+                      <div className="flex flex-wrap gap-1">
+                        {check.passing.slice(0, 8).map((resource: any, idx: number) => (
+                          <span key={resource.metadata?.uid || idx} className="text-[10px] px-1.5 py-0.5 bg-green-900/30 text-green-400 rounded">
+                            {resource.metadata.name}
+                          </span>
+                        ))}
+                        {check.passing.length > 8 && <span className="text-[10px] text-slate-600">+{check.passing.length - 8} more</span>}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* YAML example */}
+                  <div>
+                    <div className="text-xs text-slate-500 font-medium mb-1">How to fix{check.id === 'ingress-health' ? ' — troubleshooting steps:' : ' — add to your YAML:'}</div>
+                    <pre className="text-[11px] text-emerald-400 font-mono bg-slate-950 p-3 rounded overflow-x-auto">{check.yamlExample}</pre>
+                  </div>
                 </div>
-              </div>
-              <div className="flex gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
-                <div>
-                  <span className="font-medium text-slate-200">Use custom ingress certificates</span>
-                  <p className="text-slate-500">Replace the default wildcard certificate with your organization's CA-signed certificate</p>
-                </div>
-              </div>
+              )}
             </div>
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
-                <div>
-                  <span className="font-medium text-slate-200">Avoid NodePort services in production</span>
-                  <p className="text-slate-500">Use Routes or LoadBalancer services. NodePorts expose ports on every node.</p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
-                <div>
-                  <span className="font-medium text-slate-200">Monitor network errors</span>
-                  <p className="text-slate-500">Alert on <code className="text-slate-400">node_network_receive_errs_total</code> — persistent errors indicate NIC or switch issues</p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
-                <div>
-                  <span className="font-medium text-slate-200">Use egress network policies</span>
-                  <p className="text-slate-500">Restrict outbound traffic to prevent data exfiltration and limit blast radius</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Panel>
+          );
+        })}
       </div>
     </div>
   );

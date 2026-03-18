@@ -2,7 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   HardDrive, Database, AlertCircle, CheckCircle, ArrowRight, Package,
-  AlertTriangle, Info, ExternalLink, Plus, Trash2, Server,
+  AlertTriangle, Info, ExternalLink, Plus, Trash2, Server, Activity,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { k8sList } from '../engine/query';
@@ -35,6 +35,12 @@ export default function StorageView() {
     queryFn: () => k8sList('/apis/snapshot.storage.k8s.io/v1/volumesnapshots', nsFilter).catch(() => []),
     staleTime: 60000,
   });
+  const { data: volumeSnapshotClasses = [] } = useQuery<K8sResource[]>({
+    queryKey: ['storage', 'volumesnapshotclasses'],
+    queryFn: () => k8sList('/apis/snapshot.storage.k8s.io/v1/volumesnapshotclasses').catch(() => []),
+    staleTime: 120000,
+  });
+  const { data: resourceQuotas = [] } = useK8sListWatch({ apiPath: '/api/v1/resourcequotas', namespace: nsFilter });
 
   // Computed stats
   const pvcStatus = React.useMemo(() => {
@@ -366,57 +372,15 @@ export default function StorageView() {
           </Panel>
         )}
 
-        {/* Guidance */}
-        <Panel title="Storage Best Practices" icon={<Info className="w-4 h-4 text-blue-500" />}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
-                <div>
-                  <span className="font-medium text-slate-200">Set a default StorageClass</span>
-                  <p className="text-slate-500">Annotate one SC with <code className="text-slate-400">storageclass.kubernetes.io/is-default-class: "true"</code></p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
-                <div>
-                  <span className="font-medium text-slate-200">Use WaitForFirstConsumer binding</span>
-                  <p className="text-slate-500">Prevents PVs from being provisioned in the wrong AZ</p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
-                <div>
-                  <span className="font-medium text-slate-200">Enable volume snapshots</span>
-                  <p className="text-slate-500">Install a VolumeSnapshot CRD + CSI snapshot controller for backup support</p>
-                </div>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
-                <div>
-                  <span className="font-medium text-slate-200">Set resource quotas for storage</span>
-                  <p className="text-slate-500">Prevent namespace sprawl with <code className="text-slate-400">requests.storage</code> quotas</p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
-                <div>
-                  <span className="font-medium text-slate-200">Monitor PVC usage</span>
-                  <p className="text-slate-500">Set alerts on <code className="text-slate-400">kubelet_volume_stats_used_bytes</code> to catch full volumes before they impact workloads</p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
-                <div>
-                  <span className="font-medium text-slate-200">Clean up Released PVs</span>
-                  <p className="text-slate-500">Released PVs waste capacity — delete or reclaim them regularly</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Panel>
+        {/* Storage Health Audit */}
+        <StorageHealthAudit
+          pvcs={pvcs as any[]}
+          storageClasses={storageClasses as any[]}
+          volumeSnapshots={volumeSnapshots as any[]}
+          volumeSnapshotClasses={volumeSnapshotClasses as any[]}
+          resourceQuotas={resourceQuotas as any[]}
+          go={go}
+        />
       </div>
     </div>
   );
@@ -437,6 +401,327 @@ function formatGi(gi: number): string {
   if (gi >= 1024) return `${(gi / 1024).toFixed(1)} Ti`;
   if (gi >= 1) return `${gi.toFixed(1)} Gi`;
   return `${(gi * 1024).toFixed(0)} Mi`;
+}
+
+// ===== Storage Health Audit =====
+
+interface AuditCheck {
+  id: string;
+  title: string;
+  description: string;
+  why: string;
+  passing: any[];
+  failing: any[];
+  yamlExample: string;
+  linkToDetail?: (item: any) => { path: string; title: string };
+}
+
+function StorageHealthAudit({
+  pvcs,
+  storageClasses,
+  volumeSnapshots,
+  volumeSnapshotClasses,
+  resourceQuotas,
+  go,
+}: {
+  pvcs: any[];
+  storageClasses: any[];
+  volumeSnapshots: any[];
+  volumeSnapshotClasses: any[];
+  resourceQuotas: any[];
+  go: (path: string, title: string) => void;
+}) {
+  const [expandedCheck, setExpandedCheck] = React.useState<string | null>(null);
+
+  const checks: AuditCheck[] = React.useMemo(() => {
+    const allChecks: AuditCheck[] = [];
+
+    // 1. Default StorageClass
+    const defaultSC = storageClasses.find((sc: any) =>
+      sc.metadata?.annotations?.['storageclass.kubernetes.io/is-default-class'] === 'true'
+    );
+    allChecks.push({
+      id: 'default-sc',
+      title: 'Default StorageClass',
+      description: 'One StorageClass should be marked as default for PVCs that don\'t specify a class',
+      why: 'Without a default StorageClass, PVCs that omit storageClassName will fail to provision. Users expect dynamic provisioning to "just work" for common cases.',
+      passing: defaultSC ? [defaultSC] : [],
+      failing: defaultSC ? [] : storageClasses.slice(0, 1),
+      yamlExample: `apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: my-storage-class
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: kubernetes.io/aws-ebs
+parameters:
+  type: gp3`,
+      linkToDetail: (sc: any) => ({
+        path: `/yaml/storage.k8s.io~v1~storageclasses/_/${sc.metadata.name}`,
+        title: `${sc.metadata.name} (YAML)`,
+      }),
+    });
+
+    // 2. PVC Resource Requests — Bound vs Pending
+    const pendingPVCs = pvcs.filter((pvc: any) => pvc.status?.phase === 'Pending');
+    const boundPVCs = pvcs.filter((pvc: any) => pvc.status?.phase === 'Bound');
+    allChecks.push({
+      id: 'pvc-binding',
+      title: 'PVC Binding Status',
+      description: 'All PVCs should be bound to a PersistentVolume',
+      why: 'Pending PVCs indicate missing StorageClasses, insufficient capacity, provisioner errors, or waiting for pod scheduling (WaitForFirstConsumer). Pods using pending PVCs cannot start.',
+      passing: boundPVCs,
+      failing: pendingPVCs,
+      yamlExample: `# Common causes for pending PVCs:
+# 1. StorageClass not found or missing
+# 2. CSI driver not running
+# 3. Cloud quota exceeded
+# 4. volumeBindingMode: WaitForFirstConsumer
+#    (binds when pod is scheduled)
+
+# To debug, run:
+kubectl describe pvc <pvc-name>`,
+      linkToDetail: (pvc: any) => ({
+        path: `/r/v1~persistentvolumeclaims/${pvc.metadata.namespace}/${pvc.metadata.name}`,
+        title: pvc.metadata.name,
+      }),
+    });
+
+    // 3. Volume Reclaim Policy
+    const deleteSCs = storageClasses.filter((sc: any) =>
+      (sc.reclaimPolicy || 'Delete') === 'Delete'
+    );
+    const retainSCs = storageClasses.filter((sc: any) =>
+      sc.reclaimPolicy === 'Retain'
+    );
+    allChecks.push({
+      id: 'reclaim-policy',
+      title: 'Volume Reclaim Policy',
+      description: 'Production StorageClasses should use Retain policy to prevent accidental data loss',
+      why: 'Delete reclaim policy automatically deletes the underlying volume when a PVC is deleted. This is convenient for dev/test but dangerous in production — a single kubectl delete can permanently destroy data.',
+      passing: retainSCs,
+      failing: deleteSCs,
+      yamlExample: `apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: production-storage
+provisioner: kubernetes.io/aws-ebs
+reclaimPolicy: Retain    # Keep data after PVC deletion
+parameters:
+  type: gp3`,
+      linkToDetail: (sc: any) => ({
+        path: `/yaml/storage.k8s.io~v1~storageclasses/_/${sc.metadata.name}`,
+        title: `${sc.metadata.name} (YAML)`,
+      }),
+    });
+
+    // 4. WaitForFirstConsumer Binding
+    const immediateSCs = storageClasses.filter((sc: any) =>
+      (sc.volumeBindingMode || 'Immediate') === 'Immediate'
+    );
+    const wffcSCs = storageClasses.filter((sc: any) =>
+      sc.volumeBindingMode === 'WaitForFirstConsumer'
+    );
+    allChecks.push({
+      id: 'binding-mode',
+      title: 'Volume Binding Mode',
+      description: 'StorageClasses should use WaitForFirstConsumer to avoid cross-AZ provisioning issues',
+      why: 'Immediate binding provisions volumes before any pod uses them, which can place the volume in the wrong availability zone. If the pod is then scheduled to a different AZ, it cannot attach the volume. WaitForFirstConsumer delays provisioning until the pod is scheduled.',
+      passing: wffcSCs,
+      failing: immediateSCs,
+      yamlExample: `apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: regional-storage
+provisioner: kubernetes.io/aws-ebs
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  type: gp3`,
+      linkToDetail: (sc: any) => ({
+        path: `/yaml/storage.k8s.io~v1~storageclasses/_/${sc.metadata.name}`,
+        title: `${sc.metadata.name} (YAML)`,
+      }),
+    });
+
+    // 5. Volume Snapshots
+    const hasSnapshotCRDs = volumeSnapshotClasses.length > 0;
+    const hasSnapshots = volumeSnapshots.length > 0;
+    allChecks.push({
+      id: 'volume-snapshots',
+      title: 'Volume Snapshot Support',
+      description: 'Volume snapshots enable point-in-time backups and data cloning',
+      why: 'Without VolumeSnapshot support, you cannot create backups of persistent data or clone volumes. This is critical for disaster recovery, blue/green deployments, and testing with production data.',
+      passing: hasSnapshotCRDs ? [{ note: `${volumeSnapshotClasses.length} VolumeSnapshotClass(es) configured` }] : [],
+      failing: hasSnapshotCRDs ? [] : [{ note: 'VolumeSnapshot CRDs not installed' }],
+      yamlExample: `# Install VolumeSnapshot CRDs and CSI snapshotter
+# For most cloud providers, this is automatic.
+# For on-prem, install:
+# https://github.com/kubernetes-csi/external-snapshotter
+
+# Example VolumeSnapshot:
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  name: my-snapshot
+spec:
+  volumeSnapshotClassName: csi-snapclass
+  source:
+    persistentVolumeClaimName: my-pvc`,
+    });
+
+    // 6. Storage Quotas
+    // Get unique namespaces from PVCs
+    const namespacesWithPVCs = new Set(pvcs.map((pvc: any) => pvc.metadata.namespace));
+    const quotasWithStorage = resourceQuotas.filter((q: any) => {
+      const hard = q.spec?.hard || {};
+      return hard['requests.storage'] || hard['persistentvolumeclaims'];
+    });
+    const quotaNamespaces = new Set(quotasWithStorage.map((q: any) => q.metadata.namespace));
+    const namespacesWithoutQuota = [...namespacesWithPVCs].filter(ns => !quotaNamespaces.has(ns));
+
+    allChecks.push({
+      id: 'storage-quotas',
+      title: 'Storage Resource Quotas',
+      description: 'Namespaces with PVCs should have storage quotas to prevent uncontrolled growth',
+      why: 'Without storage quotas, users can request unlimited storage, leading to cloud cost overruns and capacity exhaustion. Quotas enforce budget limits and prevent runaway provisioning.',
+      passing: quotasWithStorage,
+      failing: namespacesWithoutQuota.map(ns => ({ metadata: { name: ns, namespace: ns } })),
+      yamlExample: `apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: storage-quota
+  namespace: my-namespace
+spec:
+  hard:
+    requests.storage: "100Gi"         # Total storage requests
+    persistentvolumeclaims: "10"      # Max number of PVCs`,
+      linkToDetail: (item: any) => {
+        // If it's a quota, link to the quota; if it's a namespace placeholder, link to create quota
+        if (item.spec?.hard) {
+          return {
+            path: `/yaml/v1~resourcequotas/${item.metadata.namespace}/${item.metadata.name}`,
+            title: `${item.metadata.name} (YAML)`,
+          };
+        }
+        return {
+          path: `/create/v1~resourcequotas?namespace=${item.metadata.namespace}`,
+          title: `Create quota in ${item.metadata.namespace}`,
+        };
+      },
+    });
+
+    return allChecks;
+  }, [pvcs, storageClasses, volumeSnapshots, volumeSnapshotClasses, resourceQuotas]);
+
+  if (storageClasses.length === 0 && pvcs.length === 0) return null;
+
+  const totalPassing = checks.reduce((s, c) => s + (c.failing.length === 0 ? 1 : 0), 0);
+  const score = Math.round((totalPassing / checks.length) * 100);
+
+  return (
+    <div className="bg-slate-900 rounded-lg border border-slate-800">
+      <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+          <Activity className="w-4 h-4 text-blue-400" /> Storage Health Audit
+        </h2>
+        <div className="flex items-center gap-2">
+          <span className={cn('text-sm font-bold', score === 100 ? 'text-green-400' : score >= 60 ? 'text-amber-400' : 'text-red-400')}>{score}%</span>
+          <span className="text-xs text-slate-500">{totalPassing}/{checks.length} passing</span>
+        </div>
+      </div>
+      <div className="divide-y divide-slate-800">
+        {checks.map((check) => {
+          const pass = check.failing.length === 0;
+          const expanded = expandedCheck === check.id;
+          return (
+            <div key={check.id}>
+              <button
+                onClick={() => setExpandedCheck(expanded ? null : check.id)}
+                className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-800/30 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  {pass ? <CheckCircle className="w-4 h-4 text-green-400 shrink-0" /> : <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />}
+                  <div>
+                    <span className="text-sm text-slate-200">{check.title}</span>
+                    <span className="text-xs text-slate-500 ml-2">
+                      {pass ? `${check.passing.length} pass` : `${check.failing.length} of ${check.failing.length + check.passing.length} need attention`}
+                    </span>
+                  </div>
+                </div>
+                <span className="text-xs text-slate-600">{expanded ? '▾' : '▸'}</span>
+              </button>
+
+              {expanded && (
+                <div className="px-4 pb-4 space-y-3">
+                  <p className="text-xs text-slate-400">{check.description}</p>
+
+                  {/* Why it matters */}
+                  <div className="bg-blue-950/20 border border-blue-900/50 rounded p-3">
+                    <div className="text-xs font-medium text-blue-300 mb-1">Why it matters</div>
+                    <p className="text-xs text-slate-400">{check.why}</p>
+                  </div>
+
+                  {/* Failing items */}
+                  {check.failing.length > 0 && (
+                    <div>
+                      <div className="text-xs text-amber-400 font-medium mb-1.5">
+                        {check.id === 'pvc-binding' ? 'Pending' : check.id === 'storage-quotas' ? 'Missing quotas' : 'Needs attention'} ({check.failing.length})
+                      </div>
+                      <div className="space-y-1 max-h-32 overflow-auto">
+                        {check.failing.slice(0, 10).map((item: any, idx: number) => {
+                          const linkInfo = check.linkToDetail?.(item);
+                          const displayName = item.metadata?.name || item.note || 'Unknown';
+                          return (
+                            <button
+                              key={item.metadata?.uid || idx}
+                              onClick={() => linkInfo && go(linkInfo.path, linkInfo.title)}
+                              className="flex items-center justify-between w-full py-1 px-2 rounded hover:bg-slate-800/50 text-left transition-colors"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                                <span className="text-xs text-slate-300">{displayName}</span>
+                                {item.metadata?.namespace && <span className="text-[10px] text-slate-600">{item.metadata.namespace}</span>}
+                              </div>
+                              {linkInfo && <span className="text-[10px] text-blue-400">View →</span>}
+                            </button>
+                          );
+                        })}
+                        {check.failing.length > 10 && <div className="text-[10px] text-slate-600 px-2">+{check.failing.length - 10} more</div>}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Passing items */}
+                  {check.passing.length > 0 && (
+                    <div>
+                      <div className="text-xs text-green-400 font-medium mb-1">Passing ({check.passing.length})</div>
+                      <div className="flex flex-wrap gap-1">
+                        {check.passing.slice(0, 8).map((item: any, idx: number) => {
+                          const displayName = item.metadata?.name || item.note || 'OK';
+                          return (
+                            <span key={item.metadata?.uid || idx} className="text-[10px] px-1.5 py-0.5 bg-green-900/30 text-green-400 rounded">
+                              {displayName}
+                            </span>
+                          );
+                        })}
+                        {check.passing.length > 8 && <span className="text-[10px] text-slate-600">+{check.passing.length - 8} more</span>}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* YAML example */}
+                  <div>
+                    <div className="text-xs text-slate-500 font-medium mb-1">How to fix:</div>
+                    <pre className="text-[11px] text-emerald-400 font-mono bg-slate-950 p-3 rounded overflow-x-auto">{check.yamlExample}</pre>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function Panel({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
