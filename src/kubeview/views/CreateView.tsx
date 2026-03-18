@@ -5,12 +5,13 @@ import {
   ArrowLeft, Plus, Package, Network, Globe, HardDrive, FileText,
   Lock, Shield, Clock, TrendingUp, Folder, User, ShieldCheck,
   Clipboard, AlertCircle, Box, Search, Loader2, ExternalLink,
-  Ship, Image, GitBranch, Upload,
+  Ship, Image, GitBranch, Upload, Database, ArrowRight, CheckCircle, XCircle,
 } from 'lucide-react';
 import { useUIStore } from '../store/uiStore';
 import { useClusterStore } from '../store/clusterStore';
 import { buildApiPath } from '../hooks/useResourceUrl';
 import { useNavigateTab } from '../hooks/useNavigateTab';
+import { useK8sListWatch } from '../hooks/useK8sListWatch';
 import YamlEditor from '../components/yaml/YamlEditor';
 import { snippets, resolveSnippet, getSnippetSuggestions, type Snippet } from '../components/yaml/SnippetEngine';
 import { K8S_BASE as BASE } from '../engine/gvr';
@@ -60,7 +61,7 @@ interface CreateViewProps {
   gvrKey: string;
 }
 
-type CreateTab = 'deploy' | 'helm' | 'templates' | 'yaml';
+type CreateTab = 'installed' | 'deploy' | 'helm' | 'templates' | 'yaml';
 
 
 export default function CreateView({ gvrKey }: CreateViewProps) {
@@ -215,6 +216,7 @@ export default function CreateView({ gvrKey }: CreateViewProps) {
 
   // Picker mode
   const tabs: Array<{ id: CreateTab; label: string; icon: React.ReactNode }> = [
+    { id: 'installed', label: 'Installed', icon: <Package className="w-3.5 h-3.5" /> },
     { id: 'deploy', label: 'Quick Deploy', icon: <Box className="w-3.5 h-3.5" /> },
     { id: 'helm', label: 'Helm Charts', icon: <Ship className="w-3.5 h-3.5" /> },
     { id: 'templates', label: 'Templates', icon: <FileText className="w-3.5 h-3.5" /> },
@@ -241,6 +243,7 @@ export default function CreateView({ gvrKey }: CreateViewProps) {
           ))}
         </div>
 
+        {activeTab === 'installed' && <InstalledTab />}
         {activeTab === 'deploy' && <QuickDeployTab />}
         {activeTab === 'helm' && <HelmTab />}
         {activeTab === 'templates' && (
