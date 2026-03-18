@@ -60,10 +60,9 @@ export default function WelcomeView() {
             <Keyboard className="w-5 h-5 text-purple-400" />
             Keyboard Shortcuts
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Shortcut keys="⌘ K" label="Command Palette" description="Search resources, pages, actions" />
-            <Shortcut keys="⌘ B" label="Resource Browser" description="Browse all API groups" />
-            <Shortcut keys="⌘ ." label="Quick Actions" description="Open command palette" />
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <Shortcut keys="⌘ K / ⌘ ." label="Command Palette" description="Search resources, pages, quick actions" />
+            <Shortcut keys="⌘ B" label="Resource Browser" description="Browse all API groups and resources" />
             <Shortcut keys="j / k" label="Navigate Table" description="Move up/down in resource lists" />
           </div>
         </div>
