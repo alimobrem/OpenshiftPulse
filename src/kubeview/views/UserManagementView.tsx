@@ -388,16 +388,6 @@ export default function UserManagementView() {
           </div>
         </div>
       </div>
-      <ConfirmDialog
-        open={confirmAction === 'remove-kubeadmin'}
-        onClose={() => setConfirmAction(null)}
-        onConfirm={() => handleAction('remove-kubeadmin')}
-        title="Remove kubeadmin?"
-        description="This permanently deletes the kubeadmin secret from kube-system. You will no longer be able to log in as kubeadmin. Make sure you can log in with another admin user first. This action cannot be undone."
-        confirmLabel="Remove kubeadmin"
-        variant="danger"
-        loading={actionLoading}
-      />
     </div>
   );
 }
@@ -698,6 +688,16 @@ users:
           );
         })}
       </div>
+      <ConfirmDialog
+        open={confirmAction === 'remove-kubeadmin'}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={() => handleAction('remove-kubeadmin')}
+        title="Remove kubeadmin?"
+        description="This permanently deletes the kubeadmin secret from kube-system. You will no longer be able to log in as kubeadmin. Make sure you can log in with another admin user first. This action cannot be undone."
+        confirmLabel="Remove kubeadmin"
+        variant="danger"
+        loading={actionLoading}
+      />
     </div>
   );
 }
