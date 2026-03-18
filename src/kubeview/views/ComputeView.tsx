@@ -2,14 +2,16 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Server, Cpu, HardDrive, CheckCircle, XCircle, AlertCircle,
-  ArrowRight, Ban, Box, Terminal, FileText, Activity,
+  ArrowRight, Ban, Box, Terminal, FileText, Activity, Info,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { k8sList } from '../engine/query';
 import { queryInstant } from '../components/metrics/prometheus';
+import { MetricCard } from '../components/metrics/Sparkline';
 import type { K8sResource } from '../engine/renderers';
 import { getNodeStatus } from '../engine/renderers/statusUtils';
 import { useNavigateTab } from '../hooks/useNavigateTab';
+import { useK8sListWatch } from '../hooks/useK8sListWatch';
 
 function parseQuantity(q: string | undefined): number {
   if (!q) return 0;
@@ -42,17 +44,8 @@ function formatCpu(cores: number): string {
 export default function ComputeView() {
   const go = useNavigateTab();
 
-  const { data: nodes = [] } = useQuery<K8sResource[]>({
-    queryKey: ['k8s', 'list', '/api/v1/nodes'],
-    queryFn: () => k8sList('/api/v1/nodes'),
-    refetchInterval: 30000,
-  });
-
-  const { data: pods = [] } = useQuery<K8sResource[]>({
-    queryKey: ['k8s', 'list', '/api/v1/pods'],
-    queryFn: () => k8sList('/api/v1/pods'),
-    refetchInterval: 30000,
-  });
+  const { data: nodes = [] } = useK8sListWatch({ apiPath: '/api/v1/nodes' });
+  const { data: pods = [] } = useK8sListWatch({ apiPath: '/api/v1/pods' });
 
   const { data: machines = [] } = useQuery<K8sResource[]>({
     queryKey: ['k8s', 'list', '/apis/machine.openshift.io/v1beta1/machines'],
@@ -180,14 +173,45 @@ export default function ComputeView() {
           <p className="text-sm text-slate-400 mt-1">Cluster capacity, node health, and resource utilization</p>
         </div>
 
+        {/* Metrics sparklines */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <MetricCard
+            title="Cluster CPU"
+            query="sum(rate(node_cpu_seconds_total{mode!='idle'}[5m])) / sum(machine_cpu_cores) * 100"
+            unit="%"
+            color="#3b82f6"
+            thresholds={{ warning: 70, critical: 90 }}
+          />
+          <MetricCard
+            title="Cluster Memory"
+            query="(1 - sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes)) * 100"
+            unit="%"
+            color="#8b5cf6"
+            thresholds={{ warning: 75, critical: 90 }}
+          />
+          <MetricCard
+            title="Node Load (1m)"
+            query="avg(node_load1)"
+            unit=""
+            color="#f59e0b"
+          />
+          <MetricCard
+            title="Filesystem Usage"
+            query="(1 - sum(node_filesystem_avail_bytes{mountpoint='/'}) / sum(node_filesystem_size_bytes{mountpoint='/'})) * 100"
+            unit="%"
+            color="#06b6d4"
+            thresholds={{ warning: 80, critical: 95 }}
+          />
+        </div>
+
         {/* Cluster overview cards */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <MetricCard label="Nodes" value={`${readyCount}/${nodes.length}`} issues={unreadyNodes.length + pressureNodes.length} onClick={() => go('/r/v1~nodes', 'Nodes')} />
-          <MetricCard label="CPU Usage" value={cpuPercent !== null ? `${Math.round(cpuPercent)}%` : '—'} bar={cpuPercent} barColor={cpuPercent && cpuPercent > 80 ? 'red' : cpuPercent && cpuPercent > 60 ? 'yellow' : 'green'} />
-          <MetricCard label="Memory" value={memPercent !== null ? `${Math.round(memPercent)}%` : '—'} bar={memPercent} barColor={memPercent && memPercent > 80 ? 'red' : memPercent && memPercent > 60 ? 'yellow' : 'green'} />
-          <MetricCard label="Total CPU" value={formatCpu(clusterCapacity.cpuCores)} subtitle={`${nodes.length} nodes`} />
-          <MetricCard label="Total Memory" value={formatBytes(clusterCapacity.memBytes)} subtitle={`${nodes.length} nodes`} />
-          <MetricCard label="Pods" value={`${clusterCapacity.totalPods}/${clusterCapacity.podCapacity}`} bar={clusterCapacity.podCapacity > 0 ? (clusterCapacity.totalPods / clusterCapacity.podCapacity) * 100 : null} barColor="blue" />
+          <StatCard label="Nodes" value={`${readyCount}/${nodes.length}`} issues={unreadyNodes.length + pressureNodes.length} onClick={() => go('/r/v1~nodes', 'Nodes')} />
+          <StatCard label="CPU Usage" value={cpuPercent !== null ? `${Math.round(cpuPercent)}%` : '—'} bar={cpuPercent} barColor={cpuPercent && cpuPercent > 80 ? 'red' : cpuPercent && cpuPercent > 60 ? 'yellow' : 'green'} />
+          <StatCard label="Memory" value={memPercent !== null ? `${Math.round(memPercent)}%` : '—'} bar={memPercent} barColor={memPercent && memPercent > 80 ? 'red' : memPercent && memPercent > 60 ? 'yellow' : 'green'} />
+          <StatCard label="Total CPU" value={formatCpu(clusterCapacity.cpuCores)} subtitle={`${nodes.length} nodes`} />
+          <StatCard label="Total Memory" value={formatBytes(clusterCapacity.memBytes)} subtitle={`${nodes.length} nodes`} />
+          <StatCard label="Pods" value={`${clusterCapacity.totalPods}/${clusterCapacity.podCapacity}`} bar={clusterCapacity.podCapacity > 0 ? (clusterCapacity.totalPods / clusterCapacity.podCapacity) * 100 : null} barColor="blue" />
         </div>
 
         {/* Alerts */}
@@ -456,12 +480,42 @@ export default function ComputeView() {
             </div>
           </div>
         </div>
+        {/* Best Practices */}
+        <div className="bg-slate-900 rounded-lg border border-slate-800">
+          <div className="px-4 py-3 border-b border-slate-800">
+            <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2"><Info className="w-4 h-4 text-blue-500" /> Compute Best Practices</h2>
+          </div>
+          <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            <div className="space-y-2">
+              <Tip title="Maintain 3+ control plane nodes" desc="HA requires an odd number (3 or 5) of masters for etcd quorum" />
+              <Tip title="Separate worker and infra nodes" desc="Use node labels and taints to isolate router, monitoring, and logging workloads from application pods" />
+              <Tip title="Enable MachineHealthChecks" desc="Auto-remediate unhealthy nodes by replacing them when conditions like NotReady persist" />
+            </div>
+            <div className="space-y-2">
+              <Tip title="Configure cluster autoscaling" desc="ClusterAutoscaler + MachineAutoscaler scales nodes based on pending pod demand" />
+              <Tip title="Monitor node filesystem usage" desc="Alert when root filesystem exceeds 80% — full disks cause kubelet failures" />
+              <Tip title="Keep kubelet versions consistent" desc="All nodes should run the same kubelet version as the control plane" />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-function MetricCard({ label, value, subtitle, issues, bar, barColor, onClick }: {
+function Tip({ title, desc }: { title: string; desc: string }) {
+  return (
+    <div className="flex gap-2">
+      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
+      <div>
+        <span className="font-medium text-slate-200">{title}</span>
+        <p className="text-slate-500">{desc}</p>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value, subtitle, issues, bar, barColor, onClick }: {
   label: string; value: string; subtitle?: string; issues?: number; bar?: number | null; barColor?: 'green' | 'yellow' | 'red' | 'blue'; onClick?: () => void;
 }) {
   return (
