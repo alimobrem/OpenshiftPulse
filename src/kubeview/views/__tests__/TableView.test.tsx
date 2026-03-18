@@ -328,6 +328,47 @@ describe('TableView', () => {
     expect(document.querySelector('table')).toBeNull();
   });
 
+  it('shows Edit YAML button on every row', () => {
+    setMockWatch({
+      data: [makePodResource('my-pod')],
+      isLoading: false,
+      error: null,
+    });
+
+    renderTable('v1/pods');
+
+    const editButton = document.querySelector('button[title="Edit YAML"]');
+    expect(editButton).not.toBeNull();
+  });
+
+  it('shows Delete button on every row', () => {
+    setMockWatch({
+      data: [makePodResource('my-pod')],
+      isLoading: false,
+      error: null,
+    });
+
+    renderTable('v1/pods');
+
+    const deleteButton = document.querySelector('button[title="Delete"]');
+    expect(deleteButton).not.toBeNull();
+  });
+
+  it('Edit YAML navigates to yaml editor route', () => {
+    setMockWatch({
+      data: [makePodResource('test-pod', 'my-ns')],
+      isLoading: false,
+      error: null,
+    });
+
+    renderTable('v1/pods');
+
+    const editButton = document.querySelector('button[title="Edit YAML"]') as HTMLButtonElement;
+    fireEvent.click(editButton);
+
+    expect(navigateMock).toHaveBeenCalledWith('/yaml/v1~pods/my-ns/test-pod');
+  });
+
   it('shows "Clear all filters" button when filtering yields no results', () => {
     setMockWatch({
       data: [makePodResource('test-pod')],

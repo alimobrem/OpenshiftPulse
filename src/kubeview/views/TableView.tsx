@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Search, ChevronUp, ChevronDown, Trash2, Tag, Plus, Filter, Columns3, X, Download, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { Search, ChevronUp, ChevronDown, Trash2, Tag, Plus, Filter, Columns3, X, Download, Loader2, CheckCircle, XCircle, FileEdit } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { k8sPatch, k8sDelete } from '../engine/query';
 import { useK8sListWatch } from '../hooks/useK8sListWatch';
@@ -765,9 +765,23 @@ export default function TableView({ gvrKey, namespace: namespaceProp }: TableVie
                           </div>
                         ))}
                         <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const gvrUrl = gvrKey.replace(/\//g, '~');
+                            const ns = resource.metadata.namespace;
+                            const yamlPath = ns ? `/yaml/${gvrUrl}/${ns}/${resource.metadata.name}` : `/yaml/${gvrUrl}/_/${resource.metadata.name}`;
+                            addTab({ title: `${resource.metadata.name} (YAML)`, path: yamlPath, pinned: false, closable: true });
+                            navigate(yamlPath);
+                          }}
+                          className="inline-flex items-center px-1.5 py-1 text-xs text-slate-500 rounded hover:bg-blue-900/50 hover:text-blue-400 transition-colors disabled:opacity-50"
+                          title="Edit YAML"
+                        >
+                          <FileEdit className="w-3.5 h-3.5" />
+                        </button>
+                        <button
                           onClick={(e) => { e.stopPropagation(); handleAction('delete-single', { resource }); }}
                           disabled={inlineActionLoading === `${resource.metadata.uid}-delete-single`}
-                          className="inline-flex items-center px-1.5 py-1 text-xs text-slate-500 rounded hover:bg-red-900/50 hover:text-red-400 transition-colors ml-1 disabled:opacity-50"
+                          className="inline-flex items-center px-1.5 py-1 text-xs text-slate-500 rounded hover:bg-red-900/50 hover:text-red-400 transition-colors disabled:opacity-50"
                           title="Delete"
                         >
                           {inlineActionLoading === `${resource.metadata.uid}-delete-single`
