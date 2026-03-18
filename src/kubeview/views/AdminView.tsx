@@ -451,7 +451,32 @@ export default function AdminView() {
                   {opDegraded > 0 && <span className="flex items-center gap-1.5 text-sm text-red-400"><XCircle className="w-3.5 h-3.5" /> {opDegraded} degraded</span>}
                   {opProgressing > 0 && <span className="flex items-center gap-1.5 text-sm text-yellow-400"><RefreshCw className="w-3.5 h-3.5" /> {opProgressing} progressing</span>}
                 </div>
-                <button onClick={() => go('/operators', 'Operators')} className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">View all operators <ArrowRight className="w-3 h-3" /></button>
+                <button onClick={() => go('/r/config.openshift.io~v1~clusteroperators', 'ClusterOperators')} className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">View all operators <ArrowRight className="w-3 h-3" /></button>
+              </Panel>
+
+              <Panel title={`Nodes (${nodes.length})`} icon={<Server className="w-4 h-4 text-blue-500" />}>
+                <div className="space-y-2 mb-3">
+                  {nodeRoles.map(([role, count]) => (
+                    <div key={role} className="flex items-center justify-between">
+                      <span className="text-sm text-slate-300">{role}</span>
+                      <span className="text-sm font-mono text-slate-400">{count}</span>
+                    </div>
+                  ))}
+                  {(() => {
+                    const readyNodes = nodes.filter((n: any) => {
+                      const conditions = (n.status?.conditions || []) as any[];
+                      return conditions.some((c: any) => c.type === 'Ready' && c.status === 'True');
+                    });
+                    const unready = nodes.length - readyNodes.length;
+                    return (
+                      <div className="flex items-center gap-3 pt-1 border-t border-slate-800">
+                        <span className="flex items-center gap-1.5 text-sm text-green-400"><CheckCircle className="w-3.5 h-3.5" /> {readyNodes.length} ready</span>
+                        {unready > 0 && <span className="flex items-center gap-1.5 text-sm text-red-400"><XCircle className="w-3.5 h-3.5" /> {unready} not ready</span>}
+                      </div>
+                    );
+                  })()}
+                </div>
+                <button onClick={() => go('/compute', 'Compute')} className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">Compute overview <ArrowRight className="w-3 h-3" /></button>
               </Panel>
 
               <Panel title="Identity Providers" icon={<Shield className="w-4 h-4 text-teal-500" />}>
@@ -472,29 +497,26 @@ export default function AdminView() {
                 </button>
               </Panel>
 
-              <Panel title={`Nodes (${nodes.length})`} icon={<Server className="w-4 h-4 text-blue-500" />}>
-                <div className="space-y-2 mb-3">
-                  {nodeRoles.map(([role, count]) => (
-                    <div key={role} className="flex items-center justify-between">
-                      <span className="text-sm text-slate-300">{role}</span>
-                      <span className="text-sm font-mono text-slate-400">{count}</span>
-                    </div>
+              <Panel title="Quick Navigation" icon={<Database className="w-4 h-4 text-slate-400" />}>
+                <div className="space-y-1.5">
+                  {[
+                    { icon: <Shield className="w-3.5 h-3.5" />, label: 'Access Control', desc: 'RBAC audit', path: '/access-control' },
+                    { icon: <Server className="w-3.5 h-3.5" />, label: 'User Management', desc: 'Users, impersonation', path: '/users' },
+                    { icon: <FileCode className="w-3.5 h-3.5" />, label: `${crds.length} CRDs`, desc: 'Custom resources', path: '/r/apiextensions.k8s.io~v1~customresourcedefinitions' },
+                    { icon: <AlertTriangle className="w-3.5 h-3.5" />, label: 'Alerts', desc: 'Firing alerts, silences', path: '/alerts' },
+                    { icon: <GitCompare className="w-3.5 h-3.5" />, label: 'Config Snapshots', desc: 'Capture & compare', onClick: () => setActiveTab('snapshots') },
+                    { icon: <Puzzle className="w-3.5 h-3.5" />, label: 'Software', desc: 'Install & manage', path: '/create/v1~pods' },
+                  ].map((item) => (
+                    <button key={item.label} onClick={item.onClick || (() => go(item.path!, item.label))}
+                      className="w-full text-left flex items-center gap-2.5 py-1.5 px-2 rounded hover:bg-slate-800/50 transition-colors">
+                      {item.icon}
+                      <div className="flex-1">
+                        <span className="text-sm text-slate-300">{item.label}</span>
+                        <span className="text-xs text-slate-600 ml-2">{item.desc}</span>
+                      </div>
+                      <ArrowRight className="w-3 h-3 text-slate-600" />
+                    </button>
                   ))}
-                </div>
-                <button onClick={() => go('/r/v1~nodes', 'Nodes')} className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">View all nodes <ArrowRight className="w-3 h-3" /></button>
-              </Panel>
-
-              <Panel title="Quick Links" icon={<Database className="w-4 h-4 text-slate-400" />}>
-                <div className="space-y-2">
-                  <button onClick={() => go('/r/apiextensions.k8s.io~v1~customresourcedefinitions', 'CRDs')} className="w-full text-left text-sm text-slate-300 hover:text-blue-400 flex items-center gap-2 py-1">
-                    <FileCode className="w-3.5 h-3.5" /> Browse {crds.length} CRDs <ArrowRight className="w-3 h-3 ml-auto text-slate-600" />
-                  </button>
-                  <button onClick={() => go('/access-control', 'Access Control')} className="w-full text-left text-sm text-slate-300 hover:text-blue-400 flex items-center gap-2 py-1">
-                    <Shield className="w-3.5 h-3.5" /> Access Control <ArrowRight className="w-3 h-3 ml-auto text-slate-600" />
-                  </button>
-                  <button onClick={() => setActiveTab('snapshots')} className="w-full text-left text-sm text-slate-300 hover:text-blue-400 flex items-center gap-2 py-1">
-                    <GitCompare className="w-3.5 h-3.5" /> Config Snapshots <ArrowRight className="w-3 h-3 ml-auto text-slate-600" />
-                  </button>
                 </div>
               </Panel>
             </div>
