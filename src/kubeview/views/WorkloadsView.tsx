@@ -405,8 +405,14 @@ function WorkloadHealthAudit({ deployments, pdbs, go }: { deployments: any[]; pd
   const checks: AuditCheck[] = React.useMemo(() => {
     const allChecks: AuditCheck[] = [];
 
+    // Exclude platform-managed deployments (openshift-*, kube-*) — they're CVO-managed
+    const userDeployments = deployments.filter((d: any) => {
+      const ns = d.metadata?.namespace || '';
+      return !ns.startsWith('openshift-') && !ns.startsWith('kube-') && ns !== 'openshift';
+    });
+
     // 1. Resource requests/limits
-    const noLimits = deployments.filter(d => {
+    const noLimits = userDeployments.filter(d => {
       const containers = d.spec?.template?.spec?.containers || [];
       return containers.some((c: any) => !c.resources?.requests?.cpu || !c.resources?.limits?.memory);
     });
@@ -415,7 +421,7 @@ function WorkloadHealthAudit({ deployments, pdbs, go }: { deployments: any[]; pd
       title: 'Resource Requests & Limits',
       description: 'Every container should have CPU/memory requests (for scheduling) and limits (for OOM protection)',
       why: 'Without requests, the scheduler cannot place pods optimally. Without limits, a single pod can consume all node resources and starve other workloads.',
-      passing: deployments.filter(d => !noLimits.includes(d)),
+      passing: userDeployments.filter(d => !noLimits.includes(d)),
       failing: noLimits,
       yamlExample: `spec:
   template:
@@ -432,7 +438,7 @@ function WorkloadHealthAudit({ deployments, pdbs, go }: { deployments: any[]; pd
     });
 
     // 2. Liveness probes
-    const noLiveness = deployments.filter(d => {
+    const noLiveness = userDeployments.filter(d => {
       const containers = d.spec?.template?.spec?.containers || [];
       return containers.some((c: any) => !c.livenessProbe);
     });
@@ -441,7 +447,7 @@ function WorkloadHealthAudit({ deployments, pdbs, go }: { deployments: any[]; pd
       title: 'Liveness Probes',
       description: 'Liveness probes detect when a container is stuck and automatically restart it',
       why: 'Without a liveness probe, a container that deadlocks or enters an infinite loop will never be restarted. Kubernetes only restarts containers that crash (exit non-zero).',
-      passing: deployments.filter(d => !noLiveness.includes(d)),
+      passing: userDeployments.filter(d => !noLiveness.includes(d)),
       failing: noLiveness,
       yamlExample: `spec:
   template:
@@ -458,7 +464,7 @@ function WorkloadHealthAudit({ deployments, pdbs, go }: { deployments: any[]; pd
     });
 
     // 3. Readiness probes
-    const noReadiness = deployments.filter(d => {
+    const noReadiness = userDeployments.filter(d => {
       const containers = d.spec?.template?.spec?.containers || [];
       return containers.some((c: any) => !c.readinessProbe);
     });
@@ -467,7 +473,7 @@ function WorkloadHealthAudit({ deployments, pdbs, go }: { deployments: any[]; pd
       title: 'Readiness Probes',
       description: 'Readiness probes control when a pod receives traffic from Services',
       why: 'Without a readiness probe, pods receive traffic immediately on start — before the application is ready. This causes errors during deployments and restarts.',
-      passing: deployments.filter(d => !noReadiness.includes(d)),
+      passing: userDeployments.filter(d => !noReadiness.includes(d)),
       failing: noReadiness,
       yamlExample: `spec:
   template:
@@ -483,7 +489,7 @@ function WorkloadHealthAudit({ deployments, pdbs, go }: { deployments: any[]; pd
     });
 
     // 4. PodDisruptionBudgets
-    const multiReplicaDeploys = deployments.filter(d => (d.spec?.replicas ?? 0) > 1);
+    const multiReplicaDeploys = userDeployments.filter(d => (d.spec?.replicas ?? 0) > 1);
     const noPDB = multiReplicaDeploys.filter(d => !hasPDB(d));
     allChecks.push({
       id: 'pdb',
@@ -504,26 +510,26 @@ spec:
     });
 
     // 5. Replicas > 1 for HA
-    const singleReplica = deployments.filter(d => (d.spec?.replicas ?? 0) === 1);
+    const singleReplica = userDeployments.filter(d => (d.spec?.replicas ?? 0) === 1);
     allChecks.push({
       id: 'replicas',
       title: 'Multiple Replicas',
       description: 'Production workloads should run 2+ replicas for high availability',
       why: 'A single replica means any pod restart, node failure, or upgrade causes downtime. With 2+ replicas, traffic is served even when one pod is unavailable.',
-      passing: deployments.filter(d => (d.spec?.replicas ?? 0) > 1),
+      passing: userDeployments.filter(d => (d.spec?.replicas ?? 0) > 1),
       failing: singleReplica,
       yamlExample: `spec:
   replicas: 2    # minimum for HA, 3+ recommended`,
     });
 
     // 6. Rolling update strategy
-    const recreateStrategy = deployments.filter(d => d.spec?.strategy?.type === 'Recreate');
+    const recreateStrategy = userDeployments.filter(d => d.spec?.strategy?.type === 'Recreate');
     allChecks.push({
       id: 'strategy',
       title: 'Rolling Update Strategy',
       description: 'Avoid Recreate strategy in production — it causes downtime during updates',
       why: 'Recreate strategy terminates all old pods before creating new ones. During that gap, the application is completely unavailable.',
-      passing: deployments.filter(d => !recreateStrategy.includes(d)),
+      passing: userDeployments.filter(d => !recreateStrategy.includes(d)),
       failing: recreateStrategy,
       yamlExample: `spec:
   strategy:
