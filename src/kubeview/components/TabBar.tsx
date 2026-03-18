@@ -60,6 +60,15 @@ export function TabBar() {
   const unpinTab = useUIStore((s) => s.unpinTab);
   const openCommandPalette = useUIStore((s) => s.openCommandPalette);
   const addTab = useUIStore((s) => s.addTab);
+  const pendingNavigate = useUIStore((s) => s._pendingNavigate);
+
+  // Handle navigation after tab close (via React Router, not full reload)
+  useEffect(() => {
+    if (pendingNavigate) {
+      navigate(pendingNavigate);
+      useUIStore.setState({ _pendingNavigate: null });
+    }
+  }, [pendingNavigate, navigate]);
 
   const [draggedIdx, setDraggedIdx] = React.useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = React.useState<number | null>(null);

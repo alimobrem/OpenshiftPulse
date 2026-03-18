@@ -88,6 +88,9 @@ interface UIState {
   toggleSidebar: () => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
 
+  // Navigation after tab close
+  _pendingNavigate: string | null;
+
   // Impersonation
   impersonateUser: string | null;
   impersonateGroups: string[];
@@ -118,6 +121,7 @@ export const useUIStore = create<UIState>()(
       // Tabs - default state
       tabs: DEFAULT_TABS,
       activeTabId: 'pulse',
+      _pendingNavigate: null,
 
       addTab: (tab) => {
         // Normalize path: strip trailing slash (except root)
@@ -169,12 +173,7 @@ export const useUIStore = create<UIState>()(
           navigateTo = nextTab?.path || '/pulse';
         }
 
-        set({ tabs: newTabs, activeTabId: newActiveTabId });
-
-        // Navigate after persist middleware has flushed
-        if (navigateTo && window.location.pathname !== navigateTo) {
-          setTimeout(() => { window.location.href = navigateTo!; }, 50);
-        }
+        set({ tabs: newTabs, activeTabId: newActiveTabId, _pendingNavigate: navigateTo });
       },
 
       setActiveTab: (id) => {
