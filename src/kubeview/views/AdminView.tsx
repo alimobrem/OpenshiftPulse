@@ -231,6 +231,26 @@ function compareSnapshots(left: ClusterSnapshot, right: ClusterSnapshot): DiffRo
   return rows;
 }
 
+function parseCpu(val: string): number {
+  if (val.endsWith('m')) return parseInt(val, 10) / 1000;
+  return parseFloat(val) || 0;
+}
+
+function parseMem(val: string): number {
+  const num = parseFloat(val);
+  if (val.endsWith('Ki')) return num * 1024;
+  if (val.endsWith('Mi')) return num * 1024 * 1024;
+  if (val.endsWith('Gi')) return num * 1024 * 1024 * 1024;
+  if (val.endsWith('Ti')) return num * 1024 * 1024 * 1024 * 1024;
+  return num || 0;
+}
+
+function formatMem(bytes: number): string {
+  if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(0)} Gi`;
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(0)} Mi`;
+  return `${bytes}`;
+}
+
 // --- Main component ---
 
 export default function AdminView() {
@@ -296,6 +316,41 @@ export default function AdminView() {
     staleTime: 120000,
   });
 
+  // Namespaces
+  const { data: namespaces = [] } = useQuery<K8sResource[]>({
+    queryKey: ['k8s', 'list', '/api/v1/namespaces'],
+    queryFn: () => k8sList('/api/v1/namespaces'),
+    staleTime: 60000,
+  });
+
+  // etcd operator status
+  const { data: etcdOperator } = useQuery({
+    queryKey: ['admin', 'etcd-operator'],
+    queryFn: () => k8sGet<any>('/apis/operator.openshift.io/v1/etcds/cluster').catch(() => null),
+    staleTime: 60000,
+  });
+
+  // kube-apiserver operator status
+  const { data: apiServerOperator } = useQuery({
+    queryKey: ['admin', 'apiserver-operator'],
+    queryFn: () => k8sGet<any>('/apis/operator.openshift.io/v1/kubeapiservers/cluster').catch(() => null),
+    staleTime: 60000,
+  });
+
+  // Ingress config (for cert expiry)
+  const { data: ingressConfig } = useQuery({
+    queryKey: ['admin', 'config', 'ingress'],
+    queryFn: () => k8sGet<any>('/apis/config.openshift.io/v1/ingresses/cluster').catch(() => null),
+    staleTime: 120000,
+  });
+
+  // Router cert secret
+  const { data: routerCert } = useQuery({
+    queryKey: ['admin', 'router-cert'],
+    queryFn: () => k8sGet<any>('/api/v1/namespaces/openshift-ingress/secrets/router-certs-default').catch(() => null),
+    staleTime: 300000,
+  });
+
   // Computed
   const cvVersion = clusterVersion?.status?.desired?.version || clusterVersion?.status?.history?.[0]?.version || '';
   const cvChannel = clusterVersion?.spec?.channel || '';
@@ -320,6 +375,72 @@ export default function AdminView() {
     }
     return [...roles.entries()].sort((a, b) => b[1] - a[1]);
   }, [nodes]);
+
+  // Cluster capacity
+  const clusterCapacity = React.useMemo(() => {
+    let cpuAllocatable = 0, memAllocatable = 0, cpuCapacity = 0, memCapacity = 0, pods = 0;
+    for (const n of nodes) {
+      const alloc = (n.status as any)?.allocatable || {};
+      const cap = (n.status as any)?.capacity || {};
+      cpuAllocatable += parseCpu(alloc.cpu || '0');
+      memAllocatable += parseMem(alloc.memory || '0');
+      cpuCapacity += parseCpu(cap.cpu || '0');
+      memCapacity += parseMem(cap.memory || '0');
+      pods += parseInt(alloc.pods || '0', 10);
+    }
+    return { cpuAllocatable, memAllocatable, cpuCapacity, memCapacity, pods };
+  }, [nodes]);
+
+  // Namespace stats
+  const nsStats = React.useMemo(() => {
+    const all = namespaces as any[];
+    const system = all.filter(ns => {
+      const name = ns.metadata?.name || '';
+      return name.startsWith('openshift-') || name.startsWith('kube-') || name === 'default' || name === 'openshift';
+    });
+    return { total: all.length, user: all.length - system.length, system: system.length };
+  }, [namespaces]);
+
+  // Cluster age from install history
+  const clusterAge = React.useMemo(() => {
+    const history = clusterVersion?.status?.history || [];
+    if (history.length === 0) return null;
+    const oldest = history[history.length - 1];
+    const installDate = oldest?.startedTime || oldest?.completionTime;
+    if (!installDate) return null;
+    const diff = Date.now() - new Date(installDate).getTime();
+    const days = Math.floor(diff / 86400000);
+    if (days > 365) return { label: `${Math.floor(days / 365)}y ${Math.floor((days % 365) / 30)}mo`, date: installDate };
+    if (days > 30) return { label: `${Math.floor(days / 30)}mo ${days % 30}d`, date: installDate };
+    return { label: `${days}d`, date: installDate };
+  }, [clusterVersion]);
+
+  // Operator health helpers
+  const getOperatorStatus = (op: any) => {
+    const conditions = op?.status?.conditions || [];
+    const degraded = conditions.find((c: any) => c.type === 'Degraded' && c.status === 'True');
+    const progressing = conditions.find((c: any) => c.type === 'Progressing' && c.status === 'True');
+    const available = conditions.find((c: any) => c.type === 'Available' && c.status === 'True');
+    if (degraded) return 'degraded';
+    if (progressing) return 'progressing';
+    if (available) return 'healthy';
+    return 'unknown';
+  };
+
+  // Certificate expiry from router secret
+  const certExpiry = React.useMemo(() => {
+    if (!routerCert?.data?.['tls.crt']) return null;
+    try {
+      const pem = atob(routerCert.data['tls.crt']);
+      const match = pem.match(/Not After\s*:\s*(.+)/);
+      if (match) {
+        const expDate = new Date(match[1]);
+        const daysLeft = Math.floor((expDate.getTime() - Date.now()) / 86400000);
+        return { date: expDate, daysLeft };
+      }
+    } catch {}
+    return null;
+  }, [routerCert]);
 
   const crdGroupCount = React.useMemo(() => {
     const groups = new Set<string>();
@@ -523,10 +644,17 @@ export default function AdminView() {
         {/* ===== OVERVIEW ===== */}
         {activeTab === 'overview' && (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {/* Row 1: Key info cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
               <InfoCard label="Cluster Version" value={cvVersion || '—'} sub={cvChannel} />
               <InfoCard label="Platform" value={platform || '—'} sub={(() => { try { return apiUrl ? new URL(apiUrl).hostname : ''; } catch { return ''; } })()} />
-              <InfoCard label="Nodes" value={String(nodes.length)} sub={nodeRoles.map(([r, c]) => `${c} ${r}`).join(', ')} />
+              <InfoCard label="Cluster Age" value={clusterAge?.label || '—'} sub={clusterAge?.date ? new Date(clusterAge.date).toLocaleDateString() : ''} />
+              <button onClick={() => go('/compute', 'Compute')} className="text-left">
+                <InfoCard label="Nodes" value={String(nodes.length)} sub={`${nodeRoles.map(([r, c]) => `${c} ${r}`).join(', ')} →`} />
+              </button>
+              <button onClick={() => setActiveTab('quotas')} className="text-left">
+                <InfoCard label="Namespaces" value={String(nsStats.total)} sub={`${nsStats.user} user, ${nsStats.system} system →`} />
+              </button>
               <button onClick={() => go('/crds', 'Custom Resources')} className="text-left">
                 <InfoCard label="CRDs" value={String(crds.length)} sub={`${crdGroupCount} API groups →`} />
               </button>
@@ -548,16 +676,78 @@ export default function AdminView() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Panel title={`Operators (${operators.length})`} icon={<Puzzle className="w-4 h-4 text-violet-500" />}>
-                <div className="flex items-center gap-4 mb-3">
-                  <span className="flex items-center gap-1.5 text-sm"><CheckCircle className="w-3.5 h-3.5 text-green-500" /> {operators.length - opDegraded - opProgressing} healthy</span>
-                  {opDegraded > 0 && <span className="flex items-center gap-1.5 text-sm text-red-400"><XCircle className="w-3.5 h-3.5" /> {opDegraded} degraded</span>}
-                  {opProgressing > 0 && <span className="flex items-center gap-1.5 text-sm text-yellow-400"><RefreshCw className="w-3.5 h-3.5" /> {opProgressing} progressing</span>}
+            {/* Cluster Capacity */}
+            <Panel title="Cluster Capacity" icon={<Server className="w-4 h-4 text-cyan-500" />}>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <div className="text-xs text-slate-400 mb-1">CPU (allocatable)</div>
+                  <div className="text-lg font-bold text-slate-100">{clusterCapacity.cpuAllocatable.toFixed(0)} cores</div>
+                  <div className="text-xs text-slate-500">{clusterCapacity.cpuCapacity.toFixed(0)} total capacity</div>
                 </div>
-                <button onClick={() => go('/r/config.openshift.io~v1~clusteroperators', 'ClusterOperators')} className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">View all operators <ArrowRight className="w-3 h-3" /></button>
+                <div>
+                  <div className="text-xs text-slate-400 mb-1">Memory (allocatable)</div>
+                  <div className="text-lg font-bold text-slate-100">{formatMem(clusterCapacity.memAllocatable)}</div>
+                  <div className="text-xs text-slate-500">{formatMem(clusterCapacity.memCapacity)} total capacity</div>
+                </div>
+                <div>
+                  <div className="text-xs text-slate-400 mb-1">Max Pods</div>
+                  <div className="text-lg font-bold text-slate-100">{clusterCapacity.pods.toLocaleString()}</div>
+                  <div className="text-xs text-slate-500">across {nodes.length} nodes</div>
+                </div>
+                <div>
+                  <div className="text-xs text-slate-400 mb-1">Per-Node Average</div>
+                  <div className="text-lg font-bold text-slate-100">{nodes.length > 0 ? (clusterCapacity.cpuAllocatable / nodes.length).toFixed(1) : 0} CPU</div>
+                  <div className="text-xs text-slate-500">{nodes.length > 0 ? formatMem(clusterCapacity.memAllocatable / nodes.length) : '—'} memory</div>
+                </div>
+              </div>
+            </Panel>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Control Plane Status */}
+              <Panel title="Control Plane" icon={<Shield className="w-4 h-4 text-green-500" />}>
+                <div className="space-y-2.5">
+                  {[
+                    { name: 'API Server', op: apiServerOperator },
+                    { name: 'etcd', op: etcdOperator },
+                  ].map(({ name, op }) => {
+                    const status = op ? getOperatorStatus(op) : 'unknown';
+                    const version = op?.status?.version || op?.status?.versions?.find((v: any) => v.name === 'operator')?.version || '';
+                    return (
+                      <div key={name} className="flex items-center justify-between py-1.5">
+                        <div className="flex items-center gap-2">
+                          {status === 'healthy' ? <CheckCircle className="w-3.5 h-3.5 text-green-500" /> :
+                           status === 'degraded' ? <XCircle className="w-3.5 h-3.5 text-red-500" /> :
+                           status === 'progressing' ? <RefreshCw className="w-3.5 h-3.5 text-blue-400 animate-spin" /> :
+                           <AlertTriangle className="w-3.5 h-3.5 text-slate-500" />}
+                          <span className="text-sm text-slate-200">{name}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {version && <span className="text-xs font-mono text-slate-500">{version}</span>}
+                          <span className={cn('text-xs px-1.5 py-0.5 rounded',
+                            status === 'healthy' ? 'bg-green-900/50 text-green-300' :
+                            status === 'degraded' ? 'bg-red-900/50 text-red-300' :
+                            status === 'progressing' ? 'bg-blue-900/50 text-blue-300' :
+                            'bg-slate-800 text-slate-400'
+                          )}>{status === 'healthy' ? 'Available' : status === 'degraded' ? 'Degraded' : status === 'progressing' ? 'Updating' : 'Unknown'}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div className="border-t border-slate-800 pt-2 mt-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-400">ClusterOperators</span>
+                      <div className="flex items-center gap-3">
+                        <span className="flex items-center gap-1 text-xs text-green-400"><CheckCircle className="w-3 h-3" /> {operators.length - opDegraded - opProgressing}</span>
+                        {opDegraded > 0 && <span className="flex items-center gap-1 text-xs text-red-400"><XCircle className="w-3 h-3" /> {opDegraded}</span>}
+                        {opProgressing > 0 && <span className="flex items-center gap-1 text-xs text-yellow-400"><RefreshCw className="w-3 h-3" /> {opProgressing}</span>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <button onClick={() => go('/r/config.openshift.io~v1~clusteroperators', 'ClusterOperators')} className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 mt-3">View all operators <ArrowRight className="w-3 h-3" /></button>
               </Panel>
 
+              {/* Nodes */}
               <Panel title={`Nodes (${nodes.length})`} icon={<Server className="w-4 h-4 text-blue-500" />}>
                 <div className="space-y-2 mb-3">
                   {nodeRoles.map(([role, count]) => (
@@ -583,6 +773,7 @@ export default function AdminView() {
                 <button onClick={() => go('/compute', 'Compute')} className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">Compute overview <ArrowRight className="w-3 h-3" /></button>
               </Panel>
 
+              {/* Identity Providers */}
               <Panel title="Identity Providers" icon={<Shield className="w-4 h-4 text-teal-500" />}>
                 {identityProviders.length === 0 ? (
                   <div className="text-sm text-slate-500 py-2">No identity providers configured</div>
@@ -601,6 +792,38 @@ export default function AdminView() {
                 </button>
               </Panel>
 
+              {/* Certificate & Ingress */}
+              <Panel title="Ingress & Certificates" icon={<Shield className="w-4 h-4 text-orange-500" />}>
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-slate-300">Apps Domain</span>
+                    <span className="text-xs font-mono text-slate-400">{ingressConfig?.spec?.domain || '—'}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-slate-300">Default Certificate</span>
+                    <span className={cn('text-xs px-1.5 py-0.5 rounded',
+                      ingressConfig?.spec?.defaultCertificate ? 'bg-green-900/50 text-green-300' : 'bg-yellow-900/50 text-yellow-300'
+                    )}>{ingressConfig?.spec?.defaultCertificate ? 'Custom' : 'Self-signed'}</span>
+                  </div>
+                  {certExpiry && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-slate-300">Router Cert Expires</span>
+                      <span className={cn('text-xs px-1.5 py-0.5 rounded',
+                        certExpiry.daysLeft < 30 ? 'bg-red-900/50 text-red-300' :
+                        certExpiry.daysLeft < 90 ? 'bg-yellow-900/50 text-yellow-300' :
+                        'bg-green-900/50 text-green-300'
+                      )}>{certExpiry.daysLeft}d ({certExpiry.date.toLocaleDateString()})</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-slate-300">Quotas / Limit Ranges</span>
+                    <span className="text-xs text-slate-400">{quotas.length} quotas, {limitRanges.length} limits</span>
+                  </div>
+                </div>
+                <button onClick={() => setActiveTab('config')} className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 mt-3">
+                  Cluster config <ArrowRight className="w-3 h-3" />
+                </button>
+              </Panel>
             </div>
           </>
         )}
