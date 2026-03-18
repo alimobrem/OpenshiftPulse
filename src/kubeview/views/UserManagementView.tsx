@@ -423,6 +423,18 @@ function IdentityAudit({ users, groups, clusterRoleBindings, oauthConfig, access
   const [confirmAction, setConfirmAction] = React.useState<string | null>(null);
   const [actionLoading, setActionLoading] = React.useState(false);
 
+  // Check current user identity
+  const { data: currentUser } = useQuery({
+    queryKey: ['users', 'current'],
+    queryFn: async () => {
+      const res = await fetch('/api/kubernetes/apis/user.openshift.io/v1/users/~');
+      if (!res.ok) return null;
+      return res.json();
+    },
+    staleTime: 300000,
+  });
+  const currentUserIsKubeAdmin = currentUser?.metadata?.name === 'kube:admin';
+
   const handleAction = async (actionId: string) => {
     setActionLoading(true);
     try {
@@ -480,10 +492,17 @@ spec:
       why: 'kubeadmin has full cluster-admin access with a static password. Remove it after setting up real identity providers: oc delete secret kubeadmin -n kube-system',
       passing: hasKubeAdmin ? [] : [{ metadata: { name: 'kubeadmin removed' } }],
       failing: hasKubeAdmin ? [{ metadata: { name: 'kube:admin still exists' } }] : [],
-      yamlExample: `# This deletes the kubeadmin secret from kube-system.
+      yamlExample: currentUserIsKubeAdmin
+        ? `# You are currently logged in as kubeadmin.
+# Log in as another admin user first, then remove kubeadmin.
+# oc login -u <other-admin-user>
+# oc delete secret kubeadmin -n kube-system`
+        : `# This deletes the kubeadmin secret from kube-system.
 # Equivalent to: oc delete secret kubeadmin -n kube-system
 # WARNING: Irreversible. Verify IdP login works first.`,
-      action: hasKubeAdmin && idps.length > 0 ? { label: 'Remove kubeadmin', danger: true, id: 'remove-kubeadmin' } : undefined,
+      // Only allow removal if IdP configured AND current user is not kubeadmin
+      action: hasKubeAdmin && idps.length > 0 && !currentUserIsKubeAdmin
+        ? { label: 'Remove kubeadmin', danger: true, id: 'remove-kubeadmin' } : undefined,
     });
 
     // 3. Cluster-admin bindings audit
