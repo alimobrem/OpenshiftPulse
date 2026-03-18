@@ -471,7 +471,12 @@ oc adm policy add-cluster-role-to-user edit <user>`,
 
     // 4. Service accounts with cluster-admin
     const saClusterAdmins = clusterAdminBindings.flatMap((crb: any) =>
-      (crb.subjects || []).filter((s: any) => s.kind === 'ServiceAccount').map((s: any) => ({
+      (crb.subjects || []).filter((s: any) => {
+        if (s.kind !== 'ServiceAccount') return false;
+        const ns = s.namespace || '';
+        // Exclude platform service accounts
+        return !ns.startsWith('openshift-') && !ns.startsWith('kube-') && ns !== 'openshift';
+      }).map((s: any) => ({
         metadata: { name: `${s.namespace}/${s.name}`, uid: `${crb.metadata.name}-${s.namespace}-${s.name}` },
       }))
     );
