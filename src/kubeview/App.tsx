@@ -187,7 +187,7 @@ export default function OpenShiftViewApp() {
             <Route path="access-control" element={<Suspense fallback={<LoadingFallback />}><AccessControlView /></Suspense>} />
             <Route path="users" element={<Suspense fallback={<LoadingFallback />}><UserManagementView /></Suspense>} />
             <Route path="operators" element={<Navigate to="/admin" replace />} />
-            <Route path="operatorhub" element={<Suspense fallback={<LoadingFallback />}><OperatorCatalogView /></Suspense>} />
+            <Route path="operatorhub" element={<Navigate to="/create/v1~pods" replace />} />
             <Route path="admin" element={<Suspense fallback={<LoadingFallback />}><AdminView /></Suspense>} />
 
             {/* Alerts */}

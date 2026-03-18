@@ -5,7 +5,7 @@ import {
   ArrowLeft, Plus, Package, Network, Globe, HardDrive, FileText,
   Lock, Shield, Clock, TrendingUp, Folder, User, ShieldCheck,
   Clipboard, AlertCircle, Box, Search, Loader2, ExternalLink,
-  Ship, Image, GitBranch, Upload, Database, ArrowRight, CheckCircle, XCircle,
+  Ship, Image, GitBranch, Upload, Database, ArrowRight, CheckCircle, XCircle, Puzzle,
 } from 'lucide-react';
 import { useUIStore } from '../store/uiStore';
 import { useClusterStore } from '../store/clusterStore';
@@ -61,7 +61,10 @@ interface CreateViewProps {
   gvrKey: string;
 }
 
-type CreateTab = 'installed' | 'deploy' | 'helm' | 'templates' | 'yaml';
+type CreateTab = 'installed' | 'operators' | 'deploy' | 'helm' | 'templates' | 'yaml';
+
+import { lazy, Suspense } from 'react';
+const OperatorCatalogView = lazy(() => import('./OperatorCatalogView'));
 
 
 export default function CreateView({ gvrKey }: CreateViewProps) {
@@ -217,6 +220,7 @@ export default function CreateView({ gvrKey }: CreateViewProps) {
   // Picker mode
   const tabs: Array<{ id: CreateTab; label: string; icon: React.ReactNode }> = [
     { id: 'installed', label: 'Installed', icon: <Package className="w-3.5 h-3.5" /> },
+    { id: 'operators', label: 'Operators', icon: <Puzzle className="w-3.5 h-3.5" /> },
     { id: 'deploy', label: 'Quick Deploy', icon: <Box className="w-3.5 h-3.5" /> },
     { id: 'helm', label: 'Helm Charts', icon: <Ship className="w-3.5 h-3.5" /> },
     { id: 'templates', label: 'Templates', icon: <FileText className="w-3.5 h-3.5" /> },
@@ -228,10 +232,10 @@ export default function CreateView({ gvrKey }: CreateViewProps) {
       <div className="max-w-5xl mx-auto space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
-            <Plus className="w-6 h-6 text-blue-500" />
-            Create
+            <Package className="w-6 h-6 text-blue-500" />
+            Software
           </h1>
-          <p className="text-sm text-slate-400 mt-1">Deploy an application, install a Helm chart, or create a resource from YAML</p>
+          <p className="text-sm text-slate-400 mt-1">Manage installed software, deploy applications, install operators, and create resources</p>
         </div>
 
         {/* Tabs */}
@@ -244,6 +248,11 @@ export default function CreateView({ gvrKey }: CreateViewProps) {
         </div>
 
         {activeTab === 'installed' && <InstalledTab />}
+        {activeTab === 'operators' && (
+          <Suspense fallback={<div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 text-blue-400 animate-spin" /></div>}>
+            <OperatorCatalogView />
+          </Suspense>
+        )}
         {activeTab === 'deploy' && <QuickDeployTab />}
         {activeTab === 'helm' && <HelmTab />}
         {activeTab === 'templates' && (

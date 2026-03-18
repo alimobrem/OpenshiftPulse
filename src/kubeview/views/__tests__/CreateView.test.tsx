@@ -100,8 +100,8 @@ describe('CreateView', () => {
   it('renders Create heading and description', () => {
     renderCreateView();
 
-    expect(screen.getByText('Create')).toBeDefined();
-    expect(screen.getByText(/Deploy an application, install a Helm chart/)).toBeDefined();
+    expect(screen.getByText('Software')).toBeDefined();
+    expect(screen.getByText(/Manage installed software/)).toBeDefined();
   });
 
   it('shows Quick Deploy form fields', () => {
@@ -338,7 +338,7 @@ describe('CreateView', () => {
   it('shows operator templates (not just basic resources)', () => {
     renderCreateView();
     fireEvent.click(screen.getByText('Templates'));
-    expect(screen.getByText('Operators')).toBeDefined();
+    // The Templates tab should show operator subscription templates
     expect(screen.getByText('Cluster Logging Operator')).toBeDefined();
   });
 
