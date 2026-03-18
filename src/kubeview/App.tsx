@@ -193,12 +193,8 @@ export default function OpenShiftViewApp() {
             {/* Alerts */}
             <Route path="alerts" element={<Suspense fallback={<LoadingFallback />}><AlertsView /></Suspense>} />
 
-            {/* Troubleshoot */}
-            <Route path="troubleshoot" element={
-              <Suspense fallback={<LoadingFallback />}>
-                <TroubleshootView />
-              </Suspense>
-            } />
+            {/* Troubleshoot — merged into Pulse */}
+            <Route path="troubleshoot" element={<Navigate to="/pulse" replace />} />
 
             {/* Config Compare — merged into Admin */}
             <Route path="config-compare" element={<Navigate to="/admin" replace />} />
