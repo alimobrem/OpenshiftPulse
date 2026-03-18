@@ -39,6 +39,10 @@
   height: 8px;
 }
 
+/* Hide scrollbar on tab bar */
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+
 .shiftops ::-webkit-scrollbar-track {
   background: transparent;
 }
