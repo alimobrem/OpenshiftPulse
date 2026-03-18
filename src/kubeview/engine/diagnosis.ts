@@ -528,6 +528,49 @@ export async function enrichDiagnosesWithLogs(
   diagnoses: Diagnosis[],
   fetchFn: (url: string) => Promise<string> = defaultLogFetch,
 ): Promise<Diagnosis[]> {
+  // Enrich PVC diagnoses with events
+  if (resource.kind === 'PersistentVolumeClaim' && resource.metadata.namespace) {
+    const hasPending = diagnoses.some(d => d.title.includes('pending'));
+    if (hasPending) {
+      try {
+        const fieldSelector = encodeURIComponent(`involvedObject.name=${resource.metadata.name},involvedObject.kind=PersistentVolumeClaim`);
+        const eventsText = await fetchFn(
+          `/api/kubernetes/api/v1/namespaces/${resource.metadata.namespace}/events?fieldSelector=${fieldSelector}`
+        );
+        const events = JSON.parse(eventsText);
+        const items = events.items || [];
+        // Find the most recent warning event
+        const warnings = items.filter((e: any) => e.type === 'Warning').sort((a: any, b: any) =>
+          new Date(b.lastTimestamp || b.firstTimestamp || 0).getTime() - new Date(a.lastTimestamp || a.firstTimestamp || 0).getTime()
+        );
+        if (warnings.length > 0) {
+          const msg = warnings[0].message || '';
+          const reason = warnings[0].reason || '';
+          return diagnoses.map(d => {
+            if (!d.title.includes('pending')) return d;
+            return {
+              ...d,
+              detail: d.detail + `. Event: ${reason}`,
+              logSnippet: msg,
+              suggestion: reason === 'ProvisioningFailed'
+                ? `Provisioning failed: ${msg}. Check if the StorageClass provisioner is running and has capacity.`
+                : reason === 'FailedBinding'
+                  ? `No matching PV found. Check Storage → PVs for available volumes with matching accessModes and capacity.`
+                  : msg.includes('storageclass')
+                    ? `StorageClass issue: ${msg}. Go to Storage page to verify the StorageClass exists.`
+                    : msg.includes('WaitForFirstConsumer')
+                      ? 'This PVC uses WaitForFirstConsumer binding. It will bind automatically when a Pod that uses it is scheduled.'
+                      : d.suggestion,
+            };
+          });
+        }
+      } catch {
+        // Events fetch failed — return original diagnoses
+      }
+    }
+    return diagnoses;
+  }
+
   if (resource.kind !== 'Pod' || !resource.metadata.namespace) return diagnoses;
 
   // Only fetch logs for pods with crashes or errors
