@@ -94,9 +94,9 @@ function ConfigEditor({ section, data }: { section: ConfigSection; data: any }) 
     case 'ingress': return <IngressEditor data={data} apiPath={section.apiPath} />;
     case 'scheduler': return <SchedulerEditor data={data} apiPath={section.apiPath} />;
     case 'apiserver': return <APIServerEditor data={data} apiPath={section.apiPath} />;
-    case 'dns': return <DNSViewer data={data} />;
-    case 'network': return <NetworkViewer data={data} />;
-    case 'featuregate': return <FeatureGateViewer data={data} />;
+    case 'dns': return <DNSEditor data={data} apiPath={section.apiPath} />;
+    case 'network': return <NetworkEditor data={data} apiPath={section.apiPath} />;
+    case 'featuregate': return <FeatureGateEditor data={data} apiPath={section.apiPath} />;
     case 'console': return <ConsoleEditor data={data} apiPath={section.apiPath} />;
     default: return null;
   }
@@ -557,142 +557,189 @@ function APIServerEditor({ data, apiPath }: { data: any; apiPath: string }) {
 }
 
 // ===== DNS =====
-function DNSViewer({ data }: { data: any }) {
+function DNSEditor({ data, apiPath }: { data: any; apiPath: string }) {
   const spec = data.spec || {};
   const status = data.status || {};
+  const addToast = useUIStore((s) => s.addToast);
+  const queryClient = useQueryClient();
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [baseDomain, setBaseDomain] = useState(spec.baseDomain || '');
+  const [publicZoneId, setPublicZoneId] = useState(spec.publicZone?.id || '');
+  const [privateZoneId, setPrivateZoneId] = useState(spec.privateZone?.id || '');
+
+  const markDirty = (setter: (v: string) => void) => (v: string) => { setter(v); setDirty(true); };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const patch: any = { spec: { baseDomain } };
+      if (publicZoneId) patch.spec.publicZone = { id: publicZoneId };
+      if (privateZoneId) patch.spec.privateZone = { id: privateZoneId };
+      await k8sPatch(apiPath, patch, MERGE_PATCH);
+      addToast({ type: 'success', title: 'DNS configuration updated' });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'config', 'dns'] });
+      setDirty(false);
+    } catch (err) {
+      addToast({ type: 'error', title: 'Failed to update DNS', detail: err instanceof Error ? err.message : 'Unknown error' });
+    }
+    setSaving(false);
+  };
 
   return (
     <div className="space-y-3">
-      <InfoRow label="Base Domain" value={spec.baseDomain || 'Not set'} />
-      {spec.publicZone?.id && (
-        <InfoRow label="Public Zone ID" value={spec.publicZone.id} />
-      )}
-      {spec.privateZone?.id && (
-        <InfoRow label="Private Zone ID" value={spec.privateZone.id} />
-      )}
-      {status.clusterDomain && (
-        <InfoRow label="Cluster Domain" value={status.clusterDomain} />
-      )}
-      <div className="text-xs text-slate-500 pt-2">DNS configuration is managed by the cluster DNS operator and should not be modified manually.</div>
+      <div className="p-3 bg-red-900/20 border border-red-800 rounded text-xs text-red-300 flex items-start gap-2">
+        <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+        <span>Changing DNS configuration can break cluster routing and certificate validation. Only modify if you understand the impact.</span>
+      </div>
+      <FieldRow label="Base Domain" value={baseDomain} onChange={markDirty(setBaseDomain)} placeholder="example.com" />
+      <FieldRow label="Public Zone ID" value={publicZoneId} onChange={markDirty(setPublicZoneId)} placeholder="Route53/CloudDNS zone ID" />
+      <FieldRow label="Private Zone ID" value={privateZoneId} onChange={markDirty(setPrivateZoneId)} placeholder="Internal DNS zone ID" />
+      {status.clusterDomain && <InfoRow label="Cluster Domain (read-only)" value={status.clusterDomain} />}
+      {dirty && <SaveBar saving={saving} onSave={handleSave} onReset={() => { setBaseDomain(spec.baseDomain || ''); setPublicZoneId(spec.publicZone?.id || ''); setPrivateZoneId(spec.privateZone?.id || ''); setDirty(false); }} />}
     </div>
   );
 }
 
 // ===== Network =====
-function NetworkViewer({ data }: { data: any }) {
+function NetworkEditor({ data, apiPath }: { data: any; apiPath: string }) {
   const spec = data.spec || {};
   const status = data.status || {};
+  const addToast = useUIStore((s) => s.addToast);
+  const queryClient = useQueryClient();
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [networkType, setNetworkType] = useState(spec.networkType || '');
   const clusterNetwork = spec.clusterNetwork || [];
   const serviceNetwork = spec.serviceNetwork || [];
 
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await k8sPatch(apiPath, { spec: { networkType } }, MERGE_PATCH);
+      addToast({ type: 'success', title: 'Network configuration updated' });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'config', 'network'] });
+      setDirty(false);
+    } catch (err) {
+      addToast({ type: 'error', title: 'Failed to update network', detail: err instanceof Error ? err.message : 'Unknown error' });
+    }
+    setSaving(false);
+  };
+
   return (
     <div className="space-y-3">
-      <InfoRow label="Network Type (spec)" value={spec.networkType || 'Not set'} />
-      {status.networkType && status.networkType !== spec.networkType && (
-        <InfoRow label="Network Type (status)" value={status.networkType} />
-      )}
-
+      <div className="p-3 bg-red-900/20 border border-red-800 rounded text-xs text-red-300 flex items-start gap-2">
+        <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+        <span>Network type and CIDRs are set at install time. Changing the network type can cause cluster-wide network disruption. CIDRs cannot be modified post-install.</span>
+      </div>
+      <div>
+        <label className="text-xs text-slate-400 block mb-1">Network Type</label>
+        <select value={networkType} onChange={(e) => { setNetworkType(e.target.value); setDirty(true); }}
+          className="w-full px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500">
+          <option value="OVNKubernetes">OVNKubernetes</option>
+          <option value="OpenShiftSDN">OpenShiftSDN</option>
+        </select>
+      </div>
       {clusterNetwork.length > 0 && (
         <div>
-          <div className="text-xs text-slate-400 mb-1">Cluster Network (Pod CIDRs)</div>
-          <div className="space-y-1">
-            {clusterNetwork.map((net: any, i: number) => (
-              <div key={i} className="px-2 py-1.5 bg-slate-800/50 rounded border border-slate-700">
-                <div className="text-sm font-mono text-slate-200">{net.cidr}</div>
-                {net.hostPrefix && (
-                  <div className="text-xs text-slate-500">Host prefix: /{net.hostPrefix}</div>
-                )}
-              </div>
-            ))}
-          </div>
+          <div className="text-xs text-slate-400 mb-1">Cluster Network — Pod CIDRs (read-only)</div>
+          {clusterNetwork.map((net: any, i: number) => (
+            <div key={i} className="px-2 py-1.5 bg-slate-800/50 rounded border border-slate-700 mb-1">
+              <span className="text-sm font-mono text-slate-200">{net.cidr}</span>
+              {net.hostPrefix && <span className="text-xs text-slate-500 ml-2">/{net.hostPrefix}</span>}
+            </div>
+          ))}
         </div>
       )}
-
       {serviceNetwork.length > 0 && (
         <div>
-          <div className="text-xs text-slate-400 mb-1">Service Network (Service CIDRs)</div>
-          <div className="space-y-1">
-            {serviceNetwork.map((cidr: string, i: number) => (
-              <div key={i} className="px-2 py-1.5 bg-slate-800/50 rounded border border-slate-700">
-                <div className="text-sm font-mono text-slate-200">{cidr}</div>
-              </div>
-            ))}
-          </div>
+          <div className="text-xs text-slate-400 mb-1">Service Network (read-only)</div>
+          {serviceNetwork.map((cidr: string, i: number) => (
+            <div key={i} className="px-2 py-1.5 bg-slate-800/50 rounded border border-slate-700 mb-1">
+              <span className="text-sm font-mono text-slate-200">{cidr}</span>
+            </div>
+          ))}
         </div>
       )}
-
-      <div className="text-xs text-slate-500 pt-2">Network configuration is set during cluster installation and cannot be changed.</div>
+      {status.networkType && <InfoRow label="Active Network Type (status)" value={status.networkType} />}
+      {dirty && <SaveBar saving={saving} onSave={handleSave} onReset={() => { setNetworkType(spec.networkType || ''); setDirty(false); }} />}
     </div>
   );
 }
 
 // ===== FeatureGate =====
-function FeatureGateViewer({ data }: { data: any }) {
+function FeatureGateEditor({ data, apiPath }: { data: any; apiPath: string }) {
   const spec = data.spec || {};
   const status = data.status || {};
+  const addToast = useUIStore((s) => s.addToast);
+  const queryClient = useQueryClient();
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [featureSet, setFeatureSet] = useState(spec.featureSet || '');
   const featureGates = status.featureGates || [];
-
   const enabled = featureGates.filter((fg: any) => fg.enabled);
   const disabled = featureGates.filter((fg: any) => !fg.enabled);
 
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await k8sPatch(apiPath, { spec: { featureSet: featureSet || null } }, MERGE_PATCH);
+      addToast({ type: 'success', title: 'Feature gate updated', detail: `Set to: ${featureSet || 'Default'}` });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'config', 'featuregate'] });
+      setDirty(false);
+    } catch (err) {
+      addToast({ type: 'error', title: 'Failed to update feature gate', detail: err instanceof Error ? err.message : 'Unknown error' });
+    }
+    setSaving(false);
+  };
+
   return (
     <div className="space-y-3">
-      <InfoRow label="Feature Set" value={spec.featureSet || 'Default'} />
-
-      {spec.featureSet === 'CustomNoUpgrade' && spec.customNoUpgrade?.enabled && (
-        <div>
-          <div className="text-xs text-slate-400 mb-1">Custom Enabled Features</div>
-          <div className="flex flex-wrap gap-1.5">
-            {spec.customNoUpgrade.enabled.map((feature: string, i: number) => (
-              <span key={i} className="px-2 py-1 text-xs bg-green-900/30 border border-green-800 text-green-300 rounded font-mono">
-                {feature}
-              </span>
-            ))}
-          </div>
+      {(featureSet === 'TechPreviewNoUpgrade' || spec.featureSet === 'TechPreviewNoUpgrade') && (
+        <div className="p-3 bg-red-900/20 border border-red-800 rounded text-xs text-red-300 flex items-start gap-2">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+          <span><strong>TechPreviewNoUpgrade is IRREVERSIBLE.</strong> Once enabled, the cluster cannot be upgraded or reverted to Default. Tech Preview features may be unstable and unsupported.</span>
         </div>
       )}
-
+      {featureSet !== 'TechPreviewNoUpgrade' && spec.featureSet !== 'TechPreviewNoUpgrade' && (
+        <div className="p-3 bg-yellow-900/20 border border-yellow-800 rounded text-xs text-yellow-300 flex items-start gap-2">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+          <span>Changing the feature set affects cluster behavior and may enable unstable features. Some changes are irreversible.</span>
+        </div>
+      )}
+      <div>
+        <label className="text-xs text-slate-400 block mb-1">Feature Set</label>
+        <select value={featureSet} onChange={(e) => { setFeatureSet(e.target.value); setDirty(true); }}
+          className="w-full px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500">
+          <option value="">Default</option>
+          <option value="LatencySensitive">LatencySensitive</option>
+          <option value="TechPreviewNoUpgrade">TechPreviewNoUpgrade (irreversible!)</option>
+          <option value="CustomNoUpgrade">CustomNoUpgrade</option>
+        </select>
+      </div>
       {enabled.length > 0 && (
         <div>
           <div className="text-xs text-slate-400 mb-1">Enabled Features ({enabled.length})</div>
           <div className="flex flex-wrap gap-1.5">
-            {enabled.slice(0, 10).map((fg: any, i: number) => (
-              <span key={i} className="px-2 py-1 text-xs bg-green-900/30 border border-green-800 text-green-300 rounded font-mono">
-                {fg.name}
-              </span>
+            {enabled.slice(0, 15).map((fg: any, i: number) => (
+              <span key={i} className="px-2 py-0.5 text-xs bg-green-900/30 border border-green-800 text-green-300 rounded font-mono">{fg.name}</span>
             ))}
-            {enabled.length > 10 && (
-              <span className="px-2 py-1 text-xs text-slate-500">+{enabled.length - 10} more</span>
-            )}
+            {enabled.length > 15 && <span className="text-xs text-slate-500">+{enabled.length - 15} more</span>}
           </div>
         </div>
       )}
-
       {disabled.length > 0 && (
         <div>
           <div className="text-xs text-slate-400 mb-1">Disabled Features ({disabled.length})</div>
           <div className="flex flex-wrap gap-1.5">
-            {disabled.slice(0, 10).map((fg: any, i: number) => (
-              <span key={i} className="px-2 py-1 text-xs bg-slate-800/50 border border-slate-700 text-slate-400 rounded font-mono">
-                {fg.name}
-              </span>
+            {disabled.slice(0, 15).map((fg: any, i: number) => (
+              <span key={i} className="px-2 py-0.5 text-xs bg-slate-800/50 border border-slate-700 text-slate-400 rounded font-mono">{fg.name}</span>
             ))}
-            {disabled.length > 10 && (
-              <span className="px-2 py-1 text-xs text-slate-500">+{disabled.length - 10} more</span>
-            )}
+            {disabled.length > 15 && <span className="text-xs text-slate-500">+{disabled.length - 15} more</span>}
           </div>
         </div>
       )}
-
-      {spec.featureSet === 'TechPreviewNoUpgrade' && (
-        <div className="p-3 bg-yellow-900/20 border border-yellow-800 rounded">
-          <div className="flex items-center gap-2 text-yellow-400 text-xs">
-            <AlertTriangle className="w-3 h-3" />
-            <span className="font-medium">Tech Preview mode enabled</span>
-          </div>
-          <div className="text-xs text-slate-400 mt-1">This cluster cannot be upgraded. Tech Preview features may be unstable.</div>
-        </div>
-      )}
+      {dirty && <SaveBar saving={saving} onSave={handleSave} onReset={() => { setFeatureSet(spec.featureSet || ''); setDirty(false); }} />}
     </div>
   );
 }
