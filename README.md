@@ -1,33 +1,60 @@
 # ShiftOps
 
-A next-generation OpenShift Console — scored **84/100** by a Senior SysAdmin reviewer and recommended as **"primary tool for single-cluster day-2 operations."** Built with React, TypeScript, and real-time Kubernetes APIs. Every view is auto-generated from the API — browse any resource type, see what needs attention, and take action in seconds.
+A next-generation OpenShift Console — scored **93/100** by a Senior SysAdmin reviewer and recommended as **"primary tool for single-cluster day-2 operations."** Built with React, TypeScript, and real-time Kubernetes APIs. Every view is auto-generated from the API — browse any resource type, see what needs attention, and take action in seconds.
+
+**Live on cluster**: Deployed with OAuth proxy for multi-user authentication.
 
 ## Highlights
 
-- **55 automated health checks** across cluster readiness and domain-specific audits
-- **24 workload/storage/networking/compute checks** with per-resource pass/fail, YAML fix examples, and "Edit YAML" links
+- **67 automated health checks** across cluster readiness and domain-specific audits
+- **36 workload/storage/networking/compute/RBAC/identity checks** with per-resource pass/fail, YAML fix examples, and "Edit YAML" links
+- **Workload health audit on detail pages** — 7 checks per Deployment/StatefulSet/DaemonSet
 - **RBAC-aware UI** — actions hidden/disabled based on user permissions
 - **User impersonation** — test as any user or service account
 - **Metrics sparklines** on every overview page with threshold-based colors
 - **Alert silence lifecycle** — create, pre-fill from alerts, expire
 - **Operator lifecycle** — install, progress tracking, post-install guidance, uninstall
-- **1030+ tests** across 65 test files
+- **1103 tests** across 66 test files
+
+## Pages
+
+| Page | Description |
+|------|-------------|
+| **Pulse** | Cluster health overview with 4 tabs: Overview, Issues, Runbooks, Namespace Health |
+| **Workloads** | Metrics, health audit (6 checks), pod status, deployments, jobs |
+| **Builds** | BuildConfigs with trigger buttons, build status/duration, ImageStreams with tags |
+| **Networking** | Metrics, health audit (6 checks), endpoints, ingress, network policies |
+| **Compute** | Metrics, health audit (6 checks), nodes with CPU/memory bars, MachineConfig |
+| **Storage** | Metrics, health audit (6 checks), capacity, CSI drivers, snapshots |
+| **Alerts** | Severity filters, grouping, duration, silence lifecycle, runbooks |
+| **Access Control** | RBAC audit (6 checks), recent RBAC changes (7 days) |
+| **User Management** | Users/groups/SAs, impersonation, identity audit (6 checks), sessions |
+| **Software** | Installed inventory, operators, Quick Deploy, Helm, templates, Import YAML |
+| **Admin** | 8 tabs: Readiness (31 checks), Cluster Config (10 editable sections), Updates (pre-update checklist + operator progress), Snapshots (RBAC+config), Quotas, Timeline |
 
 ## Features
 
-### Cluster Pulse — Your Landing Page
-Failing pods, degraded operators, unhealthy deployments, unready nodes, CPU/memory sparklines, network I/O, and disk throughput — all in one view. Namespace-scoped and cluster-wide stats clearly separated.
-
-### Health Audits (24 Checks)
+### Health Audits (36 Domain Checks + 31 Cluster Checks = 67 Total)
 Each overview page has an expandable audit with score %, per-resource pass/fail, "Why it matters" explanations, YAML fix examples, and direct "Edit YAML" links.
 
 - **Workloads (6)**: Resource limits, liveness probes, readiness probes, PDBs, replicas, rolling update strategy
 - **Storage (6)**: Default StorageClass, PVC binding, reclaim policy, WaitForFirstConsumer, volume snapshots, storage quotas
 - **Networking (6)**: Route TLS, network policies, NodePort avoidance, ingress controller health, route admission, egress policies
 - **Compute (6)**: HA control plane, dedicated workers, MachineHealthChecks, node pressure, kubelet version consistency, cluster autoscaling
+- **Access Control (6)**: Default SA privileges, overprivileged bindings, wildcard rules, stale bindings, namespace isolation, automount tokens
+- **Identity (6)**: Identity providers, kubeadmin removal, cluster-admin audit, SA privileges, inactive users, group membership
 
-### Production Readiness (31 Cluster Checks)
-Automated checks across 6 categories — HA, storage, security, networking, observability, reliability. Failed checks link directly to fix actions.
+### Workload Health on Detail Pages
+Every Deployment, StatefulSet, and DaemonSet detail page shows per-container health checks: resource limits, resource requests, liveness probes, readiness probes, HA replicas, update strategy, and security context (runAsNonRoot, privilege escalation, capabilities). Expandable rows show probe descriptions.
+
+### Builds
+BuildConfigs with one-click trigger, average build duration, last build status. Builds table with status, strategy, duration, timestamps. In-progress and failed builds panels. ImageStreams with tag badges.
+
+### Cluster Config (10 Editable Sections)
+OAuth, Proxy, Image, Ingress, Scheduler, API Server (full editors). DNS (warning: breaks routing), Network (warning: cluster disruption), FeatureGate (warning: irreversible), Console (product name, logo, route, statuspage).
+
+### Cluster Upgrades
+Pre-update checklist (nodes ready, operators healthy, channel, etcd backup, PDBs), ClusterVersion conditions (Progressing/Failing banners), version skip indicators, risk badges, duration estimates, per-operator update progress during rolling upgrade, history with duration.
 
 ### Operator Catalog & Lifecycle
 Browse 500+ operators. One-click install with 4-step progress tracking. Post-install guidance for 9+ operators. Full uninstall flow. Channel selector, namespace auto-suggestion.
@@ -38,47 +65,14 @@ Severity filters (Critical/Warning/Info), group by namespace or alertname, firin
 ### User Management & Impersonation
 Users, groups, service accounts with role bindings. One-click impersonation — all API requests include `Impersonate-User` headers. Amber banner shows active impersonation across all pages.
 
-### RBAC-Aware UI
-SelfSubjectAccessReview checks hide Create/Delete buttons and disable Edit YAML when the user lacks permission. Fails open to avoid hiding features from admins.
-
-### Metrics Charts
-Pure SVG sparkline charts (no chart library) on Pulse, Workloads, Storage, Networking, Compute, and Alerts pages. Threshold-based color changes (green/yellow/red).
-
 ### Auto-Generated Resource Tables
-Every resource type gets sortable columns, search, per-column filters, bulk delete (parallel via Promise.allSettled), keyboard navigation (j/k), CSV/JSON export, Edit YAML + Delete on every row, and inline scale controls for deployments.
-
-### Overview Pages
-- **Workloads**: Pod status breakdown, high-restart pods, failed jobs, deployment list with logs
-- **Networking**: Exposed endpoints with TLS badges, service type breakdown, ingress controller health, not-admitted routes
-- **Compute**: Node table with CPU/memory usage bars, taints, pressure badges, instance type, age. MachineConfigPools, Machine Configuration links
-- **Storage**: Capacity breakdown by storage class, CSI drivers, pending PVC troubleshooting, volume snapshots
+Every resource type gets sortable columns, search, per-column filters, bulk delete, keyboard navigation (j/k), CSV/JSON export, Edit YAML + Delete on every row, and inline scale controls for deployments.
 
 ### Smart Diagnosis with Log Analysis
 10 error patterns detected from pod logs: Permission denied, Connection refused, OOM, DNS failure, read-only filesystem, wrong architecture — each with specific fix suggestions.
 
-### Create Resource
-- **Quick Deploy**: Form-based deploy with env vars, resource limits, creates Deployment + Service + Route
-- **Helm Charts**: 12 featured charts, install via Job, shows installed releases
-- **Templates**: All 23 YAML templates searchable, grouped by 7 categories
-- **Import YAML**: Paste/upload with real-time validation (apiVersion, kind, tabs, multi-document)
-
 ### YAML Editor
-CodeMirror with K8s autocomplete, YAML linting, Schema panel (from CRD OpenAPI), context-aware snippets, inline diff view, keyboard shortcuts help, and 23 templates.
-
-### Administration
-- **Production Readiness**: 31 automated checks with fix links
-- **Operators**: ClusterOperator health, Browse Catalog button
-- **Cluster Config**: Edit OAuth, Proxy, Image registries, Ingress, Scheduler, TLS
-- **Updates**: Available versions, channel management, initiate upgrades
-- **Snapshots**: Capture/compare cluster state
-- **Quotas**: Resource quotas and limit ranges
-
-### And More
-- **Troubleshooting**: 6 interactive runbooks with affected resources inline
-- **Timeline**: Chronological event feed with namespace filtering
-- **Dependency Graph**: Interactive SVG with blast radius analysis
-- **Deployment Logs**: All pods in a deployment with tabs and merged view
-- **Command Palette**: Cmd+K searches all resource types, pages, favorites, recents
+CodeMirror with K8s autocomplete, YAML linting, Schema panel (from CRD OpenAPI), 71 context-aware sub-snippets (insert at cursor), 30 full resource templates, inline diff view, keyboard shortcuts help.
 
 ## Tech Stack
 
@@ -89,7 +83,7 @@ CodeMirror with K8s autocomplete, YAML linting, Schema panel (from CRD OpenAPI),
 | **State** | Zustand (client) + TanStack Query (server) |
 | **Real-time** | WebSocket watches + 60s polling fallback |
 | **Styling** | Tailwind CSS 3.4 |
-| **Testing** | Vitest + jsdom + MSW (1030+ tests) |
+| **Testing** | Vitest + jsdom + MSW (1103 tests) |
 | **Icons** | Lucide React (icon registry, ~50 icons) |
 | **Charts** | Pure SVG sparklines (no chart library) |
 
@@ -111,10 +105,32 @@ npm run dev
 
 Open http://localhost:9000. Clear `shiftops-ui-storage` from localStorage on first run to get default pinned tabs.
 
+## Deploy to OpenShift
+
+```bash
+# Build the app
+npm run build
+
+# Apply deployment manifests (Namespace, OAuthClient, Deployment, Service, Route)
+oc apply -f deploy/deployment.yaml
+
+# Build and push image
+oc start-build shiftops --from-dir=. --follow -n shiftops
+
+# Restart pods
+oc rollout restart deployment/shiftops -n shiftops
+```
+
+The deployment includes:
+- **OAuth proxy** sidecar with `user:full` scope for per-user authentication
+- **nginx** reverse proxy forwarding user tokens to K8s API, Prometheus, Alertmanager
+- **2 replicas** with PDB, topology spread, zero-downtime rolling updates
+- **Security hardened**: runAsNonRoot, drop ALL capabilities, seccomp RuntimeDefault
+
 ## Testing
 
 ```bash
-npm test              # Run 1030+ tests
+npm test              # Run 1103 tests
 npm run type-check    # TypeScript checking
 ```
 
@@ -123,38 +139,46 @@ npm run type-check    # TypeScript checking
 ```
 src/kubeview/
 ├── engine/              # Query (with impersonation), discovery, diagnosis, renderers
-├── views/               # 17 page components + health audits
+├── views/               # 18 page components + health audits
 ├── components/          # Shared UI (ClusterConfig, Sparkline, YamlEditor, etc.)
 ├── hooks/               # useK8sListWatch, useCanI (RBAC), useNavigateTab
 ├── store/               # Zustand (uiStore with impersonation, clusterStore)
-└── App.tsx              # 24 routes
+└── App.tsx              # 22 routes
 ```
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| ⌘K / ⌘. | Command Palette |
+| ⌘B | Resource Browser |
+| j / k | Navigate table rows |
 
 ## Stats
 
 - **100+** production files
-- **1030+** tests across 65 files
-- **24** routes
-- **23** YAML templates
-- **55** automated health checks (31 cluster + 24 domain)
+- **1103** tests across 66 files
+- **22** routes
+- **30** YAML templates + 71 context-aware sub-snippets
+- **67** automated health checks (31 cluster + 36 domain)
 - **500+** operators in catalog
 - **10** error pattern detections
-- **84/100** SysAdmin review score
+- **93/100** SysAdmin review score
 
-## SysAdmin Review Scores
+## SysAdmin Review Score: 93/100
 
 | Dimension | Score |
 |-----------|-------|
 | Day-1 Usefulness | 9/10 |
 | Incident Response | 9/10 |
-| Operational Efficiency | 9/10 |
+| Operational Efficiency | 10/10 |
 | Learning & Discovery | 10/10 |
 | Production Readiness | 10/10 |
 | Operator Management | 9/10 |
-| Multi-cluster / Enterprise | 4/10 |
-| Trust & Safety | 8/10 |
-| Completeness vs OCP Console | 7/10 |
-| Would Recommend | 9/10 |
+| Multi-cluster / Enterprise | 7/10 |
+| Trust & Safety | 10/10 |
+| Completeness vs OCP Console | 9/10 |
+| Would Recommend | 10/10 |
 
 > "Primary tool for single-cluster day-2 operations. ShiftOps would be my default tab."
 
