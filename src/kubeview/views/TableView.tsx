@@ -14,6 +14,7 @@ import { useUIStore } from '../store/uiStore';
 import type { K8sResource, ColumnDef } from '../engine/renderers';
 import { getColumnsForResource } from '../engine/enhancers';
 import { getEnhancer } from '../engine/enhancers';
+import { useCanI } from '../hooks/useCanI';
 
 interface TableViewProps {
   gvrKey: string;
@@ -91,6 +92,14 @@ export default function TableView({ gvrKey, namespace: namespaceProp }: TableVie
 
   // Get enhancer for inline actions
   const enhancer = getEnhancer(gvrKey);
+
+  // RBAC permission checks
+  const gvrParts = gvrKey.split('/');
+  const resourceGroup = gvrParts.length === 3 ? gvrParts[0] : '';
+  const resourcePlural = gvrParts[gvrParts.length - 1];
+  const { allowed: canDelete } = useCanI('delete', resourceGroup, resourcePlural, activeNamespace);
+  const { allowed: canUpdate } = useCanI('update', resourceGroup, resourcePlural, activeNamespace);
+  const { allowed: canCreate } = useCanI('create', resourceGroup, resourcePlural, activeNamespace);
 
   // State — debounced search
   const [searchInput, setSearchInput] = React.useState('');
@@ -520,8 +529,8 @@ export default function TableView({ gvrKey, namespace: namespaceProp }: TableVie
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {/* Create button */}
-            <button
+            {/* Create button — hidden if user lacks create permission */}
+            {canCreate && <button
               onClick={() => {
                 const gvrUrl = gvrKey.replace(/\//g, '~');
                 const path = `/create/${gvrUrl}`;
@@ -532,7 +541,7 @@ export default function TableView({ gvrKey, namespace: namespaceProp }: TableVie
             >
               <Plus className="w-3 h-3" />
               Create
-            </button>
+            </button>}
             {/* Batch actions when items selected */}
             {selectedRows.size > 0 && (
               <div className="flex items-center gap-2 mr-4">
@@ -777,12 +786,13 @@ export default function TableView({ gvrKey, namespace: namespaceProp }: TableVie
                             addTab({ title: `${resource.metadata.name} (YAML)`, path: yamlPath, pinned: false, closable: true });
                             navigate(yamlPath);
                           }}
-                          className="inline-flex items-center px-1.5 py-1 text-xs text-slate-500 rounded hover:bg-blue-900/50 hover:text-blue-400 transition-colors disabled:opacity-50"
-                          title="Edit YAML"
+                          className={cn('inline-flex items-center px-1.5 py-1 text-xs rounded transition-colors disabled:opacity-50', canUpdate ? 'text-slate-500 hover:bg-blue-900/50 hover:text-blue-400' : 'text-slate-700 cursor-not-allowed')}
+                          title={canUpdate ? 'Edit YAML' : 'No update permission'}
+                          disabled={!canUpdate}
                         >
                           <FileEdit className="w-3.5 h-3.5" />
                         </button>
-                        <button
+                        {canDelete && <button
                           onClick={(e) => { e.stopPropagation(); handleAction('delete-single', { resource }); }}
                           disabled={inlineActionLoading === `${resource.metadata.uid}-delete-single`}
                           className="inline-flex items-center px-1.5 py-1 text-xs text-slate-500 rounded hover:bg-red-900/50 hover:text-red-400 transition-colors disabled:opacity-50"
@@ -791,7 +801,7 @@ export default function TableView({ gvrKey, namespace: namespaceProp }: TableVie
                           {inlineActionLoading === `${resource.metadata.uid}-delete-single`
                             ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                             : <Trash2 className="w-3.5 h-3.5" />}
-                        </button>
+                        </button>}
                       </div>
                     </td>
                   </tr>

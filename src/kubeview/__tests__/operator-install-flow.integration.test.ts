@@ -163,9 +163,31 @@ const server = setupServer(
     return HttpResponse.json(body, { status: 201 });
   }),
 
+  // DELETE Subscriptions
+  http.delete('http://localhost:9000/api/kubernetes/apis/operators.coreos.com/v1alpha1/namespaces/:ns/subscriptions/:name', ({ params }) => {
+    subscriptions = subscriptions.filter((s: any) => s.metadata?.name !== params.name);
+    return HttpResponse.json({ kind: 'Status', status: 'Success', code: 200 });
+  }),
+
+  // DELETE CSVs
+  http.delete('http://localhost:9000/api/kubernetes/apis/operators.coreos.com/v1alpha1/namespaces/:ns/clusterserviceversions/:name', () => {
+    return HttpResponse.json({ kind: 'Status', status: 'Success', code: 200 });
+  }),
+
   // Pods
   http.get('http://localhost:9000/api/kubernetes/api/v1/namespaces/openshift-operators/pods', () =>
     HttpResponse.json({ apiVersion: 'v1', kind: 'PodList', metadata: {}, items: pods })),
+
+  // Delete Subscription
+  http.delete('http://localhost:9000/api/kubernetes/apis/operators.coreos.com/v1alpha1/namespaces/*/subscriptions/*', ({ params }) => {
+    const index = subscriptions.findIndex(s => s.metadata.name === params[2]);
+    if (index >= 0) subscriptions.splice(index, 1);
+    return HttpResponse.json({ kind: 'Status', status: 'Success' });
+  }),
+
+  // Delete CSV
+  http.delete('http://localhost:9000/api/kubernetes/apis/operators.coreos.com/v1alpha1/namespaces/*/clusterserviceversions/*', () =>
+    HttpResponse.json({ kind: 'Status', status: 'Success' })),
 );
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
@@ -386,6 +408,102 @@ describe('Operator Install Flow: COO end-to-end', () => {
 
       // Second install also "succeeds" (MSW doesn't enforce uniqueness)
       // In real K8s, this would return 409 Conflict
+    });
+  });
+
+  describe('Step 6: Uninstall operator', () => {
+    it('deletes subscription via API', async () => {
+      // First install the operator
+      await k8sCreate('/apis/operators.coreos.com/v1alpha1/namespaces/openshift-operators/subscriptions', {
+        apiVersion: 'operators.coreos.com/v1alpha1',
+        kind: 'Subscription',
+        metadata: { name: 'cluster-observability-operator', namespace: 'openshift-operators' },
+        spec: {
+          channel: 'stable',
+          name: 'cluster-observability-operator',
+          source: 'redhat-operators',
+          sourceNamespace: 'openshift-marketplace',
+        },
+      });
+      expect(subscriptions).toHaveLength(1);
+
+      // Now uninstall
+      const { k8sDelete } = await import('../engine/query');
+      await k8sDelete('/apis/operators.coreos.com/v1alpha1/namespaces/openshift-operators/subscriptions/cluster-observability-operator');
+
+      expect(subscriptions).toHaveLength(0);
+    });
+
+    it('deletes CSV when uninstalling', async () => {
+      // Install first
+      await k8sCreate('/apis/operators.coreos.com/v1alpha1/namespaces/openshift-operators/subscriptions', {
+        apiVersion: 'operators.coreos.com/v1alpha1',
+        kind: 'Subscription',
+        metadata: { name: 'cluster-observability-operator', namespace: 'openshift-operators' },
+        spec: {
+          channel: 'stable',
+          name: 'cluster-observability-operator',
+          source: 'redhat-operators',
+          sourceNamespace: 'openshift-marketplace',
+        },
+      });
+      const csvName = subscriptions[0].status.installedCSV;
+      expect(csvName).toBe('cluster-observability-operator.v1.4.0');
+
+      // Uninstall: delete subscription and CSV
+      const { k8sDelete } = await import('../engine/query');
+      await k8sDelete('/apis/operators.coreos.com/v1alpha1/namespaces/openshift-operators/subscriptions/cluster-observability-operator');
+      await k8sDelete(`/apis/operators.coreos.com/v1alpha1/namespaces/openshift-operators/clusterserviceversions/${csvName}`);
+
+      expect(subscriptions).toHaveLength(0);
+    });
+
+    it('complete lifecycle: install → verify → uninstall', async () => {
+      // 1. Install
+      await k8sCreate('/apis/operators.coreos.com/v1alpha1/namespaces/openshift-operators/subscriptions', {
+        apiVersion: 'operators.coreos.com/v1alpha1',
+        kind: 'Subscription',
+        metadata: { name: 'cluster-observability-operator', namespace: 'openshift-operators' },
+        spec: {
+          channel: 'stable',
+          name: 'cluster-observability-operator',
+          source: 'redhat-operators',
+          sourceNamespace: 'openshift-marketplace',
+        },
+      });
+      expect(subscriptions).toHaveLength(1);
+
+      // 2. Verify installed
+      const subs = await k8sList<any>('/apis/operators.coreos.com/v1alpha1/subscriptions');
+      const cooSub = subs.find((s: any) => s.spec?.name === 'cluster-observability-operator');
+      expect(cooSub).toBeDefined();
+      expect(cooSub.status.installedCSV).toBe('cluster-observability-operator.v1.4.0');
+
+      // 3. Verify CSV
+      const csv = await k8sGet<any>('/apis/operators.coreos.com/v1alpha1/namespaces/openshift-operators/clusterserviceversions/cluster-observability-operator.v1.4.0');
+      expect(csv.status.phase).toBe('Succeeded');
+
+      // 4. Uninstall
+      const { k8sDelete } = await import('../engine/query');
+      await k8sDelete('/apis/operators.coreos.com/v1alpha1/namespaces/openshift-operators/subscriptions/cluster-observability-operator');
+      await k8sDelete('/apis/operators.coreos.com/v1alpha1/namespaces/openshift-operators/clusterserviceversions/cluster-observability-operator.v1.4.0');
+
+      // 5. Verify removed
+      expect(subscriptions).toHaveLength(0);
+      const subsAfter = await k8sList<any>('/apis/operators.coreos.com/v1alpha1/subscriptions');
+      expect(subsAfter.find((s: any) => s.spec?.name === 'cluster-observability-operator')).toBeUndefined();
+    });
+
+    it('handles uninstall errors gracefully', async () => {
+      server.use(
+        http.delete('http://localhost:9000/api/kubernetes/apis/operators.coreos.com/v1alpha1/namespaces/*/subscriptions/*', () =>
+          HttpResponse.json({ kind: 'Status', message: 'forbidden: insufficient permissions', code: 403 }, { status: 403 })),
+      );
+
+      const { k8sDelete } = await import('../engine/query');
+      await expect(
+        k8sDelete('/apis/operators.coreos.com/v1alpha1/namespaces/openshift-operators/subscriptions/cluster-observability-operator')
+      ).rejects.toThrow('forbidden');
     });
   });
 });

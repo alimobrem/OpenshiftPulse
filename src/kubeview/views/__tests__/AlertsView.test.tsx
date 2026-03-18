@@ -148,4 +148,161 @@ describe('AlertsView', () => {
     fireEvent.change(input, { target: { value: 'test-alert' } });
     expect(input.value).toBe('test-alert');
   });
+
+  it('shows Create Silence button in silences tab', () => {
+    renderAlerts();
+    const silencesTab = screen.getByRole('button', { name: /^Silences \(/ });
+    fireEvent.click(silencesTab);
+    expect(screen.getByText('Create Silence')).toBeDefined();
+  });
+
+  it('opens silence form when Create Silence is clicked', () => {
+    renderAlerts();
+    const silencesTab = screen.getByRole('button', { name: /^Silences \(/ });
+    fireEvent.click(silencesTab);
+    const createBtn = screen.getByText('Create Silence');
+    fireEvent.click(createBtn);
+    expect(screen.getByText('New Silence')).toBeDefined();
+    expect(screen.getByPlaceholderText('Explain why this alert is being silenced...')).toBeDefined();
+  });
+
+  it('silence form shows duration presets', () => {
+    renderAlerts();
+    const silencesTab = screen.getByRole('button', { name: /^Silences \(/ });
+    fireEvent.click(silencesTab);
+    const createBtn = screen.getByText('Create Silence');
+    fireEvent.click(createBtn);
+
+    expect(screen.getByText('1h')).toBeDefined();
+    expect(screen.getByText('2h')).toBeDefined();
+    expect(screen.getByText('4h')).toBeDefined();
+    expect(screen.getByText('8h')).toBeDefined();
+    expect(screen.getByText('24h')).toBeDefined();
+    expect(screen.getByText('7d')).toBeDefined();
+  });
+
+  it('silence form has matchers section', () => {
+    renderAlerts();
+    const silencesTab = screen.getByRole('button', { name: /^Silences \(/ });
+    fireEvent.click(silencesTab);
+    const createBtn = screen.getByText('Create Silence');
+    fireEvent.click(createBtn);
+
+    expect(screen.getByText('Matchers')).toBeDefined();
+    expect(screen.getByPlaceholderText('Label name')).toBeDefined();
+    expect(screen.getByPlaceholderText('Value')).toBeDefined();
+  });
+
+  it('shows Silence button on firing alerts', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('/rules')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            data: {
+              groups: [{
+                name: 'test-group',
+                rules: [{
+                  name: 'TestAlert',
+                  query: 'up == 0',
+                  state: 'firing',
+                  health: 'ok',
+                  type: 'alerting',
+                  labels: { severity: 'warning' },
+                  annotations: { description: 'Test alert firing' },
+                  alerts: [{
+                    labels: { alertname: 'TestAlert', severity: 'warning' },
+                    annotations: { description: 'Test alert firing' },
+                    state: 'firing',
+                    activeAt: '2024-01-01T00:00:00Z',
+                  }],
+                }],
+              }],
+            },
+          }),
+        });
+      }
+      if (url.includes('/silences')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([]),
+        });
+      }
+      return Promise.resolve({ ok: false, json: () => Promise.resolve({}) });
+    });
+
+    renderAlerts();
+    // Wait for alerts to load
+    await screen.findByText('TestAlert');
+    const silenceButtons = screen.getAllByText('Silence');
+    expect(silenceButtons.length).toBeGreaterThan(0);
+  });
+
+  it('shows Expire button on active silences', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('/rules')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ data: { groups: [] } }),
+        });
+      }
+      if (url.includes('/silences')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([
+            {
+              id: 'silence-1',
+              status: { state: 'active' },
+              matchers: [{ name: 'alertname', value: 'TestAlert', isRegex: false }],
+              startsAt: '2024-01-01T00:00:00Z',
+              endsAt: '2024-01-01T01:00:00Z',
+              createdBy: 'admin',
+              comment: 'Test silence',
+            },
+          ]),
+        });
+      }
+      return Promise.resolve({ ok: false, json: () => Promise.resolve({}) });
+    });
+
+    renderAlerts();
+    const silencesTab = screen.getByRole('button', { name: /^Silences \(/ });
+    fireEvent.click(silencesTab);
+
+    // Wait for silences to load
+    await screen.findByText('Test silence');
+    expect(screen.getByText('Expire')).toBeDefined();
+  });
+
+  it('silence form can add and remove matchers', () => {
+    renderAlerts();
+    const silencesTab = screen.getByRole('button', { name: /^Silences \(/ });
+    fireEvent.click(silencesTab);
+    const createBtn = screen.getByText('Create Silence');
+    fireEvent.click(createBtn);
+
+    // Initially has one matcher
+    expect(screen.getAllByPlaceholderText('Label name').length).toBe(1);
+
+    // Add another matcher
+    const addMatcherBtn = screen.getByText('Add matcher');
+    fireEvent.click(addMatcherBtn);
+    expect(screen.getAllByPlaceholderText('Label name').length).toBe(2);
+  });
+
+  it('silence form closes when Cancel is clicked', () => {
+    renderAlerts();
+    const silencesTab = screen.getByRole('button', { name: /^Silences \(/ });
+    fireEvent.click(silencesTab);
+    const createBtn = screen.getByText('Create Silence');
+    fireEvent.click(createBtn);
+
+    expect(screen.getByText('New Silence')).toBeDefined();
+
+    const cancelBtn = screen.getByText('Cancel');
+    fireEvent.click(cancelBtn);
+
+    // Form should be closed
+    expect(screen.queryByText('New Silence')).toBeNull();
+  });
 });

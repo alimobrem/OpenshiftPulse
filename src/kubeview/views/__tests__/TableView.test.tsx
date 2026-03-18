@@ -59,6 +59,13 @@ vi.mock('../../engine/query', () => ({
   k8sList: vi.fn().mockResolvedValue([]),
 }));
 
+vi.mock('../../hooks/useCanI', () => ({
+  useCanI: () => ({ allowed: true, isLoading: false }),
+  useCanDelete: () => ({ allowed: true, isLoading: false }),
+  useCanCreate: () => ({ allowed: true, isLoading: false }),
+  useCanUpdate: () => ({ allowed: true, isLoading: false }),
+}));
+
 vi.mock('../../hooks/useResourceUrl', () => ({
   buildApiPathFromResource: (r: any) =>
     `/api/v1/namespaces/${r.metadata?.namespace ?? 'default'}/${r.kind?.toLowerCase() ?? 'resources'}/${r.metadata?.name ?? 'unknown'}`,

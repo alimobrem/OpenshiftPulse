@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Bell, AlertTriangle, XCircle, CheckCircle, Clock, Search, VolumeX, ArrowRight } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Bell, AlertTriangle, XCircle, CheckCircle, Clock, Search, VolumeX, ArrowRight, Plus, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '../store/uiStore';
 import { useNavigateTab } from '../hooks/useNavigateTab';
 import { resourceDetailUrl } from '../engine/gvr';
 import { kindToPlural } from '../engine/renderers/index';
 import { Card, CardHeader, CardBody } from '../components/primitives/Card';
+import { ConfirmDialog } from '../components/feedback/ConfirmDialog';
 
 interface PrometheusAlert {
   labels: Record<string, string>;
@@ -43,12 +44,37 @@ interface Silence {
 
 type Tab = 'firing' | 'rules' | 'silences';
 
+interface SilenceMatcher {
+  name: string;
+  value: string;
+  isRegex: boolean;
+}
+
+interface SilenceFormData {
+  matchers: SilenceMatcher[];
+  startsAt: string;
+  endsAt: string;
+  createdBy: string;
+  comment: string;
+}
+
 export default function AlertsView() {
   const go = useNavigateTab();
+  const queryClient = useQueryClient();
   const addToast = useUIStore((s) => s.addToast);
   const selectedNamespace = useUIStore((s) => s.selectedNamespace);
   const [activeTab, setActiveTab] = useState<Tab>('firing');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showSilenceForm, setShowSilenceForm] = useState(false);
+  const [silenceForm, setSilenceForm] = useState<SilenceFormData>({
+    matchers: [{ name: 'alertname', value: '', isRegex: false }],
+    startsAt: '',
+    endsAt: '',
+    createdBy: 'admin',
+    comment: '',
+  });
+  const [confirmExpire, setConfirmExpire] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch alerts from Prometheus
   const { data: alertGroups = [] } = useQuery<AlertGroup[]>({
@@ -142,6 +168,123 @@ export default function AlertsView() {
   const criticalCount = allAlerts.filter((a) => a.severity === 'critical').length;
   const warningCount = allAlerts.filter((a) => a.severity === 'warning').length;
 
+  // Silence helpers
+  const resetSilenceForm = () => {
+    setSilenceForm({
+      matchers: [{ name: 'alertname', value: '', isRegex: false }],
+      startsAt: '',
+      endsAt: '',
+      createdBy: 'admin',
+      comment: '',
+    });
+    setShowSilenceForm(false);
+  };
+
+  const setDuration = (hours: number) => {
+    const now = new Date();
+    const end = new Date(now.getTime() + hours * 60 * 60 * 1000);
+    setSilenceForm((prev) => ({
+      ...prev,
+      startsAt: now.toISOString(),
+      endsAt: end.toISOString(),
+    }));
+  };
+
+  const addMatcher = () => {
+    setSilenceForm((prev) => ({
+      ...prev,
+      matchers: [...prev.matchers, { name: '', value: '', isRegex: false }],
+    }));
+  };
+
+  const updateMatcher = (idx: number, field: keyof SilenceMatcher, value: string | boolean) => {
+    setSilenceForm((prev) => {
+      const updated = [...prev.matchers];
+      updated[idx] = { ...updated[idx], [field]: value };
+      return { ...prev, matchers: updated };
+    });
+  };
+
+  const removeMatcher = (idx: number) => {
+    setSilenceForm((prev) => ({
+      ...prev,
+      matchers: prev.matchers.filter((_, i) => i !== idx),
+    }));
+  };
+
+  const openSilenceFormForAlert = (labels: Record<string, string>) => {
+    const matchers: SilenceMatcher[] = Object.entries(labels).map(([name, value]) => ({
+      name,
+      value,
+      isRegex: false,
+    }));
+    setSilenceForm({
+      matchers,
+      startsAt: '',
+      endsAt: '',
+      createdBy: 'admin',
+      comment: '',
+    });
+    setShowSilenceForm(true);
+    setActiveTab('silences');
+  };
+
+  const createSilence = async () => {
+    if (!silenceForm.comment.trim()) {
+      addToast({ type: 'error', title: 'Comment required', detail: 'Please provide a reason for this silence' });
+      return;
+    }
+    if (!silenceForm.startsAt || !silenceForm.endsAt) {
+      addToast({ type: 'error', title: 'Duration required', detail: 'Please select a duration' });
+      return;
+    }
+    if (silenceForm.matchers.length === 0 || silenceForm.matchers.some((m) => !m.name || !m.value)) {
+      addToast({ type: 'error', title: 'Matchers required', detail: 'All matchers must have name and value' });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/alertmanager/api/v2/silences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(silenceForm),
+      });
+
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(err || `HTTP ${res.status}`);
+      }
+
+      addToast({ type: 'success', title: 'Silence created', detail: silenceForm.comment });
+      queryClient.invalidateQueries({ queryKey: ['alerts', 'silences'] });
+      resetSilenceForm();
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Failed to create silence', detail: err.message });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const expireSilence = async (id: string) => {
+    try {
+      const res = await fetch(`/api/alertmanager/api/v2/silence/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(err || `HTTP ${res.status}`);
+      }
+
+      addToast({ type: 'success', title: 'Silence expired', detail: `Silence ${id} has been removed` });
+      queryClient.invalidateQueries({ queryKey: ['alerts', 'silences'] });
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Failed to expire silence', detail: err.message });
+    }
+    setConfirmExpire(null);
+  };
+
   return (
     <div className="h-full overflow-auto bg-slate-950 p-6">
       <div className="max-w-6xl mx-auto space-y-6">
@@ -231,13 +374,13 @@ export default function AlertsView() {
                 const hasResource = resourceName && resourceKind;
 
                 return (
-                <Card key={idx} onClick={hasResource ? () => {
-                  const apiVersion = resourceKind === 'Deployment' || resourceKind === 'StatefulSet' || resourceKind === 'DaemonSet' ? 'apps/v1' : resourceKind === 'Job' ? 'batch/v1' : 'v1';
-                  go(resourceDetailUrl({ apiVersion, kind: resourceKind, metadata: { name: resourceName, namespace: resourceNs } }), resourceName);
-                } : undefined}>
+                <Card key={idx}>
                   <div className="px-4 py-3 flex items-start gap-3">
                     {item.severity === 'critical' ? <XCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" /> : <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />}
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0" onClick={hasResource ? () => {
+                      const apiVersion = resourceKind === 'Deployment' || resourceKind === 'StatefulSet' || resourceKind === 'DaemonSet' ? 'apps/v1' : resourceKind === 'Job' ? 'batch/v1' : 'v1';
+                      go(resourceDetailUrl({ apiVersion, kind: resourceKind, metadata: { name: resourceName, namespace: resourceNs } }), resourceName);
+                    } : undefined} className={hasResource ? 'cursor-pointer' : ''}>
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <span className="text-sm font-medium text-slate-200">{item.rule}</span>
                         <span className={cn('text-[10px] px-1.5 py-0.5 rounded', item.severity === 'critical' ? 'bg-red-900/50 text-red-300' : 'bg-yellow-900/50 text-yellow-300')}>{item.severity}</span>
@@ -262,6 +405,16 @@ export default function AlertsView() {
                         {hasResource && <span className="text-blue-400">Click to investigate →</span>}
                       </div>
                     </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openSilenceFormForAlert(item.alert.labels);
+                      }}
+                      className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded flex items-center gap-1.5 flex-shrink-0"
+                    >
+                      <VolumeX className="w-3.5 h-3.5" />
+                      Silence
+                    </button>
                   </div>
                 </Card>
                 );
@@ -300,35 +453,206 @@ export default function AlertsView() {
 
         {/* Silences */}
         {activeTab === 'silences' && (
-          <div className="space-y-2">
-            {activeSilences.length === 0 ? (
+          <div className="space-y-3">
+            {/* Create Silence Button */}
+            <div className="flex justify-end">
+              <button
+                onClick={() => {
+                  resetSilenceForm();
+                  setShowSilenceForm(true);
+                }}
+                className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Create Silence
+              </button>
+            </div>
+
+            {/* Silence Creation Form */}
+            {showSilenceForm && (
+              <Card>
+                <div className="px-4 py-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-slate-200">New Silence</h3>
+                    <button onClick={resetSilenceForm} className="text-slate-400 hover:text-slate-200">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Matchers */}
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-2">Matchers</label>
+                    <div className="space-y-2">
+                      {silenceForm.matchers.map((matcher, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            placeholder="Label name"
+                            value={matcher.name}
+                            onChange={(e) => updateMatcher(idx, 'name', e.target.value)}
+                            className="flex-1 px-3 py-1.5 text-xs bg-slate-900 border border-slate-700 rounded text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Value"
+                            value={matcher.value}
+                            onChange={(e) => updateMatcher(idx, 'value', e.target.value)}
+                            className="flex-1 px-3 py-1.5 text-xs bg-slate-900 border border-slate-700 rounded text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <label className="flex items-center gap-1 text-xs text-slate-400 whitespace-nowrap">
+                            <input
+                              type="checkbox"
+                              checked={matcher.isRegex}
+                              onChange={(e) => updateMatcher(idx, 'isRegex', e.target.checked)}
+                              className="rounded border-slate-700"
+                            />
+                            Regex
+                          </label>
+                          {silenceForm.matchers.length > 1 && (
+                            <button
+                              onClick={() => removeMatcher(idx)}
+                              className="p-1 text-red-400 hover:text-red-300"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <button
+                        onClick={addMatcher}
+                        className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                      >
+                        <Plus className="w-3 h-3" />
+                        Add matcher
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Duration Presets */}
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-2">Duration</label>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { label: '1h', hours: 1 },
+                        { label: '2h', hours: 2 },
+                        { label: '4h', hours: 4 },
+                        { label: '8h', hours: 8 },
+                        { label: '24h', hours: 24 },
+                        { label: '7d', hours: 168 },
+                      ].map((preset) => (
+                        <button
+                          key={preset.label}
+                          onClick={() => setDuration(preset.hours)}
+                          className={cn(
+                            'px-3 py-1.5 text-xs rounded border',
+                            silenceForm.endsAt && Math.abs(new Date(silenceForm.endsAt).getTime() - new Date(silenceForm.startsAt).getTime() - preset.hours * 60 * 60 * 1000) < 1000
+                              ? 'bg-blue-600 border-blue-500 text-white'
+                              : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-600'
+                          )}
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                    {silenceForm.startsAt && silenceForm.endsAt && (
+                      <p className="text-xs text-slate-500 mt-2">
+                        Ends: {new Date(silenceForm.endsAt).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Comment */}
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-2">Comment (required)</label>
+                    <textarea
+                      value={silenceForm.comment}
+                      onChange={(e) => setSilenceForm((prev) => ({ ...prev, comment: e.target.value }))}
+                      placeholder="Explain why this alert is being silenced..."
+                      rows={3}
+                      className="w-full px-3 py-2 text-xs bg-slate-900 border border-slate-700 rounded text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  {/* Creator */}
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-2">Created by</label>
+                    <input
+                      type="text"
+                      value={silenceForm.createdBy}
+                      onChange={(e) => setSilenceForm((prev) => ({ ...prev, createdBy: e.target.value }))}
+                      className="w-full px-3 py-1.5 text-xs bg-slate-900 border border-slate-700 rounded text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button
+                      onClick={resetSilenceForm}
+                      className="px-4 py-2 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={createSilence}
+                      disabled={isSubmitting}
+                      className="px-4 py-2 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isSubmitting ? 'Creating...' : 'Create Silence'}
+                    </button>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {/* Active Silences */}
+            {activeSilences.length === 0 && !showSilenceForm ? (
               <div className="text-center py-12"><VolumeX className="w-10 h-10 text-slate-600 mx-auto mb-3" /><p className="text-slate-400">No active silences</p></div>
             ) : (
               activeSilences.map((silence) => (
                 <Card key={silence.id}>
-                  <div className="px-4 py-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <VolumeX className="w-4 h-4 text-slate-400" />
-                      <span className="text-sm font-medium text-slate-200">{silence.comment || 'No comment'}</span>
-                      <span className="text-[10px] px-1.5 py-0.5 bg-blue-900/50 text-blue-300 rounded">{silence.status.state}</span>
+                  <div className="px-4 py-3 flex items-start gap-3">
+                    <VolumeX className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-sm font-medium text-slate-200">{silence.comment || 'No comment'}</span>
+                        <span className="text-[10px] px-1.5 py-0.5 bg-blue-900/50 text-blue-300 rounded">{silence.status.state}</span>
+                      </div>
+                      <div className="space-y-1 mb-2">
+                        {silence.matchers.map((m, i) => (
+                          <span key={i} className="text-xs font-mono text-slate-400 mr-2">
+                            {m.name}{m.isRegex ? '=~' : '='}{m.value}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-3 text-[10px] text-slate-500">
+                        <span>By: {silence.createdBy}</span>
+                        <span>Ends: {new Date(silence.endsAt).toLocaleString()}</span>
+                      </div>
                     </div>
-                    <div className="space-y-1 mb-2">
-                      {silence.matchers.map((m, i) => (
-                        <span key={i} className="text-xs font-mono text-slate-400 mr-2">
-                          {m.name}{m.isRegex ? '=~' : '='}{m.value}
-                        </span>
-                      ))}
-                    </div>
-                    <div className="flex items-center gap-3 text-[10px] text-slate-500">
-                      <span>By: {silence.createdBy}</span>
-                      <span>Ends: {new Date(silence.endsAt).toLocaleString()}</span>
-                    </div>
+                    <button
+                      onClick={() => setConfirmExpire(silence.id)}
+                      className="px-3 py-1.5 text-xs bg-red-600 hover:bg-red-700 text-white rounded flex items-center gap-1.5 flex-shrink-0"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Expire
+                    </button>
                   </div>
                 </Card>
               ))
             )}
           </div>
         )}
+
+        {/* Expire Confirmation Dialog */}
+        <ConfirmDialog
+          open={!!confirmExpire}
+          onClose={() => setConfirmExpire(null)}
+          title="Expire Silence"
+          description="Are you sure you want to expire this silence? Alerts matching this silence will start firing again."
+          confirmLabel="Expire"
+          variant="danger"
+          onConfirm={() => confirmExpire && expireSilence(confirmExpire)}
+        />
       </div>
     </div>
   );

@@ -3,12 +3,13 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import {
   Puzzle, Search, Package, CheckCircle, XCircle, Loader2,
-  ArrowRight, ArrowLeft, Star, Filter, Shield, Globe,
+  ArrowRight, ArrowLeft, Star, Filter, Shield, Globe, Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { k8sList, k8sCreate } from '../engine/query';
+import { k8sList, k8sCreate, k8sDelete, k8sGet } from '../engine/query';
 import { useUIStore } from '../store/uiStore';
 import { useNavigateTab } from '../hooks/useNavigateTab';
+import { ConfirmDialog } from '../components/feedback/ConfirmDialog';
 
 interface PackageManifest {
   metadata: { name: string; namespace?: string };
@@ -62,6 +63,8 @@ export default function OperatorCatalogView() {
   const [installNs, setInstallNs] = useState('openshift-operators');
   const [installingOp, setInstallingOp] = useState<{ name: string; ns: string; displayName: string } | null>(null);
   const [visibleCount, setVisibleCount] = useState(60);
+  const [uninstalling, setUninstalling] = useState(false);
+  const [showUninstallDialog, setShowUninstallDialog] = useState(false);
 
   // Fetch all package manifests
   const { data: packages = [], isLoading } = useQuery<PackageManifest[]>({
@@ -171,6 +174,44 @@ export default function OperatorCatalogView() {
       addToast({ type: 'error', title: 'Install failed', detail: err instanceof Error ? err.message : 'Unknown error' });
     }
     setInstalling(false);
+  };
+
+  // Uninstall operator
+  const handleUninstall = async () => {
+    if (!selectedOp || !selectedSub) return;
+
+    setUninstalling(true);
+    setShowUninstallDialog(false);
+
+    try {
+      const subNs = selectedSub.metadata.namespace;
+      const subName = selectedSub.metadata.name;
+      const csvName = selectedSub.status?.installedCSV;
+
+      // Delete the Subscription first
+      await k8sDelete(`/apis/operators.coreos.com/v1alpha1/namespaces/${subNs}/subscriptions/${subName}`);
+
+      // Delete the CSV if it exists
+      if (csvName) {
+        try {
+          await k8sDelete(`/apis/operators.coreos.com/v1alpha1/namespaces/${subNs}/clusterserviceversions/${csvName}`);
+        } catch {
+          // CSV might already be gone or handled by OLM
+        }
+      }
+
+      const displayName = selectedOp.status.channels?.[0]?.currentCSVDesc?.displayName || selectedOp.metadata.name;
+      addToast({ type: 'success', title: 'Operator uninstalled', detail: `${displayName} has been removed` });
+
+      // Invalidate cache and clear selection
+      queryClient.invalidateQueries({ queryKey: ['readiness', 'subscriptions'] });
+      queryClient.invalidateQueries({ queryKey: ['operator-sub', selectedOp.metadata.name] });
+      setSelectedOp(null);
+    } catch (err) {
+      addToast({ type: 'error', title: 'Uninstall failed', detail: err instanceof Error ? err.message : 'Unknown error' });
+    }
+
+    setUninstalling(false);
   };
 
   // Catalog source counts (must be before conditional return)
@@ -545,8 +586,16 @@ export default function OperatorCatalogView() {
           {/* Subscription & Install Details (installed only) */}
           {isInstalled && selectedSub && (
             <div className="bg-slate-900 rounded-lg border border-slate-800 overflow-hidden">
-              <div className="px-4 py-3 border-b border-slate-800">
+              <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-slate-100">Subscription Details</h2>
+                <button
+                  onClick={() => setShowUninstallDialog(true)}
+                  disabled={uninstalling}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-red-600 hover:bg-red-700 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {uninstalling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                  {uninstalling ? 'Uninstalling...' : 'Uninstall'}
+                </button>
               </div>
               <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                 <div><span className="text-slate-500">Channel</span><div className="text-slate-200 font-mono mt-0.5">{selectedSub.spec?.channel}</div></div>
@@ -647,6 +696,18 @@ export default function OperatorCatalogView() {
             </div>
           </div>
         </div>
+
+        {/* Uninstall confirmation dialog */}
+        <ConfirmDialog
+          open={showUninstallDialog}
+          onClose={() => setShowUninstallDialog(false)}
+          onConfirm={handleUninstall}
+          title={`Uninstall ${desc?.displayName || selectedOp.metadata.name}?`}
+          description="This will remove the operator subscription and its ClusterServiceVersion. Custom Resource Definitions (CRDs) and existing custom resources will remain on the cluster."
+          confirmLabel="Uninstall"
+          variant="danger"
+          loading={uninstalling}
+        />
       </div>
     );
   }

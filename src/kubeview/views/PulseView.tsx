@@ -13,6 +13,7 @@ import { useUIStore } from '../store/uiStore';
 import { useNavigateTab } from '../hooks/useNavigateTab';
 import { resourceDetailUrl } from '../engine/gvr';
 import { queryInstant } from '../components/metrics/prometheus';
+import { MetricCard } from '../components/metrics/Sparkline';
 import { useK8sListWatch } from '../hooks/useK8sListWatch';
 
 function filterByNamespace<T extends { metadata: { namespace?: string } }>(items: T[], ns: string): T[] {
@@ -169,6 +170,36 @@ export default function PulseView() {
           <StatCard label="Operators" value={`${operators.length - degradedOperators.length}/${operators.length}`} icon={<Puzzle className="w-4 h-4" />} issues={degradedOperators.length} onClick={() => go('/admin', 'Administration')} />
           <StatCard label="CPU" value={cpuPercent !== null ? `${Math.round(cpuPercent)}%` : '—'} icon={<Cpu className="w-4 h-4" />} issues={cpuPercent !== null && cpuPercent > 80 ? 1 : 0} />
           <StatCard label="Memory" value={memPercent !== null ? `${Math.round(memPercent)}%` : '—'} icon={<Activity className="w-4 h-4" />} issues={memPercent !== null && memPercent > 80 ? 1 : 0} />
+        </div>
+
+        {/* Metrics charts */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <MetricCard
+            title="CPU Usage"
+            query="sum(rate(node_cpu_seconds_total{mode!='idle'}[5m])) / sum(machine_cpu_cores) * 100"
+            unit="%"
+            color="#3b82f6"
+            thresholds={{ warning: 70, critical: 90 }}
+          />
+          <MetricCard
+            title="Memory Usage"
+            query="(1 - sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes)) * 100"
+            unit="%"
+            color="#8b5cf6"
+            thresholds={{ warning: 75, critical: 90 }}
+          />
+          <MetricCard
+            title="Network In"
+            query="sum(rate(node_network_receive_bytes_total{device!~'lo|veth.*|br.*'}[5m])) / 1024 / 1024"
+            unit=" MB/s"
+            color="#06b6d4"
+          />
+          <MetricCard
+            title="Disk I/O"
+            query="sum(rate(node_disk_read_bytes_total[5m]) + rate(node_disk_written_bytes_total[5m])) / 1024 / 1024"
+            unit=" MB/s"
+            color="#f59e0b"
+          />
         </div>
 
         {/* Cluster update available */}

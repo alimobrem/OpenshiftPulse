@@ -47,6 +47,13 @@ vi.mock('../../engine/query', () => ({
 
 vi.mock('../../components/metrics/prometheus', () => ({
   queryInstant: vi.fn().mockResolvedValue([]),
+  queryRange: vi.fn().mockResolvedValue([]),
+  getTimeRange: vi.fn().mockReturnValue([0, 1]),
+}));
+
+vi.mock('../../components/metrics/Sparkline', () => ({
+  MetricCard: ({ title }: { title: string }) => <div data-testid="metric-card">{title}</div>,
+  Sparkline: () => <div data-testid="sparkline" />,
 }));
 
 vi.mock('@/lib/utils', () => ({
