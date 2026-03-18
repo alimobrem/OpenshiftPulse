@@ -519,12 +519,15 @@ spec:
         ? { label: 'Remove kubeadmin', danger: true, id: 'remove-kubeadmin' } : undefined,
     });
 
-    // 3. Cluster-admin bindings audit
-    const clusterAdminBindings = clusterRoleBindings.filter((crb: any) =>
-      crb.roleRef?.name === 'cluster-admin'
-    );
+    // 3. Cluster-admin bindings audit (exclude system-provided bindings)
+    const clusterAdminBindings = clusterRoleBindings.filter((crb: any) => {
+      if (crb.roleRef?.name !== 'cluster-admin') return false;
+      const name = crb.metadata?.name || '';
+      // Skip system-provided bindings (these are expected)
+      return !name.startsWith('system:') && !name.startsWith('openshift-');
+    });
     const clusterAdminUsers = clusterAdminBindings.flatMap((crb: any) =>
-      (crb.subjects || []).filter((s: any) => s.kind === 'User').map((s: any) => ({
+      (crb.subjects || []).filter((s: any) => s.kind === 'User' && !s.name?.startsWith('system:')).map((s: any) => ({
         metadata: { name: s.name, uid: `${crb.metadata.name}-${s.name}` },
         binding: crb.metadata.name,
       }))

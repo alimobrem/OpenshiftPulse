@@ -27,11 +27,19 @@ export default function AccessControlView() {
     });
   }, [clusterRoleBindings]);
 
-  // Find subjects with broad permissions
+  // Find subjects with broad permissions (exclude system/platform defaults)
   const broadPermissions = React.useMemo(() => {
     const subjects: Array<{ name: string; kind: string; binding: string; namespace?: string }> = [];
     for (const b of clusterAdminBindings as any[]) {
+      // Skip system-provided bindings
+      const bindingName = b.metadata?.name || '';
+      if (bindingName.startsWith('system:') || bindingName.startsWith('openshift-')) continue;
+
       for (const s of b.subjects || []) {
+        // Skip system users, groups, and platform SAs
+        if (s.name?.startsWith('system:') || s.name?.startsWith('openshift-')) continue;
+        if (s.kind === 'Group' && (s.name === 'system:masters' || s.name?.startsWith('system:'))) continue;
+        if (s.kind === 'ServiceAccount' && (s.namespace?.startsWith('openshift-') || s.namespace?.startsWith('kube-'))) continue;
         subjects.push({ name: s.name, kind: s.kind, binding: b.metadata.name, namespace: s.namespace });
       }
     }
@@ -337,16 +345,26 @@ rules:
     });
 
     // 4. Stale RoleBindings (referencing non-existent users)
-    const staleBindings = userRoleBindings.filter((rb: any) => {
-      const subjects = rb.subjects || [];
-      return subjects.some((s: any) => s.kind === 'User' && s.name && !existingUsers.has(s.name));
-    });
+    // Note: On OpenShift, User objects are created on first login. A binding to a user
+    // who hasn't logged in yet is not stale. Only flag bindings where the user was
+    // explicitly deleted (existed before but doesn't now). Since we can't tell the
+    // difference, we only flag if there are many more binding subjects than users.
+    const allBoundUsers = new Set<string>();
+    for (const rb of userRoleBindings) {
+      for (const s of (rb as any).subjects || []) {
+        if (s.kind === 'User' && s.name && !s.name.startsWith('system:')) allBoundUsers.add(s.name);
+      }
+    }
+    const staleUsers = [...allBoundUsers].filter(u => !existingUsers.has(u));
+    const staleBindings = staleUsers.length > 0 ? userRoleBindings.filter((rb: any) => {
+      return (rb.subjects || []).some((s: any) => s.kind === 'User' && staleUsers.includes(s.name));
+    }) : [];
 
     allChecks.push({
       id: 'stale-bindings',
       title: 'Stale RoleBindings',
-      description: 'RoleBindings should not reference users that don\'t exist',
-      why: 'RoleBindings to deleted users indicate incomplete cleanup. They clutter RBAC configuration and could be reactivated if a user with the same name is recreated.',
+      description: 'RoleBindings referencing users who have never logged in or were removed',
+      why: 'On OpenShift, User objects are created on first login. Bindings to users without User objects may be pre-provisioned (valid) or stale. Review these to ensure they are intentional.',
       passing: userRoleBindings.filter((rb: any) => !staleBindings.includes(rb)),
       failing: staleBindings,
       yamlExample: `# Identify stale bindings:
