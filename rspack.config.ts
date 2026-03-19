@@ -170,26 +170,26 @@ export default defineConfig({
         ws: true,
         pathRewrite: (path: string) => path.replace(/^\/api\/kubernetes/, ''),
       },
-      {
+      ...(process.env.THANOS_URL ? [{
         context: ['/api/prometheus'],
-        target: process.env.THANOS_URL || 'https://thanos-querier-openshift-monitoring.apps.rhamilto.devcluster.openshift.com',
+        target: process.env.THANOS_URL,
         changeOrigin: true,
         secure: false,
         pathRewrite: (path: string) => path.replace(/^\/api\/prometheus/, ''),
         headers: {
           Authorization: `Bearer ${getOCToken()}`,
         },
-      },
-      {
+      }] : []),
+      ...(process.env.ALERTMANAGER_URL ? [{
         context: ['/api/alertmanager'],
-        target: process.env.ALERTMANAGER_URL || 'https://alertmanager-main-openshift-monitoring.apps.rhamilto.devcluster.openshift.com',
+        target: process.env.ALERTMANAGER_URL,
         changeOrigin: true,
         secure: false,
         pathRewrite: (path: string) => path.replace(/^\/api\/alertmanager/, ''),
         headers: {
           Authorization: `Bearer ${getOCToken()}`,
         },
-      },
+      }] : []),
     ],
   },
   performance: {

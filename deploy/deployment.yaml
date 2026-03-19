@@ -9,27 +9,154 @@ metadata:
   name: openshiftpulse
   namespace: openshiftpulse
 ---
+# The SA only needs minimal permissions. User actions are authorized by the
+# forwarded OAuth token (X-Forwarded-Access-Token), NOT by the SA. The SA
+# serves as pod identity and lets the OAuth proxy start/validate tokens.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: openshiftpulse-reader
+rules:
+# Core resources — read-only
+- apiGroups: [""]
+  resources:
+  - configmaps
+  - endpoints
+  - events
+  - namespaces
+  - nodes
+  - persistentvolumeclaims
+  - persistentvolumes
+  - pods
+  - pods/log
+  - replicationcontrollers
+  - resourcequotas
+  - secrets
+  - serviceaccounts
+  - services
+  verbs: [get, list, watch]
+# Apps
+- apiGroups: [apps]
+  resources: [daemonsets, deployments, replicasets, statefulsets]
+  verbs: [get, list, watch]
+# Batch
+- apiGroups: [batch]
+  resources: [cronjobs, jobs]
+  verbs: [get, list, watch]
+# Autoscaling
+- apiGroups: [autoscaling]
+  resources: [horizontalpodautoscalers]
+  verbs: [get, list, watch]
+# Networking
+- apiGroups: [networking.k8s.io]
+  resources: [ingresses, networkpolicies]
+  verbs: [get, list, watch]
+# Storage
+- apiGroups: [storage.k8s.io]
+  resources: [storageclasses]
+  verbs: [get, list, watch]
+# RBAC
+- apiGroups: [rbac.authorization.k8s.io]
+  resources: [clusterroles, clusterrolebindings, roles, rolebindings]
+  verbs: [get, list, watch]
+# CRDs (for CRD browser)
+- apiGroups: [apiextensions.k8s.io]
+  resources: [customresourcedefinitions]
+  verbs: [get, list, watch]
+# OpenShift-specific
+- apiGroups: [route.openshift.io]
+  resources: [routes]
+  verbs: [get, list, watch]
+- apiGroups: [build.openshift.io]
+  resources: [buildconfigs, builds]
+  verbs: [get, list, watch]
+- apiGroups: [image.openshift.io]
+  resources: [imagestreams]
+  verbs: [get, list, watch]
+- apiGroups: [config.openshift.io]
+  resources: [clusterversions, infrastructures]
+  verbs: [get, list, watch]
+- apiGroups: [operators.coreos.com]
+  resources: [clusterserviceversions, subscriptions, catalogsources, installplans, operatorgroups]
+  verbs: [get, list, watch]
+# API discovery (needed for CRD browser and resource discovery)
+- apiGroups: [""]
+  resources: [componentstatuses]
+  verbs: [get, list]
+- nonResourceURLs: ["/api", "/api/*", "/apis", "/apis/*", "/version"]
+  verbs: [get]
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: openshiftpulse-cluster-admin
+  name: openshiftpulse-reader
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: cluster-admin
+  name: openshiftpulse-reader
 subjects:
 - kind: ServiceAccount
   name: openshiftpulse
   namespace: openshiftpulse
+---
+# Role for the SA's own namespace resources
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: openshiftpulse-ns
+  namespace: openshiftpulse
+rules:
+- apiGroups: [""]
+  resources: [configmaps, secrets]
+  verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: openshiftpulse-ns
+  namespace: openshiftpulse
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: openshiftpulse-ns
+subjects:
+- kind: ServiceAccount
+  name: openshiftpulse
+  namespace: openshiftpulse
+---
+# Generate secrets before applying:
+#   openssl rand -base64 32 | tr -d '\n' > /tmp/oauth-client-secret
+#   openssl rand -base64 32 | tr -d '\n' > /tmp/cookie-secret
+#   oc create secret generic openshiftpulse-oauth-secrets \
+#     --from-file=client-secret=/tmp/oauth-client-secret \
+#     --from-file=cookie-secret=/tmp/cookie-secret \
+#     -n openshiftpulse
+#   Then update the OAuthClient: oc patch oauthclient openshiftpulse \
+#     -p "{\"secret\":\"$(cat /tmp/oauth-client-secret)\"}"
+apiVersion: v1
+kind: Secret
+metadata:
+  name: openshiftpulse-oauth-secrets
+  namespace: openshiftpulse
+type: Opaque
+stringData:
+  # REPLACE these with real generated values before deploying
+  client-secret: REPLACE_ME_WITH_GENERATED_SECRET
+  cookie-secret: REPLACE_ME_WITH_GENERATED_SECRET
 ---
 apiVersion: oauth.openshift.io/v1
 kind: OAuthClient
 metadata:
   name: openshiftpulse
 grantMethod: auto
-secret: openshiftpulse-oauth-secret-v1
+# The secret value must match the client-secret key in the openshiftpulse-oauth-secrets Secret.
+# After creating the Secret, patch this: oc patch oauthclient openshiftpulse -p '{"secret":"<value>"}'
+secret: REPLACE_ME_WITH_GENERATED_SECRET
 redirectURIs:
-- https://openshiftpulse-openshiftpulse.apps.rhamilto.devcluster.openshift.com/oauth/callback
+# Replace with your cluster's route URL after deploy:
+#   oc patch oauthclient openshiftpulse --type merge \
+#     -p "{\"redirectURIs\":[\"https://$(oc get route openshiftpulse -n openshiftpulse -o jsonpath='{.spec.host}')/oauth/callback\"]}"
+- https://REPLACE_WITH_CLUSTER_ROUTE/oauth/callback
 scopeRestrictions:
 - literals:
   - user:full
@@ -137,11 +264,11 @@ spec:
         - --https-address=:8443
         - --provider=openshift
         - --client-id=openshiftpulse
-        - --client-secret=openshiftpulse-oauth-secret-v1
+        - --client-secret-file=/etc/oauth/client-secret
         - --upstream=http://localhost:8080
         - --tls-cert=/etc/tls/private/tls.crt
         - --tls-key=/etc/tls/private/tls.key
-        - --cookie-secret=openshiftpulse-secret-cookie
+        - --cookie-secret-file=/etc/oauth/cookie-secret
         - --pass-access-token=true
         - --pass-basic-auth=false
         - --scope=user:full
@@ -152,6 +279,9 @@ spec:
         volumeMounts:
         - name: proxy-tls
           mountPath: /etc/tls/private
+        - name: oauth-secrets
+          mountPath: /etc/oauth
+          readOnly: true
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -214,6 +344,9 @@ spec:
       - name: proxy-tls
         secret:
           secretName: openshiftpulse-proxy-tls
+      - name: oauth-secrets
+        secret:
+          secretName: openshiftpulse-oauth-secrets
       - name: nginx-config
         configMap:
           name: openshiftpulse-nginx

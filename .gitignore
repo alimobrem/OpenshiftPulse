@@ -5,6 +5,7 @@ dist
 *.bak2
 .env
 .env.*
+!.env.example
 .DS_Store
 .eslintrc.json
 coverage/

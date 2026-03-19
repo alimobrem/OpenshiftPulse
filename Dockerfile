@@ -1,12 +1,9 @@
 FROM nginxinc/nginx-unprivileged:alpine
 
-# Copy nginx config
-COPY nginx.conf /etc/nginx/nginx.conf
-
 # Copy built static files
 COPY dist/ /usr/share/nginx/html/
 
-# Script to inject service account token into nginx config at runtime
+# Entrypoint just starts nginx — config is mounted via ConfigMap in production
 COPY entrypoint.sh /entrypoint.sh
 
 USER 0

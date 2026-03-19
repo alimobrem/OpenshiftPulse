@@ -87,10 +87,10 @@ describe('SecurityView', () => {
   });
 
   describe('navigation', () => {
-    it('has route in App.tsx', () => {
-      const app = fs.readFileSync(path.join(__dirname, '../../App.tsx'), 'utf-8');
-      expect(app).toContain('SecurityView');
-      expect(app).toContain("path=\"security\"");
+    it('has route in domain routes', () => {
+      const routes = fs.readFileSync(path.join(__dirname, '../../routes/domainRoutes.tsx'), 'utf-8');
+      expect(routes).toContain('SecurityView');
+      expect(routes).toContain("path=\"security\"");
     });
 
     it('links to related views', () => {
