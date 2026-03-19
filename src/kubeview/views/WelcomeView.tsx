@@ -80,7 +80,7 @@ export default function WelcomeView() {
             <PageLink icon={<Server className="w-5 h-5 text-blue-400" />} title="Compute" description="Nodes, machines, autoscaling" onClick={() => go('/compute', 'Compute')} />
             <PageLink icon={<HardDrive className="w-5 h-5 text-orange-400" />} title="Storage" description="PVCs, StorageClasses, CSI drivers, snapshots" onClick={() => go('/storage', 'Storage')} />
             <PageLink icon={<Hammer className="w-5 h-5 text-orange-500" />} title="Builds" description="BuildConfigs, Builds, ImageStreams" onClick={() => go('/builds', 'Builds')} />
-            <PageLink icon={<Shield className="w-5 h-5 text-indigo-400" />} title="Access Control" description="RBAC audit, cluster-admin tracking" onClick={() => go('/access-control', 'Access Control')} />
+            <PageLink icon={<Shield className="w-5 h-5 text-indigo-400" />} title="Security" description="Security audit, SCCs, network policies, access" onClick={() => go('/security', 'Security')} />
             <PageLink icon={<Users className="w-5 h-5 text-teal-400" />} title="User Management" description="Users, groups, impersonation" onClick={() => go('/users', 'Users')} />
             <PageLink icon={<Puzzle className="w-5 h-5 text-violet-400" />} title="CRDs" description="Custom resources by API group" onClick={() => go('/crds', 'CRDs')} />
             <PageLink icon={<Settings className="w-5 h-5 text-slate-400" />} title="Administration" description="Config, updates, snapshots, certificates, quotas" onClick={() => go('/admin', 'Administration')} />

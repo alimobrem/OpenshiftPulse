@@ -37,6 +37,7 @@ const NetworkingView = lazy(() => import('./views/NetworkingView'));
 const ComputeView = lazy(() => import('./views/ComputeView'));
 const BuildsView = lazy(() => import('./views/BuildsView'));
 const CRDsView = lazy(() => import('./views/CRDsView'));
+const SecurityView = lazy(() => import('./views/SecurityView'));
 
 function LoadingFallback() {
   return (
@@ -186,6 +187,7 @@ export default function ShiftOpsApp() {
             <Route path="storage" element={<Suspense fallback={<LoadingFallback />}><StorageView /></Suspense>} />
             <Route path="builds" element={<Suspense fallback={<LoadingFallback />}><BuildsView /></Suspense>} />
             <Route path="crds" element={<Suspense fallback={<LoadingFallback />}><CRDsView /></Suspense>} />
+            <Route path="security" element={<Suspense fallback={<LoadingFallback />}><SecurityView /></Suspense>} />
             <Route path="access-control" element={<Suspense fallback={<LoadingFallback />}><AccessControlView /></Suspense>} />
             <Route path="users" element={<Suspense fallback={<LoadingFallback />}><UserManagementView /></Suspense>} />
             <Route path="software" element={<Navigate to="/create/v1~pods" replace />} />
