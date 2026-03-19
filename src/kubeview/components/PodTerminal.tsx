@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { X, Send, Loader2 } from 'lucide-react';
+import { X, Loader2, Terminal, Copy, Check, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface PodTerminalProps {
@@ -11,47 +11,66 @@ interface PodTerminalProps {
 }
 
 interface TerminalLine {
-  type: 'input' | 'output' | 'error';
+  type: 'input' | 'output' | 'error' | 'system';
   text: string;
+  timestamp?: string;
 }
 
 import { K8S_BASE as BASE } from '../engine/gvr';
 
+function timestamp() {
+  return new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
 export default function PodTerminal({ namespace, podName, containerName, onClose, isNode }: PodTerminalProps) {
   const [command, setCommand] = useState('');
-  const shellCmd = isNode
-    ? `oc debug node/${podName}`
-    : `oc exec -it ${podName} -n ${namespace}${containerName ? ` -c ${containerName}` : ''} -- /bin/sh`;
-
   const [lines, setLines] = useState<TerminalLine[]>([
-    { type: 'output', text: isNode ? `Node Terminal: ${podName}` : `Terminal: ${podName}/${containerName} in ${namespace}` },
-    { type: 'output', text: '' },
-    { type: 'output', text: isNode ? 'Try: cat /etc/os-release, df -h, free -m, uptime' : 'Try: ls, cat /etc/hostname, env, whoami' },
-    { type: 'output', text: '' },
+    { type: 'system', text: isNode ? `node/${podName}` : `${namespace}/${podName}`, timestamp: timestamp() },
+    { type: 'system', text: `container: ${containerName}`, timestamp: timestamp() },
+    { type: 'system', text: isNode ? 'Suggestions: cat /etc/os-release, df -h, free -m, uptime, ps aux' : 'Suggestions: whoami, ls, env, cat /etc/hostname, ps aux', timestamp: timestamp() },
   ]);
   const [running, setRunning] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [copied, setCopied] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => { inputRef.current?.focus(); }, []);
   useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [lines]);
+
+  const handleCopyOutput = () => {
+    const text = lines.filter(l => l.type !== 'system').map(l => l.text).join('\n');
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleClear = () => {
+    setLines([{ type: 'system', text: 'Terminal cleared', timestamp: timestamp() }]);
+  };
 
   const execCommand = useCallback(async (cmd: string) => {
     if (!cmd.trim() || running) return;
 
-    setLines((prev) => [...prev, { type: 'input', text: `$ ${cmd}` }]);
+    const ts = timestamp();
+    setLines((prev) => [...prev, { type: 'input', text: `$ ${cmd}`, timestamp: ts }]);
     setRunning(true);
-    setHistory((prev) => [cmd, ...prev.slice(0, 50)]);
+    setHistory((prev) => {
+      if (prev[0] === cmd) return prev;
+      return [cmd, ...prev.slice(0, 50)];
+    });
     setHistoryIndex(-1);
+
+    // Handle built-in commands
+    if (cmd.trim() === 'clear') {
+      handleClear();
+      setRunning(false);
+      setCommand('');
+      return;
+    }
 
     try {
       const args = cmd.split(/\s+/);
@@ -63,7 +82,6 @@ export default function PodTerminal({ namespace, podName, containerName, onClose
         params.append('command', arg);
       }
 
-      // Try WebSocket exec (K8s v4 channel subprotocol)
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsUrl = `${protocol}//${window.location.host}${BASE}/api/v1/namespaces/${namespace}/pods/${podName}/exec?${params}`;
 
@@ -84,12 +102,11 @@ export default function PodTerminal({ namespace, podName, containerName, onClose
         ws.onmessage = (event) => {
           const data = new Uint8Array(event.data as ArrayBuffer);
           if (data.length < 2) return;
-          const channel = data[0]; // 1=stdout, 2=stderr, 3=error
+          const channel = data[0];
           const text = new TextDecoder().decode(data.slice(1));
           if (channel === 1) stdout += text;
           else if (channel === 2) stderr += text;
           else if (channel === 3) {
-            // Error channel — K8s sends JSON status
             try {
               const status = JSON.parse(text);
               if (status.status === 'Success') return;
@@ -109,7 +126,7 @@ export default function PodTerminal({ namespace, podName, containerName, onClose
 
         ws.onerror = () => {
           clearTimeout(timeout);
-          reject(new Error('WebSocket connection failed — exec may not be supported through this proxy'));
+          reject(new Error('WebSocket connection failed'));
         };
       });
 
@@ -120,7 +137,7 @@ export default function PodTerminal({ namespace, podName, containerName, onClose
       setLines((prev) => [
         ...prev,
         { type: 'error', text: msg },
-        { type: 'output', text: `  Alternatively, run locally: oc exec -it ${podName} -n ${namespace} -c ${containerName} -- ${cmd}` },
+        { type: 'system', text: `Run locally: oc exec -it ${podName} -n ${namespace} -c ${containerName} -- ${cmd}` },
       ]);
     } finally {
       setRunning(false);
@@ -148,69 +165,111 @@ export default function PodTerminal({ namespace, podName, containerName, onClose
         setHistoryIndex(-1);
         setCommand('');
       }
+    } else if (e.key === 'l' && e.ctrlKey) {
+      e.preventDefault();
+      handleClear();
+    } else if (e.key === 'c' && e.ctrlKey && !window.getSelection()?.toString()) {
+      if (running) {
+        setRunning(false);
+        setLines((prev) => [...prev, { type: 'system', text: '^C' }]);
+      }
     }
   };
 
+  const commandCount = lines.filter(l => l.type === 'input').length;
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
-      <div className="fixed inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative w-full max-w-4xl h-[400px] bg-slate-950 border border-slate-700 rounded-t-lg shadow-2xl flex flex-col z-50">
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-5xl h-[480px] bg-[#0d1117] border border-slate-700 rounded-t-xl shadow-2xl flex flex-col z-50">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-2 border-b border-slate-700 bg-slate-900 rounded-t-lg">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-800 bg-[#161b22] rounded-t-xl">
+          <div className="flex items-center gap-3">
             <div className="flex gap-1.5">
-              <div className="w-3 h-3 rounded-full bg-red-500" />
+              <button onClick={onClose} className="w-3 h-3 rounded-full bg-red-500 hover:bg-red-400 transition-colors" title="Close" />
               <div className="w-3 h-3 rounded-full bg-yellow-500" />
               <div className="w-3 h-3 rounded-full bg-green-500" />
             </div>
-            <span className="text-xs text-slate-400 font-mono ml-2">
-              {podName}/{containerName} — {namespace}
-            </span>
+            <div className="flex items-center gap-2 ml-2">
+              <Terminal className="w-3.5 h-3.5 text-slate-500" />
+              <span className="text-xs text-slate-300 font-mono font-medium">{containerName}</span>
+              <span className="text-xs text-slate-600">in</span>
+              <span className="text-xs text-slate-400 font-mono">{podName}</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-500 font-mono">{namespace}</span>
+            </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-200">
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            {commandCount > 0 && (
+              <span className="text-[10px] text-slate-600 mr-2">{commandCount} command{commandCount !== 1 ? 's' : ''}</span>
+            )}
+            <button
+              onClick={handleCopyOutput}
+              className="p-1.5 rounded hover:bg-slate-800 text-slate-500 hover:text-slate-300 transition-colors"
+              title="Copy output"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+            </button>
+            <button
+              onClick={handleClear}
+              className="p-1.5 rounded hover:bg-slate-800 text-slate-500 hover:text-slate-300 transition-colors"
+              title="Clear (Ctrl+L)"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+            <button onClick={onClose} className="p-1.5 rounded hover:bg-slate-800 text-slate-500 hover:text-slate-300 transition-colors" title="Close">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
 
         {/* Output */}
-        <div ref={scrollRef} className="flex-1 overflow-auto p-3 font-mono text-xs leading-relaxed" onClick={() => inputRef.current?.focus()}>
+        <div ref={scrollRef} className="flex-1 overflow-auto px-4 py-3 font-mono text-[13px] leading-[1.6] select-text" onClick={() => inputRef.current?.focus()}>
           {lines.map((line, i) => (
-            <div key={i} className={cn(
-              line.type === 'input' ? 'text-green-400 font-semibold' :
-              line.type === 'error' ? 'text-red-400' :
-              'text-slate-300'
-            )}>
-              {line.text || '\u00A0'}
+            <div key={i} className="flex gap-2 group">
+              {line.timestamp && (
+                <span className="text-[10px] text-slate-700 tabular-nums w-16 shrink-0 pt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {line.timestamp}
+                </span>
+              )}
+              <div className={cn(
+                'flex-1 min-w-0',
+                line.type === 'input' ? 'text-[#7ee787] font-medium' :
+                line.type === 'error' ? 'text-[#f85149]' :
+                line.type === 'system' ? 'text-slate-600 italic text-xs' :
+                'text-[#c9d1d9]'
+              )}>
+                {line.text || '\u00A0'}
+              </div>
             </div>
           ))}
           {running && (
-            <div className="flex items-center gap-2 text-slate-500">
-              <Loader2 className="w-3 h-3 animate-spin" /> Running...
+            <div className="flex items-center gap-2 text-slate-600 mt-1">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              <span className="text-xs">Executing...</span>
+              <span className="text-[10px] text-slate-700">(Ctrl+C to cancel)</span>
             </div>
           )}
         </div>
 
         {/* Input */}
-        <div className="flex items-center gap-2 px-3 py-2 border-t border-slate-700 bg-slate-900">
-          <span className="text-green-400 text-xs font-mono">$</span>
+        <div className="flex items-center gap-2 px-4 py-3 border-t border-slate-800 bg-[#161b22]">
+          <span className="text-[#7ee787] text-sm font-mono font-bold">$</span>
           <input
             ref={inputRef}
             type="text"
             value={command}
             onChange={(e) => setCommand(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Type command..."
+            placeholder={running ? 'Waiting...' : 'Enter command...'}
             disabled={running}
-            className="flex-1 bg-transparent text-xs font-mono text-slate-200 placeholder-slate-600 outline-none"
+            className="flex-1 bg-transparent text-[13px] font-mono text-[#c9d1d9] placeholder-slate-700 outline-none caret-[#7ee787]"
             autoFocus
           />
-          <button
-            onClick={() => execCommand(command)}
-            disabled={running || !command.trim()}
-            className="text-slate-400 hover:text-slate-200 disabled:opacity-30"
-          >
-            <Send className="w-3.5 h-3.5" />
-          </button>
+          {history.length > 0 && !running && (
+            <span className="text-[10px] text-slate-700 hidden sm:block">
+              {history.length} in history
+            </span>
+          )}
         </div>
       </div>
     </div>
