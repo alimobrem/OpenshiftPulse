@@ -26,9 +26,6 @@ export default function PodTerminal({ namespace, podName, containerName, onClose
   const [lines, setLines] = useState<TerminalLine[]>([
     { type: 'output', text: isNode ? `Node Terminal: ${podName}` : `Terminal: ${podName}/${containerName} in ${namespace}` },
     { type: 'output', text: '' },
-    { type: 'output', text: 'Note: exec requires WebSocket upgrade. For a full interactive shell:' },
-    { type: 'input', text: `$ ${shellCmd}` },
-    { type: 'output', text: '' },
     { type: 'output', text: isNode ? 'Try: cat /etc/os-release, df -h, free -m, uptime' : 'Try: ls, cat /etc/hostname, env, whoami' },
     { type: 'output', text: '' },
   ]);
@@ -57,7 +54,6 @@ export default function PodTerminal({ namespace, podName, containerName, onClose
     setHistoryIndex(-1);
 
     try {
-      // Use exec endpoint with command
       const args = cmd.split(/\s+/);
       const params = new URLSearchParams();
       params.set('container', containerName);
@@ -67,33 +63,65 @@ export default function PodTerminal({ namespace, podName, containerName, onClose
         params.append('command', arg);
       }
 
-      const url = `${BASE}/api/v1/namespaces/${namespace}/pods/${podName}/exec?${params}`;
+      // Try WebSocket exec (K8s v4 channel subprotocol)
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}${BASE}/api/v1/namespaces/${namespace}/pods/${podName}/exec?${params}`;
 
-      // Try regular HTTP exec (won't work for interactive, but works for simple commands)
-      // Fall back to using the log endpoint for read-only commands
-      const res = await fetch(url, { method: 'POST' });
+      const output = await new Promise<string>((resolve, reject) => {
+        let stdout = '';
+        let stderr = '';
+        let timedOut = false;
 
-      if (res.ok) {
-        const text = await res.text();
-        const outputLines = text.split('\n');
-        setLines((prev) => [...prev, ...outputLines.map((l) => ({ type: 'output' as const, text: l }))]);
-      } else {
-        // Exec requires WebSocket upgrade. Use a workaround: run via the exec subresource
-        // For now, show the oc command the user can run locally
-        const status = res.status;
-        if (status === 400 || status === 403 || status === 101) {
-          setLines((prev) => [
-            ...prev,
-            { type: 'error', text: `Exec requires WebSocket (status ${status}). Run locally:` },
-            { type: 'output', text: `  oc exec -it ${podName} -n ${namespace} -c ${containerName} -- ${cmd}` },
-          ]);
-        } else {
-          const body = await res.text().catch(() => res.statusText);
-          setLines((prev) => [...prev, { type: 'error', text: `Error ${status}: ${body.slice(0, 200)}` }]);
-        }
-      }
+        const ws = new WebSocket(wsUrl, ['v4.channel.k8s.io']);
+        ws.binaryType = 'arraybuffer';
+
+        const timeout = setTimeout(() => {
+          timedOut = true;
+          ws.close();
+          resolve(stdout || stderr || '(no output)');
+        }, 10000);
+
+        ws.onmessage = (event) => {
+          const data = new Uint8Array(event.data as ArrayBuffer);
+          if (data.length < 2) return;
+          const channel = data[0]; // 1=stdout, 2=stderr, 3=error
+          const text = new TextDecoder().decode(data.slice(1));
+          if (channel === 1) stdout += text;
+          else if (channel === 2) stderr += text;
+          else if (channel === 3) {
+            // Error channel — K8s sends JSON status
+            try {
+              const status = JSON.parse(text);
+              if (status.status === 'Success') return;
+              stderr += status.message || text;
+            } catch {
+              stderr += text;
+            }
+          }
+        };
+
+        ws.onclose = () => {
+          if (timedOut) return;
+          clearTimeout(timeout);
+          if (stderr && !stdout) reject(new Error(stderr.trim()));
+          else resolve((stdout + stderr).trim() || '(no output)');
+        };
+
+        ws.onerror = () => {
+          clearTimeout(timeout);
+          reject(new Error('WebSocket connection failed — exec may not be supported through this proxy'));
+        };
+      });
+
+      const outputLines = output.split('\n');
+      setLines((prev) => [...prev, ...outputLines.map((l) => ({ type: 'output' as const, text: l }))]);
     } catch (err) {
-      setLines((prev) => [...prev, { type: 'error', text: `Failed: ${err instanceof Error ? err.message : String(err)}` }]);
+      const msg = err instanceof Error ? err.message : String(err);
+      setLines((prev) => [
+        ...prev,
+        { type: 'error', text: msg },
+        { type: 'output', text: `  Alternatively, run locally: oc exec -it ${podName} -n ${namespace} -c ${containerName} -- ${cmd}` },
+      ]);
     } finally {
       setRunning(false);
       setCommand('');
