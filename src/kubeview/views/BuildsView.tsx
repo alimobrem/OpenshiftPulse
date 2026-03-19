@@ -1,8 +1,7 @@
 import React from 'react';
 import {
   Hammer, CheckCircle, XCircle, Clock, Loader2, ArrowRight,
-  AlertTriangle, Play, RotateCcw, FileText, Box, Layers,
-  Timer, Package,
+  AlertTriangle, Play, Box, Layers, Timer,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '../store/uiStore';

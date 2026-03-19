@@ -188,8 +188,9 @@ export default function ShiftOpsApp() {
             <Route path="crds" element={<Suspense fallback={<LoadingFallback />}><CRDsView /></Suspense>} />
             <Route path="access-control" element={<Suspense fallback={<LoadingFallback />}><AccessControlView /></Suspense>} />
             <Route path="users" element={<Suspense fallback={<LoadingFallback />}><UserManagementView /></Suspense>} />
+            <Route path="software" element={<Navigate to="/create/v1~pods" replace />} />
             <Route path="operators" element={<Navigate to="/admin" replace />} />
-            <Route path="operatorhub" element={<Navigate to="/create/v1~pods" replace />} />
+            <Route path="operatorhub" element={<Navigate to="/create/v1~pods?tab=operators" replace />} />
             <Route path="admin" element={<Suspense fallback={<LoadingFallback />}><AdminView /></Suspense>} />
 
             {/* Alerts */}

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
-  Puzzle, Search, CheckCircle, XCircle, ArrowRight, Globe, Box,
+  Puzzle, Search, CheckCircle, ArrowRight,
   AlertTriangle, Layers, Clock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';

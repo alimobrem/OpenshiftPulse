@@ -389,7 +389,7 @@ function InstalledTab() {
             <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded">{filteredSubscriptions.length}</span>
           </h3>
           <button
-            onClick={() => go('/operatorhub')}
+            onClick={() => go('/create/v1~pods?tab=operators')}
             className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
           >
             View all <ArrowRight className="w-3 h-3" />

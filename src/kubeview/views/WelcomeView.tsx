@@ -75,7 +75,7 @@ export default function WelcomeView() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             <PageLink icon={<HeartPulse className="w-5 h-5 text-blue-400" />} title="Cluster Pulse" description="Health overview, issues, runbooks, namespace health" onClick={() => go('/pulse', 'Pulse')} />
-            <PageLink icon={<Package className="w-5 h-5 text-blue-400" />} title="Software" description="Installed inventory, operators, deploy, Helm, templates" onClick={() => go('/create/v1~pods', 'Software')} />
+            <PageLink icon={<Package className="w-5 h-5 text-blue-400" />} title="Software" description="Installed inventory, operators, deploy, Helm, templates" onClick={() => go('/software', 'Software')} />
             <PageLink icon={<Package className="w-5 h-5 text-blue-400" />} title="Workloads" description="Deployments, pods, health audit with 6 checks" onClick={() => go('/workloads', 'Workloads')} />
             <PageLink icon={<Globe className="w-5 h-5 text-cyan-400" />} title="Networking" description="Routes, services, ingress, network policies, 6 checks" onClick={() => go('/networking', 'Networking')} />
             <PageLink icon={<Server className="w-5 h-5 text-blue-400" />} title="Compute" description="Nodes, machines, MachineConfig, autoscaling, 6 checks" onClick={() => go('/compute', 'Compute')} />
