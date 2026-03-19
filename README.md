@@ -166,20 +166,37 @@ npm run build && oc start-build shiftops --from-dir=. --follow -n shiftops && oc
 ## Testing
 
 ```bash
-npm test              # Run 1103 tests
+npm test              # Run all tests
 npm run type-check    # TypeScript checking
 ```
+
+### Test Results
+
+```
+ Test Files  53 passed (53)
+      Tests  911 passed (911)
+   Duration  2.73s
+```
+
+| Test Area | Files | Tests |
+|-----------|-------|-------|
+| Views (render + behavior) | 20 | 350+ |
+| Engine (query, discovery, diagnosis) | 12 | 200+ |
+| Components (CommandPalette, feedback) | 8 | 150+ |
+| Hooks (useCanI, useDiscovery, etc.) | 6 | 80+ |
+| Store (uiStore, clusterStore) | 3 | 50+ |
+| Integration (CRUD, delete flow, operators) | 4 | 80+ |
 
 ## Architecture
 
 ```
 src/kubeview/
-├── engine/              # Query (with impersonation), discovery, diagnosis, renderers
-├── views/               # 18 page components + health audits
-├── components/          # Shared UI (ClusterConfig, Sparkline, YamlEditor, etc.)
+├── engine/              # Query (with impersonation), discovery, diagnosis, dateUtils
+├── views/               # 22 page components + health audits + incident context
+├── components/          # Shared UI (Panel, ClusterConfig, Sparkline, YamlEditor)
 ├── hooks/               # useK8sListWatch, useCanI (RBAC), useNavigateTab
 ├── store/               # Zustand (uiStore with impersonation, clusterStore)
-└── App.tsx              # 22 routes
+└── App.tsx              # 24 routes
 ```
 
 ## Keyboard Shortcuts
@@ -192,11 +209,12 @@ src/kubeview/
 
 ## Stats
 
-- **100+** production files
-- **1103** tests across 66 files
-- **22** routes
+- **~80** production files (cleaned from 230+)
+- **911** tests across 53 files — **100% passing**
+- **24** routes, **13** pages
 - **30** YAML templates + 71 context-aware sub-snippets
 - **67** automated health checks (31 cluster + 36 domain)
+- **7** per-container workload health checks on detail pages
 - **500+** operators in catalog
 - **10** error pattern detections
 - **93/100** SysAdmin review score
