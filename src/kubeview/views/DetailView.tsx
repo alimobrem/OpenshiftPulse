@@ -238,7 +238,7 @@ export default function DetailView({ gvrKey, namespace, name }: DetailViewProps)
           metadata: {
             name: debugName,
             namespace: 'default',
-            labels: { 'shiftops/debug': 'true', 'shiftops/debug-node': resource.metadata.name },
+            labels: { 'openshiftpulse/debug': 'true', 'openshiftpulse/debug-node': resource.metadata.name },
           },
           spec: {
             nodeName: resource.metadata.name,

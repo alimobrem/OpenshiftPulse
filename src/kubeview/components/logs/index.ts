@@ -1,5 +1,5 @@
 /**
- * ShiftOps Log Viewer Components
+ * OpenShift Pulse Log Viewer Components
  *
  * Powerful log exploration experience with streaming, multi-container,
  * multi-pod support, search, and context analysis.

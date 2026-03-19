@@ -1,35 +1,35 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: shiftops
+  name: openshiftpulse
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: shiftops
-  namespace: shiftops
+  name: openshiftpulse
+  namespace: openshiftpulse
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: shiftops-cluster-admin
+  name: openshiftpulse-cluster-admin
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: cluster-admin
 subjects:
 - kind: ServiceAccount
-  name: shiftops
-  namespace: shiftops
+  name: openshiftpulse
+  namespace: openshiftpulse
 ---
 apiVersion: oauth.openshift.io/v1
 kind: OAuthClient
 metadata:
-  name: shiftops
+  name: openshiftpulse
 grantMethod: auto
-secret: shiftops-oauth-secret-v1
+secret: openshiftpulse-oauth-secret-v1
 redirectURIs:
-- https://shiftops-shiftops.apps.rhamilto.devcluster.openshift.com/oauth/callback
+- https://openshiftpulse-openshiftpulse.apps.rhamilto.devcluster.openshift.com/oauth/callback
 scopeRestrictions:
 - literals:
   - user:full
@@ -37,8 +37,8 @@ scopeRestrictions:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: shiftops-nginx
-  namespace: shiftops
+  name: openshiftpulse-nginx
+  namespace: openshiftpulse
 data:
   nginx.conf: |
     worker_processes auto;
@@ -98,10 +98,10 @@ data:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: shiftops
-  namespace: shiftops
+  name: openshiftpulse
+  namespace: openshiftpulse
   labels:
-    app: shiftops
+    app: openshiftpulse
 spec:
   replicas: 2
   strategy:
@@ -111,13 +111,13 @@ spec:
       maxSurge: 1
   selector:
     matchLabels:
-      app: shiftops
+      app: openshiftpulse
   template:
     metadata:
       labels:
-        app: shiftops
+        app: openshiftpulse
     spec:
-      serviceAccountName: shiftops
+      serviceAccountName: openshiftpulse
       securityContext:
         runAsNonRoot: true
         seccompProfile:
@@ -128,7 +128,7 @@ spec:
         whenUnsatisfiable: DoNotSchedule
         labelSelector:
           matchLabels:
-            app: shiftops
+            app: openshiftpulse
       containers:
       # OAuth Proxy sidecar — handles user login
       - name: oauth-proxy
@@ -136,12 +136,12 @@ spec:
         args:
         - --https-address=:8443
         - --provider=openshift
-        - --client-id=shiftops
-        - --client-secret=shiftops-oauth-secret-v1
+        - --client-id=openshiftpulse
+        - --client-secret=openshiftpulse-oauth-secret-v1
         - --upstream=http://localhost:8080
         - --tls-cert=/etc/tls/private/tls.crt
         - --tls-key=/etc/tls/private/tls.key
-        - --cookie-secret=shiftops-secret-cookie
+        - --cookie-secret=openshiftpulse-secret-cookie
         - --pass-access-token=true
         - --pass-basic-auth=false
         - --scope=user:full
@@ -177,9 +177,9 @@ spec:
             scheme: HTTPS
           initialDelaySeconds: 5
           periodSeconds: 10
-      # ShiftOps app — serves static files + reverse proxies API
-      - name: shiftops
-        image: image-registry.openshift-image-registry.svc:5000/shiftops/shiftops:latest
+      # OpenShift Pulse app — serves static files + reverse proxies API
+      - name: openshiftpulse
+        image: image-registry.openshift-image-registry.svc:5000/openshiftpulse/openshiftpulse:latest
         command: ["nginx", "-g", "daemon off;"]
         ports:
         - containerPort: 8080
@@ -213,36 +213,36 @@ spec:
       volumes:
       - name: proxy-tls
         secret:
-          secretName: shiftops-proxy-tls
+          secretName: openshiftpulse-proxy-tls
       - name: nginx-config
         configMap:
-          name: shiftops-nginx
+          name: openshiftpulse-nginx
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: shiftops
-  namespace: shiftops
+  name: openshiftpulse
+  namespace: openshiftpulse
   labels:
-    app: shiftops
+    app: openshiftpulse
 spec:
   minAvailable: 1
   selector:
     matchLabels:
-      app: shiftops
+      app: openshiftpulse
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: shiftops
-  namespace: shiftops
+  name: openshiftpulse
+  namespace: openshiftpulse
   labels:
-    app: shiftops
+    app: openshiftpulse
   annotations:
-    service.beta.openshift.io/serving-cert-secret-name: shiftops-proxy-tls
+    service.beta.openshift.io/serving-cert-secret-name: openshiftpulse-proxy-tls
 spec:
   selector:
-    app: shiftops
+    app: openshiftpulse
   ports:
   - name: https
     port: 8443
@@ -252,14 +252,14 @@ spec:
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
-  name: shiftops
-  namespace: shiftops
+  name: openshiftpulse
+  namespace: openshiftpulse
   labels:
-    app: shiftops
+    app: openshiftpulse
 spec:
   to:
     kind: Service
-    name: shiftops
+    name: openshiftpulse
   port:
     targetPort: https
   tls:

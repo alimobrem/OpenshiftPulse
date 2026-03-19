@@ -1,1 +1,1 @@
-export { default as ShiftOpsApp } from './App';
+export { default as OpenshiftPulseApp } from './App';

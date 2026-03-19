@@ -6,7 +6,7 @@
     </linearGradient>
   </defs>
   <rect width="128" height="128" rx="28" fill="url(#g)"/>
-  <text x="30" y="98" font-family="system-ui,-apple-system,sans-serif" font-weight="800" font-size="90" fill="white">S</text>
+  <text x="28" y="98" font-family="system-ui,-apple-system,sans-serif" font-weight="800" font-size="90" fill="white">P</text>
   <path d="M92 20l3.2-9.6L104.8 8l-9.6-3.2L92-4.8 88.8 4.8 79.2 8l9.6 3.2Z" fill="#93c5fd"/>
   <path d="M108 36l2-6L116 28l-6-2L108 20l-2 6L100 28l6 2Z" fill="#93c5fd" opacity="0.7"/>
 </svg>

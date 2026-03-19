@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useUIStore } from '../store/uiStore';
 
 /**
- * Global keyboard shortcut handler for ShiftOps.
+ * Global keyboard shortcut handler for OpenShift Pulse.
  *
  * Shortcuts:
  * - Cmd+K / Ctrl+K: Open command palette

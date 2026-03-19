@@ -1,4 +1,4 @@
-// Main exports for ShiftOps engine
+// Main exports for OpenShift Pulse engine
 
 // Renderers
 export * from './renderers/index';

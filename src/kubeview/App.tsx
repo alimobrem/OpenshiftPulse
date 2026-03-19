@@ -132,7 +132,7 @@ function CorrelationRoute() {
   );
 }
 
-export default function ShiftOpsApp() {
+export default function OpenshiftPulseApp() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>

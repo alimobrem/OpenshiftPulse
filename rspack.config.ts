@@ -90,7 +90,7 @@ export default defineConfig({
     }),
     new rspack.HtmlRspackPlugin({
       template: './public/index.html',
-      title: 'OpenShift Console',
+      title: 'OpenShift Pulse',
     }),
     isDev && new ReactRefreshPlugin(),
   ].filter(Boolean),

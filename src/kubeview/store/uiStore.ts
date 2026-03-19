@@ -304,7 +304,7 @@ export const useUIStore = create<UIState>()(
       clearImpersonation: () => set({ impersonateUser: null, impersonateGroups: [] }),
     }),
     {
-      name: 'shiftops-ui-storage',
+      name: 'openshiftpulse-ui-storage',
       partialize: (state) => ({
         // Only persist these fields
         tabs: state.tabs,

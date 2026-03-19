@@ -10,7 +10,7 @@ export interface Favorite {
   addedAt: number;
 }
 
-const STORAGE_KEY = 'shiftops-favorites';
+const STORAGE_KEY = 'openshiftpulse-favorites';
 
 export function getFavorites(): Favorite[] {
   try {

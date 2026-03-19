@@ -35,7 +35,7 @@ export interface DiffRow {
   changed: boolean;
 }
 
-const SNAPSHOTS_KEY = 'shiftops-snapshots';
+const SNAPSHOTS_KEY = 'openshiftpulse-snapshots';
 const MAX_SNAPSHOTS = 10;
 
 export function loadSnapshots(): ClusterSnapshot[] {

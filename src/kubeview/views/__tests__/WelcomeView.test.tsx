@@ -42,9 +42,9 @@ function renderView() {
 describe('WelcomeView', () => {
   afterEach(() => { cleanup(); queryClient.clear(); });
 
-  it('renders ShiftOps title', () => {
+  it('renders OpenShift Pulse title', () => {
     renderView();
-    expect(screen.getByText('ShiftOps')).toBeDefined();
+    expect(screen.getByText('OpenShift Pulse')).toBeDefined();
   });
 
   it('shows the value proposition tagline', () => {
@@ -132,6 +132,6 @@ describe('WelcomeView', () => {
     expect(screen.getByText('GitHub')).toBeDefined();
     expect(screen.getByText(/^v\d+\.\d+\.\d+$/)).toBeDefined();
     const link = screen.getByText('GitHub').closest('a');
-    expect(link?.getAttribute('href')).toBe('https://github.com/alimobrem/ShiftOps');
+    expect(link?.getAttribute('href')).toBe('https://github.com/alimobrem/OpenshiftPulse');
   });
 });

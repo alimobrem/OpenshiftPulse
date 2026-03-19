@@ -1,15 +1,15 @@
 <p align="center">
-  <img src="docs/logo.svg" width="80" alt="ShiftOps">
+  <img src="docs/logo.svg" width="80" alt="OpenShift Pulse">
 </p>
 
-<h1 align="center">ShiftOps</h1>
+<h1 align="center">OpenShift Pulse</h1>
 
 <p align="center">
   <strong>Next-generation OpenShift Console for Day-2 Operations</strong>
 </p>
 
 <p align="center">
-  <a href="https://github.com/alimobrem/ShiftOps/releases/tag/v3.0.0"><img src="https://img.shields.io/badge/version-v3.0.0-blue" alt="Version"></a>
+  <a href="https://github.com/alimobrem/OpenShift Pulse/releases/tag/v3.0.0"><img src="https://img.shields.io/badge/version-v3.0.0-blue" alt="Version"></a>
   <img src="https://img.shields.io/badge/tests-911%20passed-brightgreen" alt="Tests">
   <img src="https://img.shields.io/badge/health%20checks-67-orange" alt="Health Checks">
   <img src="https://img.shields.io/badge/sysadmin%20score-93%2F100-blueviolet" alt="SysAdmin Score">
@@ -123,7 +123,7 @@ oc proxy --port=8001 &
 npm run dev
 ```
 
-Open http://localhost:9000. Clear `shiftops-ui-storage` from localStorage on first run to get default pinned tabs.
+Open http://localhost:9000. Clear `openshiftpulse-ui-storage` from localStorage on first run to get default pinned tabs.
 
 ## Deploy to OpenShift
 
@@ -138,11 +138,11 @@ oc login --server=https://api.your-cluster.example.com:6443
 oc apply -f deploy/deployment.yaml
 
 # Create a BuildConfig for binary builds
-oc new-build --binary --name=shiftops --to=shiftops:latest -n shiftops
+oc new-build --binary --name=openshiftpulse --to=openshiftpulse:latest -n openshiftpulse
 
 # Update the OAuthClient redirectURI to match your cluster's route
-ROUTE=$(oc get route shiftops -n shiftops -o jsonpath='{.spec.host}')
-oc patch oauthclient shiftops --type merge \
+ROUTE=$(oc get route openshiftpulse -n openshiftpulse -o jsonpath='{.spec.host}')
+oc patch oauthclient openshiftpulse --type merge \
   -p "{\"redirectURIs\":[\"https://${ROUTE}/oauth/callback\"]}"
 ```
 
@@ -153,16 +153,16 @@ oc patch oauthclient shiftops --type merge \
 npm run build
 
 # Build container image and push to internal registry
-oc start-build shiftops --from-dir=. --follow -n shiftops
+oc start-build openshiftpulse --from-dir=. --follow -n openshiftpulse
 
 # Restart pods to pick up the new image
-oc rollout restart deployment/shiftops -n shiftops
+oc rollout restart deployment/openshiftpulse -n openshiftpulse
 ```
 
 ### Quick redeploy (one-liner)
 
 ```bash
-npm run build && oc start-build shiftops --from-dir=. --follow -n shiftops && oc rollout restart deployment/shiftops -n shiftops
+npm run build && oc start-build openshiftpulse --from-dir=. --follow -n openshiftpulse && oc rollout restart deployment/openshiftpulse -n openshiftpulse
 ```
 
 ### What the deployment includes
@@ -180,7 +180,7 @@ npm run build && oc start-build shiftops --from-dir=. --follow -n shiftops && oc
 
 - **503 on login page**: Delete the TLS secret and re-add the `serving-cert-secret-name` annotation on the Service to trigger service-ca regeneration
 - **403 on API calls**: Ensure the OAuthClient has `user:full` in `scopeRestrictions` — SA-based OAuth clients cannot use this scope
-- **Build stuck/pending**: Check configmap quota (`oc get resourcequota -n shiftops`) — builds need headroom for temp configmaps (set ≥50)
+- **Build stuck/pending**: Check configmap quota (`oc get resourcequota -n openshiftpulse`) — builds need headroom for temp configmaps (set ≥50)
 - **Pods not scheduling**: Check PDB and topology constraints — need ≥2 nodes for topology spread
 
 ## Testing
@@ -262,7 +262,7 @@ src/kubeview/
 | Completeness vs OCP Console | 9/10 |
 | Would Recommend | 10/10 |
 
-> *"Primary tool for single-cluster day-2 operations. ShiftOps would be my default tab."*
+> *"Primary tool for single-cluster day-2 operations. OpenShift Pulse would be my default tab."*
 
 ### Product Manager Assessment
 

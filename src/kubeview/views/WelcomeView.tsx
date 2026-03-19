@@ -31,7 +31,7 @@ export default function WelcomeView() {
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(59,130,246,0.08)_0%,transparent_60%)]" />
           <div className="relative">
             <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight mb-3">
-              Welcome to <span className="bg-gradient-to-r from-blue-400 to-blue-500 bg-clip-text text-transparent">ShiftOps</span>
+              Welcome to <span className="bg-gradient-to-r from-blue-400 to-blue-500 bg-clip-text text-transparent">OpenShift Pulse</span>
             </h1>
             <p className="text-slate-400 max-w-xl mx-auto leading-relaxed">
               A single pane of glass for your OpenShift cluster — health audits, real-time diagnosis, and one-click remediation.
@@ -140,7 +140,7 @@ export default function WelcomeView() {
         {/* ── Footer ── */}
         <footer className="flex items-center justify-center gap-3 text-xs text-slate-600 pb-2">
           <a
-            href="https://github.com/alimobrem/ShiftOps"
+            href="https://github.com/alimobrem/OpenshiftPulse"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 hover:text-slate-400 transition-colors"

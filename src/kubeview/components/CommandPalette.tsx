@@ -30,7 +30,7 @@ function getIcon(iconName?: string) {
 // Load recent resources from localStorage
 function loadRecents(): CommandItem[] {
   try {
-    const stored = localStorage.getItem('shiftops-recents');
+    const stored = localStorage.getItem('openshiftpulse-recents');
     if (!stored) return [];
     return JSON.parse(stored);
   } catch {
@@ -44,7 +44,7 @@ function saveRecent(item: CommandItem) {
     const recents = loadRecents();
     const filtered = recents.filter((r) => r.id !== item.id);
     const newRecents = [item, ...filtered].slice(0, 10);
-    localStorage.setItem('shiftops-recents', JSON.stringify(newRecents));
+    localStorage.setItem('openshiftpulse-recents', JSON.stringify(newRecents));
   } catch {
     // Ignore errors
   }

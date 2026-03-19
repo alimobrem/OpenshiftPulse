@@ -8,7 +8,7 @@ import {
   type K8sResource,
 } from '../index';
 
-describe('ShiftOps Renderers', () => {
+describe('OpenShift Pulse Renderers', () => {
   describe('getNestedValue', () => {
     it('retrieves nested values using dot notation', () => {
       const obj = {

@@ -1,7 +1,7 @@
 /**
  * Metrics and Monitoring Components
  *
- * Export all metrics-related components for ShiftOps
+ * Export all metrics-related components for OpenShift Pulse
  */
 
 export { MetricsChart } from './MetricsChart';

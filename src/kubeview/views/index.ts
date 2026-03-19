@@ -1,5 +1,5 @@
 /**
- * ShiftOps Main Views
+ * OpenShift Pulse Main Views
  * Core pages that render resource data
  */
 
