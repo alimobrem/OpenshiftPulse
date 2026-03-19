@@ -1,6 +1,6 @@
 {
   "name": "openshift-console-modern",
-  "version": "0.1.0",
+  "version": "3.1.1",
   "description": "Modern OpenShift Console built with React 19, Rspack, and latest technologies",
   "private": true,
   "engines": {

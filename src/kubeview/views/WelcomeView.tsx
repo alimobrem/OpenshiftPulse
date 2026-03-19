@@ -148,7 +148,7 @@ export default function WelcomeView() {
             <Github className="w-3 h-3" /> GitHub
           </a>
           <span>·</span>
-          <span>v3.0.0</span>
+          <span>v{__APP_VERSION__}</span>
         </footer>
       </div>
     </div>

@@ -130,7 +130,7 @@ describe('WelcomeView', () => {
   it('shows footer with GitHub link and version', () => {
     renderView();
     expect(screen.getByText('GitHub')).toBeDefined();
-    expect(screen.getByText('v3.0.0')).toBeDefined();
+    expect(screen.getByText(/^v\d+\.\d+\.\d+$/)).toBeDefined();
     const link = screen.getByText('GitHub').closest('a');
     expect(link?.getAttribute('href')).toBe('https://github.com/alimobrem/ShiftOps');
   });
