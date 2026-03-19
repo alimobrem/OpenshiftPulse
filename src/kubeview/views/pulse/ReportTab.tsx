@@ -148,11 +148,27 @@ export function ReportTab({ nodes, allPods, operators, go }: ReportTabProps) {
     (co.status?.conditions || []).some((c: any) => c.type === 'Degraded' && c.status === 'True')
   ), [operators]);
   const failedPods = useMemo(() => allPods.filter((p: any) => {
+    // Skip system namespace pods — sysadmins can't fix platform internals
+    if (isSystemNamespace(p.metadata?.namespace)) return false;
+    // Skip Job-owned pods — one-shot, already terminated
+    const owners = p.metadata?.ownerReferences || [];
+    if (owners.some((o: any) => o.kind === 'Job')) return false;
+    // Skip installer/pruner pods
+    const name = p.metadata?.name || '';
+    if (name.startsWith('installer-') || name.startsWith('revision-pruner-')) return false;
+    // Only include pods actively failing (waiting state, not just terminated)
     const statuses = p.status?.containerStatuses || [];
-    return statuses.some((cs: any) => {
+    const hasActiveFailure = statuses.some((cs: any) => {
       const w = cs.state?.waiting?.reason;
       return w === 'CrashLoopBackOff' || w === 'ImagePullBackOff' || w === 'ErrImagePull';
-    }) || p.status?.phase === 'Failed';
+    });
+    if (hasActiveFailure) return true;
+    // Include Failed pods only if they're not fully terminated (still have running/waiting containers)
+    if (p.status?.phase === 'Failed') {
+      const allTerminated = statuses.length > 0 && statuses.every((cs: any) => cs.state?.terminated);
+      return !allTerminated;
+    }
+    return false;
   }), [allPods]);
 
   const criticalAlerts = useMemo(() => firingAlerts.filter(a => a.metric.severity === 'critical'), [firingAlerts]);
