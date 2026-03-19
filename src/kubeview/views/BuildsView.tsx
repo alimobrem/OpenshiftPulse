@@ -11,6 +11,7 @@ import { useK8sListWatch } from '../hooks/useK8sListWatch';
 import { k8sCreate, k8sGet } from '../engine/query';
 import { useQuery } from '@tanstack/react-query';
 import { Panel } from '../components/primitives/Panel';
+import { formatDuration, timeAgo } from '../engine/dateUtils';
 
 function getBuildStatus(build: any): { phase: string; color: string; icon: React.ReactNode } {
   const phase = build.status?.phase || 'Unknown';
@@ -30,33 +31,6 @@ function getBuildStatus(build: any): { phase: string; color: string; icon: React
     default:
       return { phase, color: 'text-slate-400', icon: <AlertTriangle className="w-4 h-4 text-slate-400" /> };
   }
-}
-
-function formatDuration(start: string, end?: string): string {
-  if (!start) return '—';
-  const startMs = new Date(start).getTime();
-  const endMs = end ? new Date(end).getTime() : Date.now();
-  const diff = Math.max(0, endMs - startMs);
-  if (diff < 1000) return '<1s';
-  const secs = Math.floor(diff / 1000);
-  if (secs < 60) return `${secs}s`;
-  const mins = Math.floor(secs / 60);
-  const remainSecs = secs % 60;
-  if (mins < 60) return `${mins}m ${remainSecs}s`;
-  const hrs = Math.floor(mins / 60);
-  return `${hrs}h ${mins % 60}m`;
-}
-
-function timeAgo(ts: string): string {
-  if (!ts) return '—';
-  const diff = Date.now() - new Date(ts).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
 }
 
 export default function BuildsView() {

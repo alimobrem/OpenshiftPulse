@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { k8sList, k8sGet, k8sDelete } from '../engine/query';
 import { ConfirmDialog } from '../components/feedback/ConfirmDialog';
 import type { K8sResource } from '../engine/renderers';
+import { formatAge } from '../engine/dateUtils';
 import { useUIStore } from '../store/uiStore';
 import { useNavigateTab } from '../hooks/useNavigateTab';
 
@@ -413,16 +414,6 @@ export default function UserManagementView() {
       </div>
     </div>
   );
-}
-
-function formatAge(date: Date): string {
-  const ms = Date.now() - date.getTime();
-  const mins = Math.floor(ms / 60000);
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
 }
 
 // ===== Identity & Access Audit =====

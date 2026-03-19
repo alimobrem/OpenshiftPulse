@@ -8,6 +8,7 @@ import { useNavigateTab } from '../hooks/useNavigateTab';
 import { useK8sListWatch } from '../hooks/useK8sListWatch';
 import { useUIStore } from '../store/uiStore';
 import { Panel } from '../components/primitives/Panel';
+import { timeAgo } from '../engine/dateUtils';
 
 interface CRDResource {
   metadata: { name: string; uid: string; creationTimestamp: string };
@@ -22,18 +23,6 @@ interface CRDResource {
     conditions?: Array<{ type: string; status: string; message?: string }>;
     storedVersions?: string[];
   };
-}
-
-function timeAgo(ts: string): string {
-  if (!ts) return '—';
-  const diff = Date.now() - new Date(ts).getTime();
-  const days = Math.floor(diff / 86400000);
-  if (days > 365) return `${Math.floor(days / 365)}y`;
-  if (days > 30) return `${Math.floor(days / 30)}mo`;
-  if (days > 0) return `${days}d`;
-  const hrs = Math.floor(diff / 3600000);
-  if (hrs > 0) return `${hrs}h`;
-  return '<1h';
 }
 
 export default function CRDsView() {
