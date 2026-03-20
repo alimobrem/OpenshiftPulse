@@ -50,6 +50,7 @@ export default function PodTerminal({ namespace, podName, containerName, onClose
 
   const handleClear = () => {
     setLines([{ type: 'system', text: 'Terminal cleared', timestamp: timestamp() }]);
+    setTimeout(() => inputRef.current?.focus(), 0);
   };
 
   const execCommand = useCallback(async (cmd: string) => {
@@ -142,6 +143,7 @@ export default function PodTerminal({ namespace, podName, containerName, onClose
     } finally {
       setRunning(false);
       setCommand('');
+      setTimeout(() => inputRef.current?.focus(), 0);
     }
   }, [namespace, podName, containerName, running]);
 
