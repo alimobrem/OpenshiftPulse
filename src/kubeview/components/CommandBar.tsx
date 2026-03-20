@@ -17,6 +17,7 @@ export function CommandBar() {
   const [showImpersonateInput, setShowImpersonateInput] = useState(false);
   const [impersonateInput, setImpersonateInput] = useState('');
   const impersonateUser = useUIStore((s) => s.impersonateUser);
+  const isHyperShift = useClusterStore((s) => s.isHyperShift);
 
   const selectedNamespace = useUIStore((s) => s.selectedNamespace);
   const setSelectedNamespace = useUIStore((s) => s.setSelectedNamespace);
@@ -138,6 +139,9 @@ export function CommandBar() {
           </span>
           {clusterInfo?.platform && (
             <span className="text-xs text-slate-500 hidden xl:inline">{clusterInfo.platform}</span>
+          )}
+          {isHyperShift && (
+            <span className="text-xs px-1.5 py-0.5 bg-blue-900/60 text-blue-300 rounded border border-blue-700/50 hidden lg:inline" title="Control plane managed externally. etcd, API server, and scheduler run in a management cluster.">Hosted</span>
           )}
         </div>
 

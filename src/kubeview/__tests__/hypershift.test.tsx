@@ -95,6 +95,26 @@ describe('HyperShift detection - clusterStore', () => {
   });
 });
 
+describe('HyperShift UI - CommandBar topology badge', () => {
+  let CommandBar: any;
+  beforeEach(async () => {
+    const mod = await import('../components/CommandBar');
+    CommandBar = mod.CommandBar;
+  });
+
+  it('shows "Hosted" badge in CommandBar when HyperShift', () => {
+    useClusterStore.setState({ isHyperShift: true, controlPlaneTopology: 'External' });
+    qcWrap(<CommandBar />);
+    expect(screen.getByText('Hosted')).toBeDefined();
+  });
+
+  it('does not show "Hosted" badge on traditional cluster', () => {
+    useClusterStore.setState({ isHyperShift: false, controlPlaneTopology: 'HighlyAvailable' });
+    qcWrap(<CommandBar />);
+    expect(screen.queryByText('Hosted')).toBeNull();
+  });
+});
+
 describe('HyperShift UI - ReportTab', () => {
   // Lazy import to ensure mocks are in place
   let ReportTab: any;
@@ -236,5 +256,11 @@ describe('HyperShift UI - ComputeView health audit', () => {
     useClusterStore.setState({ isHyperShift: true, controlPlaneTopology: 'External' });
     qcWrap(<ComputeView />);
     expect(screen.queryByText('Cluster Autoscaling')).toBeNull();
+  });
+
+  it('shows Dedicated Worker Nodes (not Worker Nodes) on traditional cluster', () => {
+    useClusterStore.setState({ isHyperShift: false, controlPlaneTopology: 'HighlyAvailable' });
+    qcWrap(<ComputeView />);
+    expect(screen.getByText('Dedicated Worker Nodes')).toBeDefined();
   });
 });

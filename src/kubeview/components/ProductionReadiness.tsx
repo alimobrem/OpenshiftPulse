@@ -71,12 +71,14 @@ export default function ProductionReadiness() {
     queryKey: ['k8s', 'list', '/apis/machine.openshift.io/v1beta1/machinehealthchecks'],
     queryFn: () => k8sList('/apis/machine.openshift.io/v1beta1/machinehealthchecks').catch(() => []),
     staleTime: 60000,
+    enabled: !isHyperShift,
   });
 
   const { data: clusterAutoscaler = [] } = useQuery<any[]>({
     queryKey: ['k8s', 'list', '/apis/autoscaling.openshift.io/v1/clusterautoscalers'],
     queryFn: () => k8sList('/apis/autoscaling.openshift.io/v1/clusterautoscalers').catch(() => []),
     staleTime: 60000,
+    enabled: !isHyperShift,
   });
 
   const { data: kubeadminSecret } = useQuery({

@@ -53,30 +53,35 @@ export default function ComputeView() {
     queryKey: ['k8s', 'list', '/apis/machine.openshift.io/v1beta1/machines'],
     queryFn: () => k8sList('/apis/machine.openshift.io/v1beta1/machines').catch(() => []),
     staleTime: 60000,
+    enabled: !isHyperShift,
   });
 
   const { data: machineSets = [] } = useQuery<K8sResource[]>({
     queryKey: ['k8s', 'list', '/apis/machine.openshift.io/v1beta1/machinesets'],
     queryFn: () => k8sList('/apis/machine.openshift.io/v1beta1/machinesets').catch(() => []),
     staleTime: 60000,
+    enabled: !isHyperShift,
   });
 
   const { data: healthChecks = [] } = useQuery<K8sResource[]>({
     queryKey: ['k8s', 'list', '/apis/machine.openshift.io/v1beta1/machinehealthchecks'],
     queryFn: () => k8sList('/apis/machine.openshift.io/v1beta1/machinehealthchecks').catch(() => []),
     staleTime: 60000,
+    enabled: !isHyperShift,
   });
 
   const { data: machineAutoscalers = [] } = useQuery<K8sResource[]>({
     queryKey: ['k8s', 'list', '/apis/autoscaling.openshift.io/v1beta1/machineautoscalers'],
     queryFn: () => k8sList('/apis/autoscaling.openshift.io/v1beta1/machineautoscalers').catch(() => []),
     staleTime: 60000,
+    enabled: !isHyperShift,
   });
 
   const { data: clusterAutoscaler = [] } = useQuery<K8sResource[]>({
     queryKey: ['k8s', 'list', '/apis/autoscaling.openshift.io/v1/clusterautoscalers'],
     queryFn: () => k8sList('/apis/autoscaling.openshift.io/v1/clusterautoscalers').catch(() => []),
     staleTime: 60000,
+    enabled: !isHyperShift,
   });
 
   // Per-node CPU usage from Prometheus

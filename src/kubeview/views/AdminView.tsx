@@ -11,6 +11,7 @@ import { useK8sListWatch } from '../hooks/useK8sListWatch';
 import type { K8sResource } from '../engine/renderers';
 import { useNavigateTab } from '../hooks/useNavigateTab';
 import { useUIStore } from '../store/uiStore';
+import { useClusterStore } from '../store/clusterStore';
 import { K8S_BASE as BASE } from '../engine/gvr';
 import ClusterConfig from '../components/ClusterConfig';
 const TimelineViewLazy = React.lazy(() => import('./TimelineView'));
@@ -146,8 +147,8 @@ export default function AdminView() {
   const cvChannel = clusterVersion?.spec?.channel || '';
   const platform = infra?.status?.platform || infra?.status?.platformStatus?.type || '';
   const apiUrl = infra?.status?.apiServerURL || '';
-  const controlPlaneTopology = infra?.status?.controlPlaneTopology || '';
-  const isHyperShift = controlPlaneTopology === 'External';
+  const controlPlaneTopology = useClusterStore((s) => s.controlPlaneTopology) || infra?.status?.controlPlaneTopology || '';
+  const isHyperShift = useClusterStore((s) => s.isHyperShift);
   const availableUpdates = clusterVersion?.status?.availableUpdates || [];
   const isUpdating = (clusterVersion?.status?.conditions || []).some((c: any) => c.type === 'Progressing' && c.status === 'True');
 
