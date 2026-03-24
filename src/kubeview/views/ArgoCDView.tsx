@@ -8,6 +8,7 @@ import { k8sPatch } from '../engine/query';
 import { useUIStore } from '../store/uiStore';
 import { Card } from '../components/primitives/Card';
 import { MetricGrid } from '../components/primitives/MetricGrid';
+import { useGitOpsConfig } from '../hooks/useGitOpsConfig';
 import { ApplicationsTab } from './argocd/ApplicationsTab';
 import { SyncHistoryTab } from './argocd/SyncHistoryTab';
 import { DriftTab } from './argocd/DriftTab';
@@ -19,6 +20,7 @@ export default function ArgoCDView() {
   const addToast = useUIStore((s) => s.addToast);
   const { available, detecting, applications, applicationsLoading, namespace } = useArgoCD();
   const refresh = useArgoCDRefresh();
+  const { isConfigured } = useGitOpsConfig();
   const [activeTab, setActiveTab] = React.useState<Tab>('applications');
   const [syncing, setSyncing] = React.useState<string | null>(null);
 
@@ -136,6 +138,34 @@ export default function ArgoCDView() {
             </div>
           </Card>
         </MetricGrid>
+
+        {/* Git repo setup guidance when not configured */}
+        {!isConfigured && (
+          <Card className="p-5">
+            <div className="flex items-start gap-4">
+              <div className="w-8 h-8 rounded-full bg-violet-600/20 flex items-center justify-center shrink-0">
+                <GitBranch className="w-4 h-4 text-violet-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-slate-100 mb-1">Connect your Git repository</h3>
+                <p className="text-xs text-slate-400 mb-3">
+                  Configure your Git provider to enable auto-PR when editing resources, catch-up PRs for urgent changes, and full drift tracking between Git and cluster state.
+                </p>
+                <div className="flex flex-wrap gap-4 text-xs text-slate-500 mb-3">
+                  <span><span className="text-emerald-400">1.</span> Create a Git repo for your K8s manifests</span>
+                  <span><span className="text-emerald-400">2.</span> Generate a personal access token</span>
+                  <span><span className="text-emerald-400">3.</span> Configure in Admin → GitOps</span>
+                </div>
+                <button
+                  onClick={() => go('/admin?tab=gitops', 'Admin')}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs bg-violet-600 hover:bg-violet-500 text-white rounded transition-colors"
+                >
+                  Configure Git Provider <ArrowRight className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Tabs */}
         <Card className="flex gap-1 p-1">
