@@ -18,6 +18,7 @@ import { resourceDetailUrl } from '../../engine/gvr';
 import type { K8sResource } from '../../engine/renderers';
 import type { Node, Pod, ClusterOperator, ClusterVersion, Condition, ContainerStatus, Event, Secret } from '../../engine/types';
 import { useClusterStore } from '../../store/clusterStore';
+import { useArgoCDStore } from '../../store/argoCDStore';
 import { Card } from '../../components/primitives/Card';
 
 /** ResourceQuota resource */
@@ -400,6 +401,12 @@ export function ReportTab({ nodes, allPods, deployments, pvcs, operators, go }: 
       items.push({ severity: 'warning', title: `${p.metadata.name} — ${reason}`, detail: p.metadata.namespace || '', path: `/r/v1~pods/${p.metadata.namespace}/${p.metadata.name}`, pathTitle: p.metadata.name, steps });
     }
     for (const c of certsExpiringSoon7) items.push({ severity: 'critical', title: `Cert ${c.name} expires in ${c.daysUntilExpiry}d`, detail: c.namespace, path: `/r/v1~secrets/${c.namespace}/${c.name}`, pathTitle: c.name });
+    // ArgoCD drift
+    const argoApps = useArgoCDStore.getState().applications;
+    const outOfSync = argoApps.filter(a => a.status?.sync?.status === 'OutOfSync');
+    if (outOfSync.length > 0) {
+      items.push({ severity: 'warning', title: `${outOfSync.length} ArgoCD app${outOfSync.length > 1 ? 's' : ''} out of sync`, detail: outOfSync.map(a => a.metadata.name).slice(0, 3).join(', '), path: '/gitops', pathTitle: 'GitOps' });
+    }
     return items;
   }, [degradedOperators, unhealthyNodes, criticalAlerts, failedPods, certsExpiringSoon7]);
 

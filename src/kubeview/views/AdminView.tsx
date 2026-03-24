@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Settings, Puzzle, Shield, Database,
+  Settings, Puzzle, Shield, Database, GitBranch,
   ArrowUpCircle, Clock, Loader2, GitCompare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -23,6 +23,7 @@ import { OperatorsTab } from './admin/OperatorsTab';
 import { UpdatesTab } from './admin/UpdatesTab';
 import { SnapshotsTab } from './admin/SnapshotsTab';
 import { loadSnapshots } from '../engine/snapshot';
+import { GitOpsConfig } from '../components/GitOpsConfig';
 
 /** OpenShift Infrastructure resource (config.openshift.io/v1) */
 interface Infrastructure extends K8sResource {
@@ -72,7 +73,7 @@ interface AvailableUpdate {
   risks?: Array<{ name?: string; message?: string }>;
 }
 
-type Tab = 'overview' | 'readiness' | 'operators' | 'config' | 'updates' | 'snapshots' | 'quotas' | 'certificates' | 'timeline';
+type Tab = 'overview' | 'readiness' | 'operators' | 'config' | 'updates' | 'snapshots' | 'quotas' | 'certificates' | 'gitops' | 'timeline';
 
 // --- Main component ---
 
@@ -379,6 +380,7 @@ export default function AdminView() {
     { id: 'snapshots', label: `Snapshots (${savedSnapshots.length})`, icon: <GitCompare className="w-3.5 h-3.5" /> },
     { id: 'quotas', label: `Quotas (${quotas.length})`, icon: <Shield className="w-3.5 h-3.5" /> },
     { id: 'certificates', label: 'Certificates', icon: <Shield className="w-3.5 h-3.5" /> },
+    { id: 'gitops', label: 'GitOps', icon: <GitBranch className="w-3.5 h-3.5" /> },
     { id: 'timeline', label: 'Timeline', icon: <Clock className="w-3.5 h-3.5" /> },
   ];
 
@@ -478,6 +480,9 @@ export default function AdminView() {
 
         {/* ===== CERTIFICATES ===== */}
         {activeTab === 'certificates' && <CertificatesTab go={go} />}
+
+        {/* ===== GITOPS ===== */}
+        {activeTab === 'gitops' && <GitOpsConfig />}
 
         {/* ===== TIMELINE ===== */}
         {activeTab === 'timeline' && (

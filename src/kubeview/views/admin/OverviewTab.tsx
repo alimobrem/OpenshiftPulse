@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  Settings, Server, Shield, ArrowRight,
+  Settings, Server, Shield, ArrowRight, Activity,
   CheckCircle, XCircle, RefreshCw,
   ArrowUpCircle, AlertTriangle, AlertCircle,
 } from 'lucide-react';
@@ -11,6 +11,7 @@ import { Panel } from '../../components/primitives/Panel';
 import { Card } from '../../components/primitives/Card';
 import { InfoCard } from '../../components/primitives/InfoCard';
 import { formatMem } from '../../engine/formatting';
+import { ControlPlaneMetrics } from '../../components/metrics/ControlPlaneMetrics';
 
 /** OpenShift operator resource (operator.openshift.io/v1) */
 interface OperatorResource extends K8sResource {
@@ -262,6 +263,11 @@ export function OverviewTab({
           )}
         </div>
       )}
+
+      {/* Control Plane Metrics */}
+      <Panel title="Control Plane Metrics" icon={<Activity className="w-4 h-4 text-blue-400" />}>
+        <ControlPlaneMetrics />
+      </Panel>
 
       {/* Cluster Capacity */}
       <Panel title="Cluster Capacity" icon={<Server className="w-4 h-4 text-cyan-500" />}>

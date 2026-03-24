@@ -1,5 +1,46 @@
 # Changelog
 
+## [4.3.0] - 2026-03-24
+
+### Added
+- **ArgoCD deep integration** — 5-phase implementation: auto-detection, sync badges on every resource, `/gitops` view (Applications, Sync History, Drift Detection), Git provider abstraction (GitHub/GitLab/Bitbucket), three-option save dialog (Apply+PR / PR Only / Apply Only)
+- **NodePool visibility for HyperShift** — Real NodePool panel replaces static info card, shows instance type, autoscaling, auto-repair, conditions. NodePool Health audit check.
+- **Incident Correlation Timeline** — Unified timeline merging Prometheus alerts, K8s events, deployment rollouts, and ClusterVersion/Operator config changes with correlation groups
+- **Admin Overview redesign** — Firing alerts banner, named degraded operators, recent Warning events, certificate expiry warnings, quota hot spots, cluster health score, loading/error states
+- **Control Plane Metrics** — API server latency (p99), error rate, etcd leader status, WAL fsync duration sparklines
+- **Helm chart** — One-command deployment with auto-generated OAuth secrets (`deploy/helm/openshiftpulse/`)
+- **SECURITY.md** — Comprehensive security documentation (model, audit, RBAC, hardening, checklist)
+- **GitOps config tab** in Admin view for configuring Git provider, repo, and token
+
+### Changed
+- **Typed K8s interfaces** — 50+ interfaces in `engine/types/`, reduced `as any` from 179 to 5 (97%)
+- **AdminView split** — 1412→488 lines, extracted OverviewTab, OperatorsTab, UpdatesTab, SnapshotsTab
+- **CSS cleanup** — Removed dead PatternFly deps (4 packages), centralized chart colors (`engine/colors.ts`), Card primitive adopted (89 replacements), terminal theme extracted to CSS variables
+- **Container images** — All Red Hat UBI (replaced Docker Hub nginx), pinned tags (ose-oauth-proxy:v4.17, nginx:1.26-ubi9)
+- **Dependencies** — Replaced deprecated `xterm` with `@xterm/xterm`, resolved 6 high-severity CVEs, npm audit: 0 vulnerabilities
+- **Logo** — Replaced "P" letter with pulse/heartbeat line design
+- **README** — Professional redesign with comparison table, collapsible sections, for-the-badge badges
+
+### Fixed
+- Back button uses browser history instead of hardcoded list path
+- Quota parsing uses `parseResourceValue` for correct K8s quantity units (was showing 30000%)
+- SecurityView adapted for HyperShift (skips TLS/encryption checks managed externally)
+- Cluster-admin threshold now a named constant (was hardcoded 3)
+- Alert filter state persisted in URL search params
+- Deployments sorted unhealthy-first in WorkloadsView
+- Multiple audit checks expandable simultaneously (Set instead of string)
+- Channel selector uses dropdown instead of free-text input
+- `parseQuantity` handles Ei, Pi, and decimal SI units
+- CPU metrics use `kube_node_info` join for reliable node name matching
+
+### Stats
+- **1308 tests** across 76 test files (up from 1162/63 in v4.1.0)
+- **77 health checks** (31 cluster + 46 domain)
+- **15 views**, 35 routes
+- **0 npm CVEs**
+
+---
+
 ## [4.1.0] - 2026-03-19
 
 ### Added
