@@ -1,0 +1,127 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openshiftpulse
+  namespace: {{ include "openshiftpulse.namespace" . }}
+  labels:
+    {{- include "openshiftpulse.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      {{- include "openshiftpulse.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "openshiftpulse.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: openshiftpulse
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            {{- include "openshiftpulse.selectorLabels" . | nindent 12 }}
+      containers:
+      - name: oauth-proxy
+        image: {{ .Values.oauthProxy.image }}
+        args:
+        - --https-address=:8443
+        - --provider=openshift
+        - --client-id=openshiftpulse
+        - --client-secret-file=/etc/oauth/client-secret
+        - --upstream=http://localhost:8080
+        - --tls-cert=/etc/tls/private/tls.crt
+        - --tls-key=/etc/tls/private/tls.key
+        - --cookie-secret-file=/etc/oauth/cookie-secret
+        - --pass-access-token=true
+        - --pass-basic-auth=false
+        - --scope=user:full
+        - --openshift-delegate-urls={"/api/kubernetes/":{"resource":"namespaces","verb":"list"}}
+        ports:
+        - containerPort: 8443
+          name: https
+        volumeMounts:
+        - name: proxy-tls
+          mountPath: /etc/tls/private
+        - name: oauth-secrets
+          mountPath: /etc/oauth
+          readOnly: true
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: [ALL]
+        resources:
+          {{- toYaml .Values.resources.oauthProxy | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /oauth/healthz
+            port: 8443
+            scheme: HTTPS
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /oauth/healthz
+            port: 8443
+            scheme: HTTPS
+          initialDelaySeconds: 5
+          periodSeconds: 10
+      - name: openshiftpulse
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command: ["nginx", "-g", "daemon off;"]
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+        - name: nginx-tmp
+          mountPath: /tmp
+        - name: nginx-log
+          mountPath: /var/log/nginx
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: [ALL]
+        resources:
+          {{- toYaml .Values.resources.app | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 3
+          periodSeconds: 10
+      volumes:
+      - name: proxy-tls
+        secret:
+          secretName: openshiftpulse-proxy-tls
+      - name: oauth-secrets
+        secret:
+          secretName: openshiftpulse-oauth-secrets
+      - name: nginx-config
+        configMap:
+          name: openshiftpulse-nginx
+      - name: nginx-tmp
+        emptyDir: {}
+      - name: nginx-log
+        emptyDir: {}

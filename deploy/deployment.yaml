@@ -197,7 +197,7 @@ data:
       server {
         listen 8080;
         server_name _;
-        root /usr/share/nginx/html;
+        root /opt/app-root/src;
         index index.html;
         gzip on;
         gzip_types text/plain text/css application/json application/javascript text/xml;

@@ -1,0 +1,48 @@
+# OpenShift Pulse Helm Values
+
+replicas: 2
+
+image:
+  # For internal registry builds, leave as-is. For external images, set the full image ref.
+  repository: image-registry.openshift-image-registry.svc:5000/openshiftpulse/openshiftpulse
+  tag: latest
+  pullPolicy: Always
+
+# OAuth proxy sidecar
+oauthProxy:
+  image: registry.redhat.io/openshift4/ose-oauth-proxy:latest
+  # Secrets are auto-generated on first install if not provided
+  clientSecret: ""
+  cookieSecret: ""
+
+# Route configuration
+route:
+  enabled: true
+  # Host is auto-detected from the cluster. Override if needed.
+  host: ""
+
+# Resource limits
+resources:
+  app:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+  oauthProxy:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+
+# Quota for the namespace
+quota:
+  enabled: true
+  pods: "10"
+  requestsCpu: "1"
+  requestsMemory: 1Gi
+  limitsCpu: "2"
+  limitsMemory: 2Gi
