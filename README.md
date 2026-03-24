@@ -10,8 +10,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/alimobrem/OpenshiftPulse/releases/tag/v4.2.0"><img src="https://img.shields.io/badge/release-v4.2.0-2563eb?style=for-the-badge" alt="Version"></a>
-  <img src="https://img.shields.io/badge/tests-1269%20passed-10b981?style=for-the-badge" alt="Tests">
+  <a href="https://github.com/alimobrem/OpenshiftPulse/releases/tag/v4.3.0"><img src="https://img.shields.io/badge/release-v4.3.0-2563eb?style=for-the-badge" alt="Version"></a>
+  <img src="https://img.shields.io/badge/tests-1308%20passed-10b981?style=for-the-badge" alt="Tests">
   <img src="https://img.shields.io/badge/health%20checks-77-f59e0b?style=for-the-badge" alt="Health Checks">
   <img src="https://img.shields.io/badge/CVEs-0-10b981?style=for-the-badge" alt="CVEs">
   <img src="https://img.shields.io/badge/license-MIT-6366f1?style=for-the-badge" alt="License">
@@ -35,6 +35,7 @@ Real-time Kubernetes dashboard built with React, TypeScript, and WebSocket watch
 | | OpenShift Console | Lens | Rancher | **Pulse** |
 |---|:---:|:---:|:---:|:---:|
 | 77 automated health checks with YAML fixes | | | | **Yes** |
+| ArgoCD integration with auto-PR on save | | | | **Yes** |
 | Incident correlation timeline | | | | **Yes** |
 | Production readiness score | | | | **Yes** |
 | HyperShift / ROSA native | Partial | | | **Yes** |
@@ -86,6 +87,7 @@ npm run dev    # http://localhost:9000
 | **Daily Briefing** | Risk score ring, control plane status, certificate expiry, attention items with remediation steps |
 | **Incident Timeline** | Unified timeline merging alerts, events, rollouts, and config changes with correlation groups |
 | **Admin Overview** | Firing alerts, named degraded operators, cert warnings, quota hot spots, health score — the 8am view |
+| **ArgoCD / GitOps** | Sync status badges on every resource, three-option save (Apply+PR / PR Only / Apply Only), Application management, drift detection. Supports GitHub, GitLab, Bitbucket. Graceful degradation on non-ArgoCD clusters |
 | **HyperShift** | Auto-detects hosted control planes, adapts checks, hides irrelevant Machine API panels |
 | **Production Readiness** | 31-check automated score across infrastructure, security, observability, reliability |
 | **Security** | 10 audit checks incl. ACS/StackRox detection, HyperShift-adapted. [Full details](SECURITY.md) |
@@ -112,7 +114,7 @@ npm run dev    # http://localhost:9000
 | **Smart Diagnosis** | 10 error patterns from pod logs with specific fix suggestions |
 | **Auto-Generated Tables** | Sortable, searchable, j/k navigation, CSV/JSON export |
 
-### Views (14)
+### Views (15)
 
 | View | Highlights |
 |------|-----------|
@@ -128,6 +130,7 @@ npm run dev    # http://localhost:9000
 | **User Management** | Users/groups/SAs, impersonation, identity audit |
 | **CRDs** | Browse by API group, search, filter |
 | **Security** | 10 checks, SCC audit, ACS detection |
+| **GitOps** | ArgoCD Applications, sync history, drift detection, trigger sync |
 | **Admin** | 9 tabs: Overview, Readiness, Operators, Config, Updates, Snapshots, Quotas, Certificates, Timeline |
 
 ---
@@ -141,7 +144,7 @@ npm run dev    # http://localhost:9000
 | **State** | Zustand + TanStack Query | Client + server state separation |
 | **Real-time** | WebSocket watches | Instant updates, 60s polling fallback |
 | **Styling** | Tailwind CSS 3.4 | Utility-first, dark-mode only |
-| **Testing** | Vitest + jsdom | 1269 tests in ~3s |
+| **Testing** | Vitest + jsdom | 1308 tests in ~4s |
 | **Charts** | Pure SVG sparklines | Zero chart library dependency |
 | **Security** | Red Hat UBI images | 0 CVEs, all images from Red Hat registries |
 
@@ -236,7 +239,7 @@ npm install          # Install dependencies
 cp .env.example .env # Configure cluster URLs (optional)
 oc proxy --port=8001 & # Start API proxy
 npm run dev          # Dev server on port 9000
-npm test             # 1269 tests in ~3s
+npm test             # 1308 tests in ~3s
 npm run build        # Production build (~1s)
 npm run type-check   # TypeScript checking
 ```
@@ -255,7 +258,7 @@ npm run type-check   # TypeScript checking
 src/kubeview/
 ├── engine/              # Query, discovery, watch, snapshot, timeline
 │   └── types/           # 50+ typed K8s interfaces
-├── views/               # 14 views + admin tabs
+├── views/               # 15 views + admin tabs
 │   └── admin/           # Overview, Operators, Updates, Snapshots, Quotas, Certificates
 ├── components/          # Panel, Card, InfoCard, MetricGrid, YamlEditor, Terminal, Dock
 ├── hooks/               # useK8sListWatch, useCanI, useIncidentTimeline
@@ -283,7 +286,7 @@ Browser --> OAuth Proxy (8443/TLS) --> nginx (8080) --> K8s API / Prometheus / A
 ---
 
 <p align="center">
-  <strong>1269 tests</strong> &bull; <strong>77 health checks</strong> &bull; <strong>~1s builds</strong> &bull; <strong>0 CVEs</strong> &bull; <strong>14 views</strong> &bull; <strong>500+ operators</strong>
+  <strong>1308 tests</strong> &bull; <strong>77 health checks</strong> &bull; <strong>~1s builds</strong> &bull; <strong>0 CVEs</strong> &bull; <strong>15 views</strong> &bull; <strong>500+ operators</strong>
 </p>
 
 <p align="center">
