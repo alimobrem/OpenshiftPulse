@@ -79,6 +79,29 @@ export function makeNode(name: string): Node {
   };
 }
 
+import type { ArgoApplication } from '../engine/types';
+
+export function makeArgoApplication(name: string, ns = 'openshift-gitops', syncStatus: 'Synced' | 'OutOfSync' = 'Synced'): ArgoApplication {
+  return {
+    apiVersion: 'argoproj.io/v1alpha1',
+    kind: 'Application',
+    metadata: { name, namespace: ns, uid: `argoapp-${name}`, creationTimestamp: '2026-01-01T00:00:00Z' },
+    spec: {
+      source: { repoURL: 'https://github.com/org/gitops-repo', path: `apps/${name}`, targetRevision: 'main' },
+      destination: { server: 'https://kubernetes.default.svc', namespace: 'default' },
+      project: 'default',
+    },
+    status: {
+      sync: { status: syncStatus, revision: 'abc1234def5678' },
+      health: { status: 'Healthy' },
+      resources: [
+        { group: 'apps', version: 'v1', kind: 'Deployment', namespace: 'default', name: `${name}-deploy`, status: syncStatus },
+        { group: '', version: 'v1', kind: 'Service', namespace: 'default', name: `${name}-svc`, status: syncStatus },
+      ],
+    },
+  };
+}
+
 export function wrapList(apiVersion: string, kind: string, items: any[]) {
   return {
     apiVersion,

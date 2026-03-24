@@ -48,6 +48,9 @@ export type { StorageClass, VolumeSnapshot, CSIDriver } from './storage';
 // Timeline
 export type { TimelineEntry, TimelineCategory, TimelineSeverity, CorrelationGroup } from './timeline';
 
+// ArgoCD (only present on clusters with ArgoCD/OpenShift GitOps)
+export type { ArgoApplication, ArgoSource, ArgoManagedResource, ArgoSyncHistoryEntry, ArgoAppProject, ArgoSyncStatus, ArgoHealthStatus, ArgoSyncInfo } from './argocd';
+
 // Union of all typed resources
 export type TypedK8sResource =
   | import('./core').Pod
