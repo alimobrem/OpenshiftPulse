@@ -1,0 +1,94 @@
+/**
+ * @vitest-environment jsdom
+ */
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useArgoCDStore } from '../../store/argoCDStore';
+
+// Mock query module
+vi.mock('../../engine/query', () => ({
+  k8sList: vi.fn().mockResolvedValue([]),
+  k8sGet: vi.fn().mockResolvedValue(null),
+  k8sPatch: vi.fn().mockResolvedValue({}),
+}));
+
+// Mock useNavigateTab
+vi.mock('../../hooks/useNavigateTab', () => ({
+  useNavigateTab: () => vi.fn(),
+}));
+
+// Mock useArgoCD to prevent auto-detection overriding store state
+const mockUseArgoCD = vi.fn();
+vi.mock('../../hooks/useArgoCD', () => ({
+  useArgoCD: () => mockUseArgoCD(),
+  useArgoCDRefresh: () => vi.fn(),
+}));
+
+// Mock useUIStore
+vi.mock('../../store/uiStore', () => ({
+  useUIStore: Object.assign((selector: (s: any) => any) => {
+    const state = { addToast: vi.fn(), selectedNamespace: '*' };
+    return selector(state);
+  }, { getState: () => ({ impersonateUser: '', impersonateGroups: [] }) }),
+}));
+
+import ArgoCDView from '../ArgoCDView';
+
+function renderView() {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={qc}>
+      <MemoryRouter>
+        <ArgoCDView />
+      </MemoryRouter>
+    </QueryClientProvider>
+  );
+}
+
+describe('ArgoCDView', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('shows not-installed message when ArgoCD is unavailable', () => {
+    mockUseArgoCD.mockReturnValue({ available: false, detecting: false, applications: [], applicationsLoading: false, namespace: null });
+    renderView();
+    expect(screen.getByText('ArgoCD is not installed on this cluster')).toBeDefined();
+  });
+
+  it('renders GitOps heading when ArgoCD is available', () => {
+    mockUseArgoCD.mockReturnValue({ available: true, detecting: false, applications: [], applicationsLoading: false, namespace: 'openshift-gitops' });
+    renderView();
+    expect(screen.getByText('GitOps')).toBeDefined();
+  });
+
+  it('renders application count cards', () => {
+    const apps = [
+      { apiVersion: 'argoproj.io/v1alpha1', kind: 'Application', metadata: { name: 'app1', namespace: 'openshift-gitops', uid: '1' }, status: { sync: { status: 'Synced' }, health: { status: 'Healthy' }, resources: [] } },
+      { apiVersion: 'argoproj.io/v1alpha1', kind: 'Application', metadata: { name: 'app2', namespace: 'openshift-gitops', uid: '2' }, status: { sync: { status: 'OutOfSync' }, health: { status: 'Degraded' }, resources: [] } },
+    ];
+    mockUseArgoCD.mockReturnValue({ available: true, detecting: false, applications: apps, applicationsLoading: false, namespace: 'openshift-gitops' });
+    renderView();
+
+    // Tab + summary card both show application info
+    expect(screen.getAllByText(/Applications/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Out of Sync/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Degraded/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('renders tabs', () => {
+    mockUseArgoCD.mockReturnValue({ available: true, detecting: false, applications: [], applicationsLoading: false, namespace: 'openshift-gitops' });
+    renderView();
+    expect(screen.getAllByText(/Applications/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Sync History/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Drift/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('shows empty state when no applications', () => {
+    mockUseArgoCD.mockReturnValue({ available: true, detecting: false, applications: [], applicationsLoading: false, namespace: 'openshift-gitops' });
+    renderView();
+    expect(screen.getAllByText(/No ArgoCD Applications found/).length).toBeGreaterThanOrEqual(1);
+  });
+});
