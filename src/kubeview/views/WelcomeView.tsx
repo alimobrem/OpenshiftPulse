@@ -2,7 +2,7 @@ import React from 'react';
 import {
   ArrowRight, Shield, Bell, Settings,
   HardDrive, Package, Globe, Server, Puzzle, Users, Hammer,
-  Keyboard, CheckCircle, XCircle,
+  Keyboard, CheckCircle, XCircle, GitBranch, Clock,
   Github, HeartPulse, Search,
   FileCode, History, GitGraph, ScrollText, Camera,
   Diff, Monitor, Terminal,
@@ -106,6 +106,8 @@ export default function WelcomeView() {
             <ViewTile icon={<Users className="w-4 h-4 text-teal-400" />}    title="User Mgmt"     onClick={() => go('/users', 'Users')} />
             <ViewTile icon={<Shield className="w-4 h-4 text-violet-400" />} title="Access Control" onClick={() => go('/access-control', 'Access Control')} />
             <ViewTile icon={<Puzzle className="w-4 h-4 text-violet-400" />} title="CRDs"          onClick={() => go('/crds', 'CRDs')} />
+            <ViewTile icon={<GitBranch className="w-4 h-4 text-violet-400" />} title="GitOps"    onClick={() => go('/gitops', 'GitOps')} />
+            <ViewTile icon={<Clock className="w-4 h-4 text-blue-400" />} title="Timeline"        onClick={() => go('/admin?tab=timeline', 'Timeline')} />
           </div>
         </div>
 
@@ -126,7 +128,9 @@ export default function WelcomeView() {
             <CapabilityRow iconColor="text-amber-400" icon={<Camera className="w-4 h-4" />} title="Cluster Snapshots" description="Capture and compare cluster state over time — operators, CRDs, storage, RBAC" />
             <CapabilityRow iconColor="text-violet-400" icon={<Diff className="w-4 h-4" />} title="Resource Diffing" description="See exactly what changed before saving — YAML diff preview against the live version" />
             <CapabilityRow iconColor="text-emerald-400" icon={<Monitor className="w-4 h-4" />} title="Workload Audit" description="6 automated health checks per domain — limits, probes, PDBs, replicas, TLS" />
-            <CapabilityRow iconColor="text-indigo-400" icon={<Shield className="w-4 h-4" />} title="Security Audit" description="TLS, encryption, SCCs, network policies, secrets management — 9 checks" />
+            <CapabilityRow iconColor="text-indigo-400" icon={<Shield className="w-4 h-4" />} title="Security Audit" description="TLS, encryption, SCCs, network policies, ACS detection — 10 checks" />
+            <CapabilityRow iconColor="text-violet-400" icon={<GitBranch className="w-4 h-4" />} title="GitOps / ArgoCD" description="Sync badges, auto-PR on save, drift detection — supports GitHub, GitLab, Bitbucket" />
+            <CapabilityRow iconColor="text-blue-400" icon={<Clock className="w-4 h-4" />} title="Incident Timeline" description="Correlated alerts, events, rollouts, and config changes on a single timeline" />
             <CapabilityRow iconColor="text-orange-400" icon={<Terminal className="w-4 h-4" />} title="Pod Shell" description="Shell access to containers and nodes for live debugging" />
           </div>
         </div>
