@@ -9,6 +9,7 @@ import DeployProgress from '../../components/DeployProgress';
 import { ConfirmDialog } from '../../components/feedback/ConfirmDialog';
 import { FormField } from './FormField';
 import type { Secret } from '../../engine/types';
+import { Card } from '../../components/primitives/Card';
 
 /** HelmChartRepository CRD — not yet in engine/types, defined locally. */
 interface HelmChartRepository {
@@ -356,7 +357,7 @@ export function HelmTab() {
       )}
 
       {/* Repositories */}
-      <div className="bg-slate-900 rounded-lg border border-slate-800 p-4">
+      <Card className="p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
             <Ship className="w-4 h-4 text-blue-400" />
@@ -416,10 +417,10 @@ export function HelmTab() {
             </div>
           ))}
         </div>
-      </div>
+      </Card>
 
       {helmReleases.length > 0 && (
-        <div className="bg-slate-900 rounded-lg border border-slate-800 p-4">
+        <Card className="p-4">
           <h3 className="text-sm font-semibold text-slate-100 mb-3 flex items-center gap-2">
             <Ship className="w-4 h-4 text-blue-400" />
             Installed Releases ({helmReleases.length})
@@ -434,7 +435,7 @@ export function HelmTab() {
               </span>
             ))}
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Search */}

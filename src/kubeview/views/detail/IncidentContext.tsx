@@ -4,9 +4,11 @@ import { cn } from '@/lib/utils';
 import { ScrollText, Loader2 } from 'lucide-react';
 import { k8sLogs } from '../../engine/query';
 import { MetricCard } from '../../components/metrics/Sparkline';
+import { CHART_COLORS } from '../../engine/colors';
 import type { K8sResource } from '../../engine/renderers';
 import type { Pod, Event, Container, ContainerStatus } from '../../engine/types';
 import { useK8sListWatch } from '../../hooks/useK8sListWatch';
+import { Card } from '../../components/primitives/Card';
 
 export function IncidentContext({ resource, managedPods, events, namespace, go }: {
   resource: K8sResource;
@@ -100,7 +102,7 @@ export function IncidentContext({ resource, managedPods, events, namespace, go }
   if (!worstPod && !isPod) return null;
 
   return (
-    <div className="bg-slate-900 rounded-lg border border-slate-800">
+    <Card>
       <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
           <ScrollText className="w-4 h-4 text-amber-400" />
@@ -194,7 +196,7 @@ export function IncidentContext({ resource, managedPods, events, namespace, go }
                   ? `sum(rate(container_cpu_usage_seconds_total{${metricFilter},pod="${resource.metadata.name}",container!=""}[5m])) * 1000`
                   : `sum(rate(container_cpu_usage_seconds_total{${metricFilter},container!=""}[5m])) * 1000`}
                 unit="m"
-                color="#3b82f6"
+                color={CHART_COLORS.blue}
               />
               <MetricCard
                 title="Memory"
@@ -202,12 +204,12 @@ export function IncidentContext({ resource, managedPods, events, namespace, go }
                   ? `sum(container_memory_working_set_bytes{${metricFilter},pod="${resource.metadata.name}",container!=""}) / 1024 / 1024`
                   : `sum(container_memory_working_set_bytes{${metricFilter},container!=""}) / 1024 / 1024`}
                 unit=" Mi"
-                color="#8b5cf6"
+                color={CHART_COLORS.violet}
               />
             </div>
           </div>
         )}
       </div>
-    </div>
+    </Card>
   );
 }

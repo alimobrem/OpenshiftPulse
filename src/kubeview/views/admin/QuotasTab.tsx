@@ -7,6 +7,7 @@ import { parseResourceValue, formatResourceValue } from '../../engine/formatting
 import { Panel } from '../../components/primitives/Panel';
 import type { K8sResource } from '../../engine/renderers';
 import type { Namespace } from '../../engine/types';
+import { Card } from '../../components/primitives/Card';
 
 /** ResourceQuota resource */
 interface ResourceQuota extends K8sResource {
@@ -65,20 +66,20 @@ export function QuotasTab({ quotas, limitRanges, go }: { quotas: K8sResource[]; 
     <div className="space-y-6">
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="bg-slate-900 rounded-lg border border-slate-800 p-3">
+        <Card className="p-3">
           <div className="text-xs text-slate-400 mb-1">Resource Quotas</div>
           <div className="text-xl font-bold text-slate-100">{quotas.length}</div>
           <div className="text-xs text-slate-500 mt-0.5">{quotaNamespaces.size} namespace{quotaNamespaces.size !== 1 ? 's' : ''}</div>
-        </div>
-        <div className="bg-slate-900 rounded-lg border border-slate-800 p-3">
+        </Card>
+        <Card className="p-3">
           <div className="text-xs text-slate-400 mb-1">Limit Ranges</div>
           <div className="text-xl font-bold text-slate-100">{limitRanges.length}</div>
           <div className="text-xs text-slate-500 mt-0.5">{lrNamespaces.size} namespace{lrNamespaces.size !== 1 ? 's' : ''}</div>
-        </div>
-        <div className="bg-slate-900 rounded-lg border border-slate-800 p-3">
+        </Card>
+        <Card className="p-3">
           <div className="text-xs text-slate-400 mb-1">User Namespaces</div>
           <div className="text-xl font-bold text-slate-100">{userNamespaces.length}</div>
-        </div>
+        </Card>
         <div className={cn('bg-slate-900 rounded-lg border p-3', unprotectedNs.length > 0 ? 'border-yellow-800' : 'border-slate-800')}>
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs text-slate-400">Unprotected</span>

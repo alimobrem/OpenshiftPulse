@@ -6,9 +6,11 @@ import {
   ChevronDown, ChevronRight, HardDrive, Play, Pause, Square,
 } from 'lucide-react';
 import { MetricCard } from '../../components/metrics/Sparkline';
+import { CHART_COLORS } from '../../engine/colors';
 import { sanitizePromQL } from '../../engine/query';
 import type { K8sResource } from '../../engine/renderers';
 import type { Pod, Container, ContainerPort, ContainerStatus, VolumeMount, Probe } from '../../engine/types';
+import { Card } from '../../components/primitives/Card';
 
 interface PodSummaryProps {
   resource: K8sResource;
@@ -104,34 +106,34 @@ export function PodSummary({ resource, go }: PodSummaryProps) {
           <div className="text-xs text-slate-500 mt-0.5">{readyCount}/{containers.length} ready</div>
         </div>
 
-        <div className="bg-slate-900 rounded-lg border border-slate-800 p-3">
+        <Card className="p-3">
           <div className="text-xs text-slate-400 mb-1 flex items-center gap-1"><Globe className="w-3 h-3" />Pod IP</div>
           <div className="text-sm font-mono font-bold text-slate-100 truncate">{podIP}</div>
           {hostIP && <div className="text-xs text-slate-500 mt-0.5">Host: {hostIP}</div>}
-        </div>
+        </Card>
 
-        <div className="bg-slate-900 rounded-lg border border-slate-800 p-3">
+        <Card className="p-3">
           <div className="text-xs text-slate-400 mb-1 flex items-center gap-1"><Server className="w-3 h-3" />Node</div>
           <button onClick={() => nodeName !== '—' ? go(`/r/v1~nodes/_/${nodeName}`, nodeName) : undefined}
             className={cn('text-sm font-bold truncate block', nodeName !== '—' ? 'text-blue-400 hover:text-blue-300' : 'text-slate-100')}>
             {nodeName}
           </button>
           <div className="text-xs text-slate-500 mt-0.5">{qosClass}</div>
-        </div>
+        </Card>
 
-        <div className="bg-slate-900 rounded-lg border border-slate-800 p-3">
+        <Card className="p-3">
           <div className="text-xs text-slate-400 mb-1">Service Account</div>
           <div className="text-sm font-bold text-slate-100 truncate">{serviceAccount}</div>
           <div className="text-xs text-slate-500 mt-0.5">restart: {restartPolicy}</div>
-        </div>
+        </Card>
 
-        <div className="bg-slate-900 rounded-lg border border-slate-800 p-3">
+        <Card className="p-3">
           <div className="text-xs text-slate-400 mb-1 flex items-center gap-1"><Clock className="w-3 h-3" />Age</div>
           <div className="text-lg font-bold text-slate-100">{age}</div>
           <div className="text-xs text-slate-500 mt-0.5">
             {resource.metadata.creationTimestamp ? new Date(resource.metadata.creationTimestamp).toLocaleDateString() : ''}
           </div>
-        </div>
+        </Card>
 
         <div className={cn('bg-slate-900 rounded-lg border p-3', totalRestarts > 10 ? 'border-red-800/50' : totalRestarts > 0 ? 'border-yellow-800/50' : 'border-slate-800')}>
           <div className="text-xs text-slate-400 mb-1">Restarts</div>
@@ -147,20 +149,20 @@ export function PodSummary({ resource, go }: PodSummaryProps) {
             title="Pod CPU"
             query={`sum(rate(container_cpu_usage_seconds_total{pod="${safeName}",namespace="${safeNs}",container!="POD",container!=""}[5m])) * 1000`}
             unit=" m"
-            color="#3b82f6"
+            color={CHART_COLORS.blue}
           />
           <MetricCard
             title="Pod Memory"
             query={`sum(container_memory_working_set_bytes{pod="${safeName}",namespace="${safeNs}",container!="POD",container!=""}) / 1024 / 1024`}
             unit=" Mi"
-            color="#8b5cf6"
+            color={CHART_COLORS.violet}
           />
         </div>
       )}
 
       {/* Init containers */}
       {initContainers.length > 0 && (
-        <div className="bg-slate-900 rounded-lg border border-slate-800">
+        <Card>
           <div className="px-4 py-2.5 border-b border-slate-800">
             <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Init Containers ({initContainers.length})</h3>
           </div>
@@ -191,11 +193,11 @@ export function PodSummary({ resource, go }: PodSummaryProps) {
               );
             })}
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Containers — rich detail cards */}
-      <div className="bg-slate-900 rounded-lg border border-slate-800">
+      <Card>
         <div className="px-4 py-2.5 border-b border-slate-800">
           <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Containers ({containers.length})</h3>
         </div>
@@ -329,11 +331,11 @@ export function PodSummary({ resource, go }: PodSummaryProps) {
             );
           })}
         </div>
-      </div>
+      </Card>
 
       {/* Volumes */}
       {volumes.length > 0 && (
-        <div className="bg-slate-900 rounded-lg border border-slate-800">
+        <Card>
           <div className="px-4 py-2.5 border-b border-slate-800">
             <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Volumes ({volumes.length})</h3>
           </div>
@@ -359,7 +361,7 @@ export function PodSummary({ resource, go }: PodSummaryProps) {
               );
             })}
           </div>
-        </div>
+        </Card>
       )}
     </div>
   );

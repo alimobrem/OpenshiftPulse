@@ -12,6 +12,7 @@ import type { ClusterRoleBinding, Subject } from '../engine/types';
 import { formatAge } from '../engine/dateUtils';
 import { useUIStore } from '../store/uiStore';
 import { useNavigateTab } from '../hooks/useNavigateTab';
+import { Card } from '../components/primitives/Card';
 
 export default function UserManagementView() {
   const go = useNavigateTab();
@@ -183,7 +184,7 @@ export default function UserManagementView() {
 
         {/* Users tab */}
         {activeTab === 'users' && (
-          <div className="bg-slate-900 rounded-lg border border-slate-800">
+          <Card>
             <div className="px-4 py-3 border-b border-slate-800">
               <h2 className="text-sm font-semibold text-slate-100">Users</h2>
             </div>
@@ -230,12 +231,12 @@ export default function UserManagementView() {
                 );
               })}
             </div>
-          </div>
+          </Card>
         )}
 
         {/* Groups tab */}
         {activeTab === 'groups' && (
-          <div className="bg-slate-900 rounded-lg border border-slate-800">
+          <Card>
             <div className="px-4 py-3 border-b border-slate-800">
               <h2 className="text-sm font-semibold text-slate-100">Groups</h2>
             </div>
@@ -273,12 +274,12 @@ export default function UserManagementView() {
                 );
               })}
             </div>
-          </div>
+          </Card>
         )}
 
         {/* Service Accounts tab */}
         {activeTab === 'serviceaccounts' && (
-          <div className="bg-slate-900 rounded-lg border border-slate-800">
+          <Card>
             <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-slate-100">Service Accounts (application namespaces)</h2>
               <button onClick={() => go('/r/v1~serviceaccounts', 'ServiceAccounts')} className="text-xs text-blue-400 hover:text-blue-300">View all →</button>
@@ -313,7 +314,7 @@ export default function UserManagementView() {
                 );
               })}
             </div>
-          </div>
+          </Card>
         )}
 
         {/* Identity & Access Audit */}
@@ -331,7 +332,7 @@ export default function UserManagementView() {
 
         {/* Recent Sessions */}
         {accessTokens.length > 0 && (
-          <div className="bg-slate-900 rounded-lg border border-slate-800">
+          <Card>
             <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
                 <Clock className="w-4 h-4 text-blue-400" /> Recent Sessions ({accessTokens.length})
@@ -391,11 +392,11 @@ export default function UserManagementView() {
                 );
               })}
             </div>
-          </div>
+          </Card>
         )}
 
         {/* Quick links */}
-        <div className="bg-slate-900 rounded-lg border border-slate-800 p-4">
+        <Card className="p-4">
           <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Related Resources</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {[
@@ -411,7 +412,7 @@ export default function UserManagementView() {
               </button>
             ))}
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );
@@ -628,7 +629,7 @@ users:
   const score = Math.round((totalPassing / checks.length) * 100);
 
   return (
-    <div className="bg-slate-900 rounded-lg border border-slate-800">
+    <Card>
       <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
           <Activity className="w-4 h-4 text-indigo-400" /> Identity & Access Audit
@@ -732,6 +733,6 @@ users:
         variant="danger"
         loading={actionLoading}
       />
-    </div>
+    </Card>
   );
 }

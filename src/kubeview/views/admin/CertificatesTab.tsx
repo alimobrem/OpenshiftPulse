@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { ShieldCheck, Search, AlertTriangle, CheckCircle, XCircle, Clock, ArrowUpDown, Eye, EyeOff } from 'lucide-react';
 import { k8sList } from '../../engine/query';
 import { Panel } from '../../components/primitives/Panel';
+import { Card } from '../../components/primitives/Card';
 
 // --- Types ---
 
@@ -261,13 +262,13 @@ export function CertificatesTab({ go }: { go: (path: string, title: string) => v
     <div className="space-y-6">
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="bg-slate-900 rounded-lg border border-slate-800 p-3">
+        <Card className="p-3">
           <div className="text-xs text-slate-400 mb-1">Total Certificates</div>
           <div className="text-xl font-bold text-slate-100">{counts.total}</div>
           <div className="text-xs text-slate-500 mt-0.5">
             {Object.entries(issuerCounts).map(([k, v]) => `${v} ${k}`).join(', ') || 'none'}
           </div>
-        </div>
+        </Card>
         <button onClick={() => setStatusFilter(statusFilter === 'critical' ? 'all' : 'critical')}
           className={cn('bg-slate-900 rounded-lg border p-3 text-left transition-colors',
             counts.critical > 0 ? 'border-red-800 hover:border-red-600' : 'border-slate-800',

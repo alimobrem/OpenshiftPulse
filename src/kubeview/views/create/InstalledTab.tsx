@@ -10,6 +10,7 @@ import { useNavigateTab } from '../../hooks/useNavigateTab';
 import { useK8sListWatch } from '../../hooks/useK8sListWatch';
 import { K8S_BASE as BASE } from '../../engine/gvr';
 import type { Deployment, StatefulSet, Secret } from '../../engine/types';
+import { Card } from '../../components/primitives/Card';
 
 /** OLM Subscription — not yet in engine/types, so defined locally. */
 interface Subscription {
@@ -121,7 +122,7 @@ export function InstalledTab() {
       </div>
 
       {/* Operators Section */}
-      <div className="bg-slate-900 rounded-lg border border-slate-800 p-4">
+      <Card className="p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
             <Package className="w-4 h-4 text-purple-400" />
@@ -193,10 +194,10 @@ export function InstalledTab() {
             )}
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Helm Releases Section */}
-      <div className="bg-slate-900 rounded-lg border border-slate-800 p-4">
+      <Card className="p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
             <Ship className="w-4 h-4 text-blue-400" />
@@ -240,10 +241,10 @@ export function InstalledTab() {
             )}
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Deployments Section */}
-      <div className="bg-slate-900 rounded-lg border border-slate-800 p-4">
+      <Card className="p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
             <Box className="w-4 h-4 text-blue-400" />
@@ -319,10 +320,10 @@ export function InstalledTab() {
             )}
           </div>
         )}
-      </div>
+      </Card>
 
       {/* StatefulSets Section */}
-      <div className="bg-slate-900 rounded-lg border border-slate-800 p-4">
+      <Card className="p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
             <Database className="w-4 h-4 text-cyan-400" />
@@ -398,7 +399,7 @@ export function InstalledTab() {
             )}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

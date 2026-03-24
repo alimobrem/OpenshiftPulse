@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { k8sList, k8sGet } from '../engine/query';
 import { K8S_BASE as BASE } from '../engine/gvr';
 import { useNavigateTab } from '../hooks/useNavigateTab';
+import { Card } from './primitives/Card';
 
 interface DeployProgressProps {
   type: 'deployment' | 'job';
@@ -154,7 +155,7 @@ export default function DeployProgress({ type, name, namespace, mode = 'deploy',
     : { creating: 'Creating...', pulling: 'Pulling image...', starting: 'Starting...', running: 'Running', failed: 'Failed', succeeded: 'Completed' }[phase] || phase;
 
   return (
-    <div className="bg-slate-900 rounded-lg border border-slate-800 overflow-hidden">
+    <Card className="overflow-hidden">
       {/* Header */}
       <div className={cn('px-4 py-3 border-b flex items-center justify-between',
         isFailed ? 'border-red-800 bg-red-950/30' :
@@ -291,7 +292,7 @@ export default function DeployProgress({ type, name, namespace, mode = 'deploy',
           )}
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 

@@ -40,7 +40,9 @@ export interface MetricsChartProps {
   hoverTimestamp?: number | null;  // externally controlled hover line
 }
 
-const DEFAULT_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+import { CHART_COLOR_SEQUENCE } from '../../engine/colors';
+
+const DEFAULT_COLORS = CHART_COLOR_SEQUENCE;
 
 export function MetricsChart({
   series,

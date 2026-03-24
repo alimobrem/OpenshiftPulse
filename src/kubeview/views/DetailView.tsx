@@ -44,6 +44,7 @@ import { WorkloadAudit } from './detail/WorkloadAudit';
 import { RollbackPanel } from './detail/RollbackPanel';
 import { DeploymentSummary } from './detail/DeploymentSummary';
 import { PodSummary } from './detail/PodSummary';
+import { Card } from '../components/primitives/Card';
 
 interface DetailViewProps {
   gvrKey: string;
@@ -480,7 +481,7 @@ export default function DetailView({ gvrKey, namespace, name }: DetailViewProps)
         {detailTab === 'conditions' && (() => {
           const conditions = (status.conditions || []) as Array<{ type: string; status: string; reason?: string; message?: string; lastTransitionTime?: string; lastHeartbeatTime?: string }>;
           return (
-            <div className="bg-slate-900 rounded-lg border border-slate-800">
+            <Card>
               {conditions.length === 0 ? (
                 <div className="px-4 py-8 text-center text-slate-500 text-sm">No conditions reported for this resource</div>
               ) : (
@@ -524,13 +525,13 @@ export default function DetailView({ gvrKey, namespace, name }: DetailViewProps)
                   </table>
                 </div>
               )}
-            </div>
+            </Card>
           );
         })()}
 
         {/* Events tab */}
         {detailTab === 'events' && (
-          <div className="bg-slate-900 rounded-lg border border-slate-800">
+          <Card>
             <div className="px-4 py-3 border-b border-slate-800">
               <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
                 <Activity className="w-4 h-4" />
@@ -560,7 +561,7 @@ export default function DetailView({ gvrKey, namespace, name }: DetailViewProps)
                 })
               )}
             </div>
-          </div>
+          </Card>
         )}
 
         {/* Overview tab */}
@@ -859,7 +860,7 @@ export default function DetailView({ gvrKey, namespace, name }: DetailViewProps)
           <div className="space-y-6">
             {/* Related Resources */}
             {relatedResources.length > 0 && (
-              <div className="bg-slate-900 rounded-lg border border-slate-800">
+              <Card>
                 <div className="px-4 py-3 border-b border-slate-800">
                   <h2 className="text-sm font-semibold text-slate-100">Related Resources</h2>
                 </div>
@@ -875,12 +876,12 @@ export default function DetailView({ gvrKey, namespace, name }: DetailViewProps)
                     </button>
                   ))}
                 </div>
-              </div>
+              </Card>
             )}
 
             {/* Managed Pods (workloads only) */}
             {isWorkload && managedPods.length > 0 && (
-              <div className="bg-slate-900 rounded-lg border border-slate-800">
+              <Card>
                 <div className="px-4 py-3 border-b border-slate-800">
                   <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
                     <Box className="w-4 h-4 text-blue-400" />
@@ -924,7 +925,7 @@ export default function DetailView({ gvrKey, namespace, name }: DetailViewProps)
                     );
                   })}
                 </div>
-              </div>
+              </Card>
             )}
 
             {/* Incident Context — events, logs, metrics for pods/workloads */}
@@ -1029,7 +1030,7 @@ function DetailSection({
   const [isOpen, setIsOpen] = React.useState(true);
 
   return (
-    <div className="bg-slate-900 rounded-lg border border-slate-800">
+    <Card>
       <div
         className={cn(
           'px-4 py-3 border-b border-slate-800',
@@ -1040,7 +1041,7 @@ function DetailSection({
         <h2 className="text-sm font-semibold text-slate-100">{title}</h2>
       </div>
       {isOpen && <div className="px-4 py-3">{children}</div>}
-    </div>
+    </Card>
   );
 }
 

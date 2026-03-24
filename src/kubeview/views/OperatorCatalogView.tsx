@@ -10,6 +10,7 @@ import { k8sList, k8sCreate, k8sDelete, k8sGet } from '../engine/query';
 import { useUIStore } from '../store/uiStore';
 import { useNavigateTab } from '../hooks/useNavigateTab';
 import { ConfirmDialog } from '../components/feedback/ConfirmDialog';
+import { Card } from '../components/primitives/Card';
 
 interface PackageManifest {
   metadata: { name: string; namespace?: string };
@@ -375,7 +376,7 @@ export default function OperatorCatalogView() {
 
   // What's Next panel (shown after successful install)
   const whatNextPanel = installPhase === 'succeeded' && postInstallSteps.length > 0 && (
-    <div className="bg-slate-900 rounded-lg border border-slate-800 overflow-hidden">
+    <Card className="overflow-hidden">
       <div className="px-4 py-3 border-b border-slate-800">
         <h2 className="text-sm font-semibold text-slate-100">What's Next — Configure {installingOp?.displayName}</h2>
         <p className="text-xs text-slate-500 mt-0.5">The operator is installed. Complete these steps to finish setup:</p>
@@ -394,7 +395,7 @@ export default function OperatorCatalogView() {
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 
   // Fetch CSV for installed operator to get provided APIs
@@ -507,9 +508,9 @@ export default function OperatorCatalogView() {
           </div>
 
           {/* Description */}
-          <div className="bg-slate-900 rounded-lg border border-slate-800 p-4">
+          <Card className="p-4">
             <p className="text-sm text-slate-300 whitespace-pre-line">{desc?.description || 'No description available.'}</p>
-          </div>
+          </Card>
 
           {/* Install form */}
           {!isInstalled && (
@@ -546,13 +547,13 @@ export default function OperatorCatalogView() {
 
           {/* Provided APIs — show for installed operators */}
           {isInstalled && !installedCsv && (
-            <div className="bg-slate-900 rounded-lg border border-slate-800 p-4 text-center">
+            <Card className="p-4 text-center">
               <Loader2 className="w-5 h-5 text-blue-400 animate-spin mx-auto mb-2" />
               <p className="text-xs text-slate-500">Loading operator details...</p>
-            </div>
+            </Card>
           )}
           {isInstalled && providedApis.length > 0 && (
-            <div className="bg-slate-900 rounded-lg border border-slate-800 overflow-hidden">
+            <Card className="overflow-hidden">
               <div className="px-4 py-3 border-b border-slate-800">
                 <h2 className="text-sm font-semibold text-slate-100">Provided APIs ({providedApis.length})</h2>
                 <p className="text-xs text-slate-500 mt-0.5">Custom resources managed by this operator — create instances to configure it</p>
@@ -580,12 +581,12 @@ export default function OperatorCatalogView() {
                   );
                 })}
               </div>
-            </div>
+            </Card>
           )}
 
           {/* Subscription & Install Details (installed only) */}
           {isInstalled && selectedSub && (
-            <div className="bg-slate-900 rounded-lg border border-slate-800 overflow-hidden">
+            <Card className="overflow-hidden">
               <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-slate-100">Subscription Details</h2>
                 <button
@@ -616,12 +617,12 @@ export default function OperatorCatalogView() {
                 </div>
                 <div><span className="text-slate-500">State</span><div className={cn('mt-0.5', selectedSub.status?.state === 'AtLatestKnown' ? 'text-green-400' : 'text-yellow-400')}>{selectedSub.status?.state || '—'}</div></div>
               </div>
-            </div>
+            </Card>
           )}
 
           {/* Operator Components (deployments + pods) */}
           {isInstalled && csvDeploymentNames.length > 0 && (
-            <div className="bg-slate-900 rounded-lg border border-slate-800 overflow-hidden">
+            <Card className="overflow-hidden">
               <div className="px-4 py-3 border-b border-slate-800">
                 <h2 className="text-sm font-semibold text-slate-100">Operator Components</h2>
                 <p className="text-xs text-slate-500 mt-0.5">{csvDeploymentNames.length} deployment{csvDeploymentNames.length !== 1 ? 's' : ''}, {operatorPods.length} pod{operatorPods.length !== 1 ? 's' : ''}</p>
@@ -662,12 +663,12 @@ export default function OperatorCatalogView() {
                   );
                 })}
               </div>
-            </div>
+            </Card>
           )}
 
           {/* Service Accounts & RBAC */}
           {isInstalled && csvServiceAccounts.length > 0 && (
-            <div className="bg-slate-900 rounded-lg border border-slate-800 overflow-hidden">
+            <Card className="overflow-hidden">
               <div className="px-4 py-3 border-b border-slate-800">
                 <h2 className="text-sm font-semibold text-slate-100">Service Accounts & RBAC</h2>
               </div>
@@ -681,11 +682,11 @@ export default function OperatorCatalogView() {
                   </button>
                 ))}
               </div>
-            </div>
+            </Card>
           )}
 
           {/* Install modes */}
-          <div className="bg-slate-900 rounded-lg border border-slate-800 p-4">
+          <Card className="p-4">
             <h3 className="text-xs text-slate-400 mb-2">Install Modes</h3>
             <div className="flex flex-wrap gap-2">
               {desc?.installModes?.map((m: any) => (
@@ -694,7 +695,7 @@ export default function OperatorCatalogView() {
                 </span>
               ))}
             </div>
-          </div>
+          </Card>
         </div>
 
         {/* Uninstall confirmation dialog */}

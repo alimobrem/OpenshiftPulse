@@ -4,6 +4,7 @@ import { Plus, Trash2, Save, Eye, EyeOff, Copy, Check, FileText, Lock } from 'lu
 import { cn } from '@/lib/utils';
 import { k8sPatch } from '../engine/query';
 import { useUIStore } from '../store/uiStore';
+import { Card } from './primitives/Card';
 
 interface DataEditorProps {
   resourcePath: string; // API path to patch
@@ -77,7 +78,7 @@ export default function DataEditor({ resourcePath, data, kind, readOnly }: DataE
   );
 
   return (
-    <div className="bg-slate-900 rounded-lg border border-slate-800">
+    <Card>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
         <div className="flex items-center gap-2">
@@ -189,7 +190,7 @@ export default function DataEditor({ resourcePath, data, kind, readOnly }: DataE
           ))
         )}
       </div>
-    </div>
+    </Card>
   );
 }
 

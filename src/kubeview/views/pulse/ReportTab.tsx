@@ -11,11 +11,13 @@ import { cn } from '@/lib/utils';
 import { k8sList, k8sGet } from '../../engine/query';
 import { queryInstant } from '../../components/metrics/prometheus';
 import { MetricCard } from '../../components/metrics/Sparkline';
+import { CHART_COLORS } from '../../engine/colors';
 import { diagnoseResource, type Diagnosis } from '../../engine/diagnosis';
 import { resourceDetailUrl } from '../../engine/gvr';
 import type { K8sResource } from '../../engine/renderers';
 import type { Node, Pod, ClusterOperator, ClusterVersion, Condition, ContainerStatus, Event, Secret } from '../../engine/types';
 import { useClusterStore } from '../../store/clusterStore';
+import { Card } from '../../components/primitives/Card';
 
 /** ResourceQuota resource */
 interface ResourceQuota extends K8sResource {
@@ -411,7 +413,7 @@ export function ReportTab({ nodes, allPods, deployments, pvcs, operators, go }: 
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
           {/* Risk score */}
-          <div className="lg:col-span-1 bg-slate-900 rounded-lg border border-slate-800 p-4 flex flex-col items-center justify-center relative">
+          <Card className="lg:col-span-1 p-4 flex flex-col items-center justify-center relative">
             <RiskScoreRing score={riskScore} />
             <button onClick={() => setShowScoreDetails(!showScoreDetails)}
               className="mt-2 flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 transition-colors">
@@ -443,10 +445,10 @@ export function ReportTab({ nodes, allPods, deployments, pvcs, operators, go }: 
                 </div>
               </>
             )}
-          </div>
+          </Card>
 
           {/* Control plane status */}
-          <div className="lg:col-span-4 bg-slate-900 rounded-lg border border-slate-800 p-4">
+          <Card className="lg:col-span-4 p-4">
             <div className="flex items-center gap-2 mb-3">
               <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">Control Plane</span>
               {isHyperShift && (
@@ -532,7 +534,7 @@ export function ReportTab({ nodes, allPods, deployments, pvcs, operators, go }: 
                 </div>
               </div>
             )}
-          </div>
+          </Card>
         </div>
       </div>
 
@@ -542,8 +544,8 @@ export function ReportTab({ nodes, allPods, deployments, pvcs, operators, go }: 
 
         {/* Vitals row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <MetricCard title="CPU" query="sum(rate(node_cpu_seconds_total{mode!='idle'}[5m])) / sum(machine_cpu_cores) * 100" unit="%" color="#3b82f6" thresholds={{ warning: 70, critical: 90 }} onClick={() => go('/compute', 'Compute')} />
-          <MetricCard title="Memory" query="(1 - sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes)) * 100" unit="%" color="#8b5cf6" thresholds={{ warning: 75, critical: 90 }} onClick={() => go('/compute', 'Compute')} />
+          <MetricCard title="CPU" query="sum(rate(node_cpu_seconds_total{mode!='idle'}[5m])) / sum(machine_cpu_cores) * 100" unit="%" color={CHART_COLORS.blue} thresholds={{ warning: 70, critical: 90 }} onClick={() => go('/compute', 'Compute')} />
+          <MetricCard title="Memory" query="(1 - sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes)) * 100" unit="%" color={CHART_COLORS.violet} thresholds={{ warning: 75, critical: 90 }} onClick={() => go('/compute', 'Compute')} />
           <button onClick={() => go('/compute', 'Compute')} className="bg-slate-900 rounded-lg border border-slate-800 p-3 hover:border-slate-600 transition-colors text-left">
             <div className="flex items-center gap-2 text-slate-400 text-xs font-medium uppercase tracking-wider">
               <Server className="w-3.5 h-3.5" />Nodes
@@ -566,8 +568,8 @@ export function ReportTab({ nodes, allPods, deployments, pvcs, operators, go }: 
 
         {/* Network + Disk */}
         <div className="grid grid-cols-2 gap-3">
-          <MetricCard title="Network In" query="sum(rate(node_network_receive_bytes_total{device!~'lo|veth.*|br.*'}[5m])) / 1024 / 1024" unit=" MB/s" color="#06b6d4" onClick={() => go('/networking', 'Networking')} />
-          <MetricCard title="Disk I/O" query="sum(rate(node_disk_read_bytes_total[5m]) + rate(node_disk_written_bytes_total[5m])) / 1024 / 1024" unit=" MB/s" color="#f59e0b" onClick={() => go('/storage', 'Storage')} />
+          <MetricCard title="Network In" query="sum(rate(node_network_receive_bytes_total{device!~'lo|veth.*|br.*'}[5m])) / 1024 / 1024" unit=" MB/s" color={CHART_COLORS.cyan} onClick={() => go('/networking', 'Networking')} />
+          <MetricCard title="Disk I/O" query="sum(rate(node_disk_read_bytes_total[5m]) + rate(node_disk_written_bytes_total[5m])) / 1024 / 1024" unit=" MB/s" color={CHART_COLORS.amber} onClick={() => go('/storage', 'Storage')} />
         </div>
 
         {/* Pressure / PV / Quota warnings */}
@@ -690,7 +692,7 @@ export function ReportTab({ nodes, allPods, deployments, pvcs, operators, go }: 
         )}
 
         {pendingPods.length > 0 && (
-          <div className="bg-slate-900 rounded-lg border border-slate-800 px-4 py-3">
+          <Card className="px-4 py-3">
             <div className="flex items-center gap-2 mb-2">
               <Clock className="w-3.5 h-3.5 text-amber-400" />
               <span className="text-xs font-medium text-slate-200">{pendingPods.length} Pending Pod{pendingPods.length !== 1 ? 's' : ''}</span>
@@ -705,11 +707,11 @@ export function ReportTab({ nodes, allPods, deployments, pvcs, operators, go }: 
               ))}
               {pendingPods.length > 3 && <div className="text-xs text-slate-500 px-2">+{pendingPods.length - 3} more</div>}
             </div>
-          </div>
+          </Card>
         )}
 
         {topRestartingPods.length > 0 && (
-          <div className="bg-slate-900 rounded-lg border border-slate-800 px-4 py-3">
+          <Card className="px-4 py-3">
             <div className="flex items-center gap-2 mb-2">
               <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
               <span className="text-xs font-medium text-slate-200">Top Restarting Pods</span>
@@ -723,7 +725,7 @@ export function ReportTab({ nodes, allPods, deployments, pvcs, operators, go }: 
                 </button>
               ))}
             </div>
-          </div>
+          </Card>
         )}
 
         {/* All clear in Zone 3 */}
@@ -742,7 +744,7 @@ export function ReportTab({ nodes, allPods, deployments, pvcs, operators, go }: 
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {/* Cluster update */}
-          <div className="bg-slate-900 rounded-lg border border-slate-800 p-4">
+          <Card className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <ArrowUpCircle className="w-4 h-4 text-blue-400" />
               <span className="text-xs font-medium text-slate-200">Cluster Updates</span>
@@ -759,10 +761,10 @@ export function ReportTab({ nodes, allPods, deployments, pvcs, operators, go }: 
             ) : (
               <button onClick={() => go('/admin?tab=updates', 'Updates')} className="text-xs text-slate-500 hover:text-slate-300 transition-colors">Up to date</button>
             )}
-          </div>
+          </Card>
 
           {/* Recent changes */}
-          <div className="bg-slate-900 rounded-lg border border-slate-800 p-4">
+          <Card className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <Clock className="w-4 h-4 text-slate-400" />
               <span className="text-xs font-medium text-slate-200">Recent Changes (1h)</span>
@@ -788,7 +790,7 @@ export function ReportTab({ nodes, allPods, deployments, pvcs, operators, go }: 
             ) : (
               <div className="text-xs text-slate-500">No recent events</div>
             )}
-          </div>
+          </Card>
         </div>
 
         {/* Quick links */}

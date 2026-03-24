@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { k8sGet, k8sList } from '../engine/query';
 import { useNavigateTab } from '../hooks/useNavigateTab';
 import { useClusterStore } from '../store/clusterStore';
+import { Card } from './primitives/Card';
 
 interface Check {
   id: string;
@@ -567,7 +568,7 @@ export default function ProductionReadiness() {
       {categories.map(([category, categoryChecks]) => {
         const catPass = categoryChecks.filter(c => c.status === 'pass').length;
         return (
-          <div key={category} className="bg-slate-900 rounded-lg border border-slate-800">
+          <Card key={category}>
             <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
               <h3 className="text-sm font-semibold text-slate-100">{category}</h3>
               <span className={cn('text-xs', catPass === categoryChecks.length ? 'text-green-400' : 'text-slate-500')}>{catPass}/{categoryChecks.length}</span>
@@ -597,12 +598,12 @@ export default function ProductionReadiness() {
                 </div>
               ))}
             </div>
-          </div>
+          </Card>
         );
       })}
 
       {/* Domain Health Audits — link to per-page audits */}
-      <div className="bg-slate-900 rounded-lg border border-slate-800 mt-4">
+      <Card className="mt-4">
         <div className="px-4 py-3 border-b border-slate-800">
           <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
             <Activity className="w-4 h-4 text-blue-400" />
@@ -633,7 +634,7 @@ export default function ProductionReadiness() {
             </button>
           ))}
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

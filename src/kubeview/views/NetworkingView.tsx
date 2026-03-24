@@ -12,7 +12,9 @@ import { useUIStore } from '../store/uiStore';
 import { useNavigateTab } from '../hooks/useNavigateTab';
 import { useK8sListWatch } from '../hooks/useK8sListWatch';
 import { MetricCard } from '../components/metrics/Sparkline';
+import { CHART_COLORS } from '../engine/colors';
 import { Panel } from '../components/primitives/Panel';
+import { Card } from '../components/primitives/Card';
 
 export default function NetworkingView() {
   const go = useNavigateTab();
@@ -158,11 +160,11 @@ export default function NetworkingView() {
             <div className="text-xl font-bold text-slate-100">{netpols.length}</div>
             <div className="text-xs text-slate-500 mt-0.5">{netpols.length === 0 ? 'None configured' : `${namespacesWithPolicies.size} ns covered`}</div>
           </button>
-          <div className="bg-slate-900 rounded-lg border border-slate-800 p-3">
+          <Card className="p-3">
             <div className="text-xs text-slate-400 mb-1">Endpoints</div>
             <div className="text-xl font-bold text-slate-100">{exposedEndpoints.length}</div>
             <div className="text-xs text-slate-500 mt-0.5">{nonTlsEndpoints.length > 0 ? `${nonTlsEndpoints.length} no TLS` : 'All secured'}</div>
-          </div>
+          </Card>
         </div>
 
         {/* Metrics */}
@@ -171,25 +173,25 @@ export default function NetworkingView() {
             title="Network Receive"
             query="sum(rate(node_network_receive_bytes_total{device!~'lo|veth.*|br.*'}[5m])) / 1024 / 1024"
             unit=" MB/s"
-            color="#06b6d4"
+            color={CHART_COLORS.cyan}
           />
           <MetricCard
             title="Network Transmit"
             query="sum(rate(node_network_transmit_bytes_total{device!~'lo|veth.*|br.*'}[5m])) / 1024 / 1024"
             unit=" MB/s"
-            color="#8b5cf6"
+            color={CHART_COLORS.violet}
           />
           <MetricCard
             title="TCP Connections"
             query="sum(node_netstat_Tcp_CurrEstab)"
             unit=""
-            color="#3b82f6"
+            color={CHART_COLORS.blue}
           />
           <MetricCard
             title="Network Errors"
             query="sum(rate(node_network_receive_errs_total[5m]) + rate(node_network_transmit_errs_total[5m]))"
             unit=" /s"
-            color="#ef4444"
+            color={CHART_COLORS.red}
             thresholds={{ warning: 1, critical: 10 }}
           />
         </div>
@@ -609,7 +611,7 @@ spec:
   const score = checks.length > 0 ? Math.round((totalPassing / checks.length) * 100) : 100;
 
   return (
-    <div className="bg-slate-900 rounded-lg border border-slate-800">
+    <Card>
       <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
           <Activity className="w-4 h-4 text-cyan-400" /> Networking Health Audit
@@ -719,7 +721,7 @@ spec:
           );
         })}
       </div>
-    </div>
+    </Card>
   );
 }
 

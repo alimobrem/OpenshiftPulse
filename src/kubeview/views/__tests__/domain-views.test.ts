@@ -62,7 +62,7 @@ describe('Domain view consistency', () => {
 
       it('has section panels or detail panels', () => {
         // All domain views have some kind of panel/section structure
-        expect(source).toMatch(/Panel|rounded-lg border border-slate-800/);
+        expect(source).toMatch(/Panel|Card|rounded-lg border border-slate-800/);
       });
     });
   }

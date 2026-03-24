@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { MetricsChart } from '../components/metrics/MetricsChart';
 import { getMetricsForResource, resolveQuery, formatYAxisValue } from '../components/metrics/AutoMetrics';
 import { buildApiPath } from '../hooks/useResourceUrl';
+import { CHART_COLOR_SEQUENCE } from '../engine/colors';
 
 interface MetricsViewProps {
   gvrKey: string;
@@ -145,7 +146,7 @@ function MetricPanel({ query: mq, vars, start, end, step, hoverTime, onHover }: 
 
   const series = useMemo(() => {
     if (!data || !Array.isArray(data)) return [];
-    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+    const colors = [...CHART_COLOR_SEQUENCE];
     return data.map((result: { metric: Record<string, string>; values: [number, string][] }, idx: number) => ({
       id: `series-${idx}`,
       label: Object.entries(result.metric || {}).map(([k, v]) => `${k}="${v}"`).join(', ') || mq.title,

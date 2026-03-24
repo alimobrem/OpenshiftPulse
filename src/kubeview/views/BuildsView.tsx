@@ -12,6 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Panel } from '../components/primitives/Panel';
 import { formatDuration, timeAgo } from '../engine/dateUtils';
 import type { Build, BuildConfig, ImageStream } from '../engine/types';
+import { Card } from '../components/primitives/Card';
 
 function getBuildStatus(build: Build): { phase: string; color: string; icon: React.ReactNode } {
   const phase = build.status?.phase || 'Unknown';
@@ -168,10 +169,10 @@ export default function BuildsView() {
             <div className="text-xs text-slate-400 mb-1">ImageStreams</div>
             <div className="text-xl font-bold text-slate-100">{imageStreams.length}</div>
           </button>
-          <div className="bg-slate-900 rounded-lg border border-slate-800 p-3">
+          <Card className="p-3">
             <div className="text-xs text-slate-400 mb-1">Image Tags</div>
             <div className="text-xl font-bold text-slate-100">{totalTags}</div>
-          </div>
+          </Card>
         </div>
 
         {/* Build Status Breakdown */}

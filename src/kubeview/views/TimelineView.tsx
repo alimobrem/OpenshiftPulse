@@ -8,6 +8,7 @@ import { resourceDetailUrl } from '../engine/gvr';
 import { useNavigateTab } from '../hooks/useNavigateTab';
 import { useUIStore } from '../store/uiStore';
 import { useK8sListWatch } from '../hooks/useK8sListWatch';
+import { Card } from '../components/primitives/Card';
 
 type TimeRange = '1h' | '6h' | '24h';
 type EventFilter = 'all' | 'warnings' | 'normal';
@@ -115,7 +116,7 @@ export default function TimelineView() {
           </div>
           <div className="flex gap-2">
             {/* Time Range */}
-            <div className="flex gap-1 bg-slate-900 rounded-lg border border-slate-800 p-1">
+            <Card className="flex gap-1 p-1">
               {(['1h', '6h', '24h'] as TimeRange[]).map((range) => (
                 <button
                   key={range}
@@ -130,9 +131,9 @@ export default function TimelineView() {
                   {range}
                 </button>
               ))}
-            </div>
+            </Card>
             {/* Event Filter */}
-            <div className="flex gap-1 bg-slate-900 rounded-lg border border-slate-800 p-1">
+            <Card className="flex gap-1 p-1">
               {(['all', 'warnings', 'normal'] as EventFilter[]).map((filter) => (
                 <button
                   key={filter}
@@ -147,7 +148,7 @@ export default function TimelineView() {
                   {filter}
                 </button>
               ))}
-            </div>
+            </Card>
           </div>
         </div>
 

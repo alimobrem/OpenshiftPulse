@@ -6,6 +6,7 @@ import { useNavigateTab } from '../../hooks/useNavigateTab';
 import { K8S_BASE as BASE } from '../../engine/gvr';
 import DeployProgress from '../../components/DeployProgress';
 import { FormField } from './FormField';
+import { Card } from '../../components/primitives/Card';
 
 interface EnvVar { name: string; value: string }
 
@@ -148,7 +149,7 @@ export function QuickDeployTab() {
         />
       )}
 
-      <div className="bg-slate-900 rounded-lg border border-slate-800 p-6 space-y-4">
+      <Card className="p-6 space-y-4">
         <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
           <Image className="w-4 h-4 text-blue-400" />
           Deploy from Container Image
@@ -217,7 +218,7 @@ export function QuickDeployTab() {
           </button>
           <span className="text-xs text-slate-500">Namespace: <span className="text-slate-300">{ns}</span></span>
         </div>
-      </div>
+      </Card>
 
       {/* Quick examples */}
       <div>

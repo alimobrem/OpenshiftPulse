@@ -12,7 +12,9 @@ import { useUIStore } from '../store/uiStore';
 import { useNavigateTab } from '../hooks/useNavigateTab';
 import { useK8sListWatch } from '../hooks/useK8sListWatch';
 import { MetricCard } from '../components/metrics/Sparkline';
+import { CHART_COLORS } from '../engine/colors';
 import { Panel } from '../components/primitives/Panel';
+import { Card } from '../components/primitives/Card';
 
 export default function StorageView() {
   const selectedNamespace = useUIStore((s) => s.selectedNamespace);
@@ -157,11 +159,11 @@ export default function StorageView() {
             <div className="text-xl font-bold text-slate-100">{storageClasses.length}</div>
             <div className="text-xs text-slate-500 mt-0.5">{defaultSC ? `Default: ${defaultSC.metadata.name}` : 'No default set'}</div>
           </button>
-          <div className="bg-slate-900 rounded-lg border border-slate-800 p-3">
+          <Card className="p-3">
             <div className="text-xs text-slate-400 mb-1">Total Capacity</div>
             <div className="text-xl font-bold text-slate-100">{formatGi(capacityStats.totalCapacityGi)}</div>
             <div className="text-xs text-slate-500 mt-0.5">{formatGi(capacityStats.totalRequestedGi)} requested</div>
-          </div>
+          </Card>
         </div>
 
         {/* Metrics */}
@@ -170,26 +172,26 @@ export default function StorageView() {
             title="PVC Usage"
             query="sum(kubelet_volume_stats_used_bytes) / sum(kubelet_volume_stats_capacity_bytes) * 100"
             unit="%"
-            color="#f97316"
+            color={CHART_COLORS.orange}
             thresholds={{ warning: 75, critical: 90 }}
           />
           <MetricCard
             title="IOPS (Read)"
             query="sum(rate(node_disk_reads_completed_total[5m]))"
             unit=" /s"
-            color="#3b82f6"
+            color={CHART_COLORS.blue}
           />
           <MetricCard
             title="IOPS (Write)"
             query="sum(rate(node_disk_writes_completed_total[5m]))"
             unit=" /s"
-            color="#8b5cf6"
+            color={CHART_COLORS.violet}
           />
           <MetricCard
             title="Disk Throughput"
             query="sum(rate(node_disk_read_bytes_total[5m]) + rate(node_disk_written_bytes_total[5m])) / 1024 / 1024"
             unit=" MB/s"
-            color="#06b6d4"
+            color={CHART_COLORS.cyan}
           />
         </div>
 
@@ -616,7 +618,7 @@ spec:
   const score = Math.round((totalPassing / checks.length) * 100);
 
   return (
-    <div className="bg-slate-900 rounded-lg border border-slate-800">
+    <Card>
       <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
           <Activity className="w-4 h-4 text-blue-400" /> Storage Health Audit
@@ -717,7 +719,7 @@ spec:
           );
         })}
       </div>
-    </div>
+    </Card>
   );
 }
 

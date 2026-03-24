@@ -9,6 +9,7 @@ import { useK8sListWatch } from '../hooks/useK8sListWatch';
 import { useUIStore } from '../store/uiStore';
 import { Panel } from '../components/primitives/Panel';
 import { timeAgo } from '../engine/dateUtils';
+import { Card } from '../components/primitives/Card';
 
 interface CRDResource {
   metadata: { name: string; uid: string; creationTimestamp: string };
@@ -101,14 +102,14 @@ export default function CRDsView() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="bg-slate-900 rounded-lg border border-slate-800 p-3">
+          <Card className="p-3">
             <div className="text-xs text-slate-400 mb-1">Total CRDs</div>
             <div className="text-xl font-bold text-slate-100">{typedCRDs.length}</div>
-          </div>
-          <div className="bg-slate-900 rounded-lg border border-slate-800 p-3">
+          </Card>
+          <Card className="p-3">
             <div className="text-xs text-slate-400 mb-1">API Groups</div>
             <div className="text-xl font-bold text-slate-100">{apiGroups.length}</div>
-          </div>
+          </Card>
           <button onClick={() => setScopeFilter(scopeFilter === 'Namespaced' ? 'all' : 'Namespaced')} className={cn('bg-slate-900 rounded-lg border p-3 text-left hover:border-slate-600 transition-colors', scopeFilter === 'Namespaced' ? 'border-blue-600' : 'border-slate-800')}>
             <div className="text-xs text-slate-400 mb-1">Namespaced</div>
             <div className="text-xl font-bold text-slate-100">{namespacedCount}</div>

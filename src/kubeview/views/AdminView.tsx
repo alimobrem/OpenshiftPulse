@@ -23,6 +23,7 @@ import { parseCpu, parseMem, formatMem } from '../engine/formatting';
 import { type ClusterSnapshot, type DiffRow, loadSnapshots, saveSnapshots, captureSnapshot, compareSnapshots } from '../engine/snapshot';
 import { QuotasTab } from './admin/QuotasTab';
 import { CertificatesTab } from './admin/CertificatesTab';
+import { Card } from '../components/primitives/Card';
 
 /** OpenShift Infrastructure resource (config.openshift.io/v1) */
 interface Infrastructure extends K8sResource {
@@ -716,10 +717,10 @@ export default function AdminView() {
           return (
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-3">
-                <div className="bg-slate-900 rounded-lg border border-slate-800 p-3">
+                <Card className="p-3">
                   <div className="flex items-center gap-2 text-green-400 mb-1"><CheckCircle className="w-4 h-4" /><span className="text-xs">Available</span></div>
                   <div className="text-xl font-bold text-slate-100">{availableOps.length}</div>
-                </div>
+                </Card>
                 <div className={cn('bg-slate-900 rounded-lg border p-3', degradedOps.length > 0 ? 'border-red-800' : 'border-slate-800')}>
                   <div className="flex items-center gap-2 text-red-400 mb-1"><XCircle className="w-4 h-4" /><span className="text-xs">Degraded</span></div>
                   <div className="text-xl font-bold text-slate-100">{degradedOps.length}</div>
@@ -729,7 +730,7 @@ export default function AdminView() {
                   <div className="text-xl font-bold text-slate-100">{progressingOps.length}</div>
                 </div>
               </div>
-              <div className="bg-slate-900 rounded-lg border border-slate-800">
+              <Card>
                 <div className="divide-y divide-slate-800">
                   {operatorList.map((op) => (
                     <div key={op.name} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-800/50 cursor-pointer transition-colors" onClick={() => go(`/r/config.openshift.io~v1~clusteroperators/_/${op.name}`, op.name)}>
@@ -748,7 +749,7 @@ export default function AdminView() {
                     </div>
                   ))}
                 </div>
-              </div>
+              </Card>
             </div>
           );
         })()}
@@ -802,7 +803,18 @@ export default function AdminView() {
                   <span className="text-sm text-slate-400">Channel</span>
                   {showChannelEdit ? (
                     <div className="flex items-center gap-2">
-                      <input type="text" value={channelEdit} onChange={(e) => setChannelEdit(e.target.value)} placeholder="e.g. stable-4.17" className="px-2 py-1 text-sm bg-slate-800 border border-slate-600 rounded text-slate-200 w-48" autoFocus />
+                      <select value={channelEdit} onChange={(e) => setChannelEdit(e.target.value)} className="px-2 py-1 text-sm bg-slate-800 border border-slate-600 rounded text-slate-200 w-48" autoFocus>
+                        {(() => {
+                          const ver = cvVersion.match(/^(\d+\.\d+)/)?.[1] || '';
+                          const majMin = ver ? [ver] : [];
+                          const prev = ver ? [`${ver.split('.')[0]}.${parseInt(ver.split('.')[1]) - 1}`] : [];
+                          const versions = [...majMin, ...prev];
+                          const prefixes = ['stable', 'fast', 'candidate', 'eus'];
+                          const options = versions.flatMap(v => prefixes.map(p => `${p}-${v}`));
+                          if (cvChannel && !options.includes(cvChannel)) options.unshift(cvChannel);
+                          return options.map(ch => <option key={ch} value={ch}>{ch}</option>);
+                        })()}
+                      </select>
                       <button onClick={handleChangeChannel} className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-500">Save</button>
                       <button onClick={() => setShowChannelEdit(false)} className="px-2 py-1 text-xs text-slate-400 hover:text-slate-200">Cancel</button>
                     </div>
@@ -998,13 +1010,13 @@ export default function AdminView() {
 
             {/* Saved snapshots */}
             {savedSnapshots.length === 0 ? (
-              <div className="bg-slate-900 rounded-lg border border-slate-800 p-12 text-center">
+              <Card className="p-12 text-center">
                 <GitCompare className="w-12 h-12 text-slate-600 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-slate-300 mb-2">No Snapshots Yet</h3>
                 <p className="text-sm text-slate-500 max-w-md mx-auto">
                   Capture a snapshot to record your cluster's current state. Take another after maintenance to see what changed.
                 </p>
-              </div>
+              </Card>
             ) : (
               <Panel title={`Saved Snapshots (${savedSnapshots.length})`} icon={<Database className="w-4 h-4 text-slate-400" />}>
                 <div className="space-y-2">
@@ -1033,7 +1045,7 @@ export default function AdminView() {
 
             {/* Diff table */}
             {diff && (
-              <div className="bg-slate-900 rounded-lg border border-slate-800">
+              <Card>
                 <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
                   <h2 className="text-sm font-semibold text-slate-100">Comparison — {changedCount} change{changedCount !== 1 ? 's' : ''}</h2>
                   <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
@@ -1069,7 +1081,7 @@ export default function AdminView() {
                     </tbody>
                   </table>
                 </div>
-              </div>
+              </Card>
             )}
           </div>
         )}

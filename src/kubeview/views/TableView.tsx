@@ -15,6 +15,7 @@ import type { K8sResource, ColumnDef } from '../engine/renderers';
 import { getColumnsForResource } from '../engine/enhancers';
 import { getEnhancer } from '../engine/enhancers';
 import { useCanI } from '../hooks/useCanI';
+import { Card } from '../components/primitives/Card';
 
 interface TableViewProps {
   gvrKey: string;
@@ -888,7 +889,7 @@ export default function TableView({ gvrKey, namespace: namespaceProp }: TableVie
               />
             ) : (
               // Bulk delete — show per-resource status
-              <div className="bg-slate-900 rounded-lg border border-slate-800 overflow-hidden">
+              <Card className="overflow-hidden">
                 <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Trash2 className="w-5 h-5 text-slate-400" />
@@ -924,7 +925,7 @@ export default function TableView({ gvrKey, namespace: namespaceProp }: TableVie
                     </div>
                   ))}
                 </div>
-              </div>
+              </Card>
             )}
           </div>
         </div>

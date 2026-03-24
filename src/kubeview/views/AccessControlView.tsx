@@ -7,6 +7,7 @@ import { useUIStore } from '../store/uiStore';
 import { useNavigateTab } from '../hooks/useNavigateTab';
 import { useK8sListWatch } from '../hooks/useK8sListWatch';
 import { Panel } from '../components/primitives/Panel';
+import { Card } from '../components/primitives/Card';
 
 export default function AccessControlView() {
   const selectedNamespace = useUIStore((s) => s.selectedNamespace);
@@ -163,7 +164,7 @@ export default function AccessControlView() {
         </div>
 
         {/* Quick links */}
-        <div className="bg-slate-900 rounded-lg border border-slate-800 p-4">
+        <Card className="p-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {[
               { label: 'User Management', path: '/users' },
@@ -178,7 +179,7 @@ export default function AccessControlView() {
               </button>
             ))}
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );
@@ -240,7 +241,7 @@ function RecentRBACChanges({ clusterRoleBindings, roleBindings, go }: {
   const highSeverity = recentChanges.filter(c => c.severity === 'high');
 
   return (
-    <div className="bg-slate-900 rounded-lg border border-slate-800">
+    <Card>
       <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
           <Clock className="w-4 h-4 text-blue-400" />
@@ -291,7 +292,7 @@ function RecentRBACChanges({ clusterRoleBindings, roleBindings, go }: {
           );
         })}
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -565,7 +566,7 @@ spec:
   const score = Math.round((totalPassing / checks.length) * 100);
 
   return (
-    <div className="bg-slate-900 rounded-lg border border-slate-800">
+    <Card>
       <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
           <Activity className="w-4 h-4 text-indigo-400" /> RBAC Health Audit
@@ -665,6 +666,6 @@ spec:
           );
         })}
       </div>
-    </div>
+    </Card>
   );
 }

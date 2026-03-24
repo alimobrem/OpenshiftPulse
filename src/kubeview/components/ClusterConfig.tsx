@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { k8sGet, k8sPatch } from '../engine/query';
 import { useUIStore } from '../store/uiStore';
 import { ConfirmDialog } from './feedback/ConfirmDialog';
+import { Card } from './primitives/Card';
 
 const CONFIG_BASE = '/apis/config.openshift.io/v1';
 // CRDs use merge-patch, not strategic-merge-patch
@@ -64,7 +65,7 @@ function ConfigSectionPanel({ section, expanded, onToggle }: {
   });
 
   return (
-    <div className="bg-slate-900 rounded-lg border border-slate-800">
+    <Card>
       <button onClick={onToggle} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-800/50 transition-colors">
         {section.icon}
         <div className="flex-1 text-left">
@@ -82,7 +83,7 @@ function ConfigSectionPanel({ section, expanded, onToggle }: {
           )}
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 

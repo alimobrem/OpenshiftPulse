@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import { CheckCircle, AlertCircle, Shield } from 'lucide-react';
 import type { K8sResource } from '../../engine/renderers';
 import type { Deployment, Container, Probe, PodTemplateSpec } from '../../engine/types';
+import { Card } from '../../components/primitives/Card';
 
 function probeDescription(probe: Probe): string {
   if (probe.httpGet) return `HTTP ${probe.httpGet.path || '/'}:${probe.httpGet.port}${probe.httpGet.scheme === 'HTTPS' ? ' (HTTPS)' : ''}`;
@@ -124,7 +125,7 @@ export function WorkloadAudit({ resource, go }: { resource: K8sResource; go: (pa
   const [expanded, setExpanded] = React.useState<string | null>(null);
 
   return (
-    <div className="bg-slate-900 rounded-lg border border-slate-800">
+    <Card>
       <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
           <Shield className="w-4 h-4 text-indigo-400" />
@@ -167,6 +168,6 @@ export function WorkloadAudit({ resource, go }: { resource: K8sResource; go: (pa
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }

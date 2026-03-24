@@ -9,6 +9,7 @@ import { kindToPlural } from '../engine/renderers/index';
 import { Card, CardHeader, CardBody } from '../components/primitives/Card';
 import { ConfirmDialog } from '../components/feedback/ConfirmDialog';
 import { MetricCard } from '../components/metrics/Sparkline';
+import { CHART_COLORS } from '../engine/colors';
 
 interface PrometheusAlert {
   labels: Record<string, string>;
@@ -82,9 +83,17 @@ export default function AlertsView() {
     if (tab === 'firing') url.searchParams.delete('tab'); else url.searchParams.set('tab', tab);
     window.history.replaceState(null, '', url.toString());
   };
-  const [searchQuery, setSearchQuery] = useState('');
-  const [severityFilter, setSeverityFilter] = useState<'all' | 'critical' | 'warning' | 'info'>('all');
-  const [groupBy, setGroupBy] = useState<'none' | 'namespace' | 'alertname'>('none');
+  const urlParams = new URLSearchParams(window.location.search);
+  const [searchQuery, setSearchQuery] = useState(urlParams.get('q') || '');
+  const [severityFilter, setSeverityFilterState] = useState<'all' | 'critical' | 'warning' | 'info'>((urlParams.get('severity') as 'all' | 'critical' | 'warning' | 'info') || 'all');
+  const [groupBy, setGroupByState] = useState<'none' | 'namespace' | 'alertname'>((urlParams.get('groupBy') as 'none' | 'namespace' | 'alertname') || 'none');
+  const updateUrlParam = (key: string, value: string, defaultValue: string) => {
+    const url = new URL(window.location.href);
+    if (value === defaultValue) url.searchParams.delete(key); else url.searchParams.set(key, value);
+    window.history.replaceState(null, '', url.toString());
+  };
+  const setSeverityFilter = (v: typeof severityFilter) => { setSeverityFilterState(v); updateUrlParam('severity', v, 'all'); };
+  const setGroupBy = (v: typeof groupBy) => { setGroupByState(v); updateUrlParam('groupBy', v, 'none'); };
   const [showSilenceForm, setShowSilenceForm] = useState(false);
   const [silenceForm, setSilenceForm] = useState<SilenceFormData>({
     matchers: [{ name: 'alertname', value: '', isRegex: false }],
@@ -419,16 +428,16 @@ export default function AlertsView() {
         {/* Alert metrics */}
         {allAlerts.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <MetricCard title="Alert Rate" query="sum(ALERTS)" unit="" color="#ef4444" />
-            <MetricCard title="Critical Alerts" query="sum(ALERTS{severity='critical'})" unit="" color="#dc2626" />
-            <MetricCard title="Warning Alerts" query="sum(ALERTS{severity='warning'})" unit="" color="#f59e0b" />
-            <MetricCard title="Alertmanager Notifications" query="sum(rate(alertmanager_notifications_total[5m])) * 300" unit="/5m" color="#8b5cf6" />
+            <MetricCard title="Alert Rate" query="sum(ALERTS)" unit="" color={CHART_COLORS.red} />
+            <MetricCard title="Critical Alerts" query="sum(ALERTS{severity='critical'})" unit="" color={CHART_COLORS.darkRed} />
+            <MetricCard title="Warning Alerts" query="sum(ALERTS{severity='warning'})" unit="" color={CHART_COLORS.amber} />
+            <MetricCard title="Alertmanager Notifications" query="sum(rate(alertmanager_notifications_total[5m])) * 300" unit="/5m" color={CHART_COLORS.violet} />
           </div>
         )}
 
         {/* Top firing alerts */}
         {topAlertNames.length > 0 && allAlerts.length > 3 && (
-          <div className="bg-slate-900 rounded-lg border border-slate-800 p-4">
+          <Card className="p-4">
             <div className="text-xs text-slate-500 font-medium mb-2">Most frequent alerts</div>
             <div className="flex flex-wrap gap-2">
               {topAlertNames.map(([name, count]) => (
@@ -438,7 +447,7 @@ export default function AlertsView() {
                 </button>
               ))}
             </div>
-          </div>
+          </Card>
         )}
 
         {/* Tabs + Search + Filters */}
@@ -489,7 +498,7 @@ export default function AlertsView() {
             ) : groupedAlerts ? (
               // Grouped view
               groupedAlerts.map(([groupName, alerts]) => (
-                <div key={groupName} className="bg-slate-900 rounded-lg border border-slate-800">
+                <Card key={groupName}>
                   <div className="px-4 py-2.5 border-b border-slate-800 flex items-center justify-between">
                     <span className="text-sm font-medium text-slate-200">{groupName}</span>
                     <span className="text-xs px-2 py-0.5 bg-red-900/50 text-red-300 rounded">{alerts.length}</span>
@@ -497,7 +506,7 @@ export default function AlertsView() {
                   <div className="divide-y divide-slate-800">
                     {alerts.map((item, idx) => <AlertRow key={idx} item={item} go={go} onSilence={openSilenceFormForAlert} />)}
                   </div>
-                </div>
+                </Card>
               ))
             ) : (
               // Flat view

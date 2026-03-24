@@ -5,6 +5,7 @@ import { buildDependencyGraph, type DependencyGraph, type GraphNode } from '@/li
 import { useUIStore } from '../store/uiStore';
 import { resourceDetailUrl } from '../engine/gvr';
 import { useNavigateTab } from '../hooks/useNavigateTab';
+import { Card } from '../components/primitives/Card';
 
 interface DependencyViewProps {
   gvrKey: string;
@@ -240,7 +241,7 @@ export default function DependencyView({ gvrKey, namespace, name }: DependencyVi
       {/* Graph */}
       <div className="flex-1 overflow-auto p-4">
         <div className="text-xs text-slate-500 mb-2">Click a node to navigate · Right-click to highlight blast radius</div>
-        <div className="bg-slate-900 rounded-lg border border-slate-800 overflow-auto">
+        <Card className="overflow-auto">
           <svg width="100%" height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`} style={{ minHeight: 300 }}>
             <defs>
               <marker id="kv-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
@@ -319,7 +320,7 @@ export default function DependencyView({ gvrKey, namespace, name }: DependencyVi
               );
             })}
           </svg>
-        </div>
+        </Card>
       </div>
     </div>
   );

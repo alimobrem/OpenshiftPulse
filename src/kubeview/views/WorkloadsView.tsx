@@ -13,8 +13,10 @@ import { useUIStore } from '../store/uiStore';
 import { useNavigateTab } from '../hooks/useNavigateTab';
 import { useK8sListWatch } from '../hooks/useK8sListWatch';
 import { MetricCard } from '../components/metrics/Sparkline';
+import { CHART_COLORS } from '../engine/colors';
 import { Panel } from '../components/primitives/Panel';
 import { sanitizePromQL } from '../engine/query';
+import { Card } from '../components/primitives/Card';
 
 /** Local PDB type — not yet in engine/types */
 interface PodDisruptionBudget extends K8sResource {
@@ -196,7 +198,7 @@ export default function WorkloadsView() {
               ? `sum(rate(container_cpu_usage_seconds_total{namespace="${safeNs}",container!=""}[5m])) / sum(kube_pod_container_resource_requests{namespace="${safeNs}",resource="cpu"}) * 100`
               : 'sum(rate(container_cpu_usage_seconds_total{container!=""}[5m])) / sum(kube_pod_container_resource_requests{resource="cpu"}) * 100'}
             unit="%"
-            color="#3b82f6"
+            color={CHART_COLORS.blue}
             thresholds={{ warning: 70, critical: 90 }}
           />
           <MetricCard
@@ -205,7 +207,7 @@ export default function WorkloadsView() {
               ? `sum(container_memory_working_set_bytes{namespace="${safeNs}",container!=""}) / sum(kube_pod_container_resource_requests{namespace="${safeNs}",resource="memory"}) * 100`
               : 'sum(container_memory_working_set_bytes{container!=""}) / sum(kube_pod_container_resource_requests{resource="memory"}) * 100'}
             unit="%"
-            color="#8b5cf6"
+            color={CHART_COLORS.violet}
             thresholds={{ warning: 75, critical: 90 }}
           />
           <MetricCard
@@ -214,7 +216,7 @@ export default function WorkloadsView() {
               ? `sum(rate(kube_pod_container_status_restarts_total{namespace="${safeNs}"}[1h])) * 3600`
               : 'sum(rate(kube_pod_container_status_restarts_total[1h])) * 3600'}
             unit=" /hr"
-            color="#f59e0b"
+            color={CHART_COLORS.amber}
             thresholds={{ warning: 5, critical: 20 }}
           />
           <MetricCard
@@ -223,7 +225,7 @@ export default function WorkloadsView() {
               ? `sum(rate(kube_pod_start_time{namespace="${safeNs}"}[1h])) * 3600`
               : 'sum(rate(kube_pod_start_time[1h])) * 3600'}
             unit=" /hr"
-            color="#06b6d4"
+            color={CHART_COLORS.cyan}
           />
         </div>
 
@@ -313,7 +315,12 @@ export default function WorkloadsView() {
             <div className="text-center py-6 text-sm text-slate-500">No deployments{nsFilter ? ` in ${nsFilter}` : ''}</div>
           ) : (
             <div className="divide-y divide-slate-800 max-h-80 overflow-auto">
-              {deployments.map((d) => {
+              {[...deployments].sort((a, b) => {
+                const sa = getDeploymentStatus(a);
+                const sb = getDeploymentStatus(b);
+                if (sa.available !== sb.available) return sa.available ? 1 : -1;
+                return (sb.desired - sb.ready) - (sa.desired - sa.ready);
+              }).map((d) => {
                 const s = getDeploymentStatus(d);
                 return (
                   <button key={d.metadata.uid} onClick={() => go(`/r/apps~v1~deployments/${d.metadata.namespace}/${d.metadata.name}`, d.metadata.name)}
@@ -390,7 +397,7 @@ interface AuditCheck {
 }
 
 function WorkloadHealthAudit({ deployments, pdbs, go }: { deployments: Deployment[]; pdbs: PodDisruptionBudget[]; go: (path: string, title: string) => void }) {
-  const [expandedCheck, setExpandedCheck] = React.useState<string | null>(null);
+  const [expandedChecks, setExpandedChecks] = React.useState<Set<string>>(new Set());
 
   // PDB label selectors for matching
   const pdbSelectors = React.useMemo(() =>
@@ -555,7 +562,7 @@ spec:
   const score = Math.round((totalPassing / checks.length) * 100);
 
   return (
-    <div className="bg-slate-900 rounded-lg border border-slate-800">
+    <Card>
       <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
           <Activity className="w-4 h-4 text-blue-400" /> Workload Health Audit
@@ -568,11 +575,11 @@ spec:
       <div className="divide-y divide-slate-800">
         {checks.map((check) => {
           const pass = check.failing.length === 0;
-          const expanded = expandedCheck === check.id;
+          const expanded = expandedChecks.has(check.id);
           return (
             <div key={check.id}>
               <button
-                onClick={() => setExpandedCheck(expanded ? null : check.id)}
+                onClick={() => setExpandedChecks(prev => { const next = new Set(prev); if (next.has(check.id)) next.delete(check.id); else next.add(check.id); return next; })}
                 className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-800/30 transition-colors"
               >
                 <div className="flex items-center gap-3">
@@ -642,6 +649,6 @@ spec:
           );
         })}
       </div>
-    </div>
+    </Card>
   );
 }

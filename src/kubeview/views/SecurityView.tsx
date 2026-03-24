@@ -12,6 +12,7 @@ import { useK8sListWatch } from '../hooks/useK8sListWatch';
 import { Panel } from '../components/primitives/Panel';
 import type { K8sResource } from '../engine/renderers';
 import type { ClusterRoleBinding, Namespace, Subject } from '../engine/types';
+import { Card } from '../components/primitives/Card';
 
 interface AuditCheck {
   id: string;
@@ -258,7 +259,7 @@ export default function SecurityView() {
         </div>
 
         {/* Security Audit */}
-        <div className="bg-slate-900 rounded-lg border border-slate-800">
+        <Card>
           <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-indigo-400" />
@@ -289,10 +290,10 @@ export default function SecurityView() {
               </div>
             ))}
           </div>
-        </div>
+        </Card>
 
         {/* Cluster-Admin Subjects */}
-        <div className="bg-slate-900 rounded-lg border border-slate-800">
+        <Card>
           <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
               <Key className="w-4 h-4 text-red-400" />
@@ -318,7 +319,7 @@ export default function SecurityView() {
               ))}
             </div>
           )}
-        </div>
+        </Card>
 
         {/* SCCs */}
         <SCCPanel sccs={sccs} go={go} />
@@ -379,7 +380,7 @@ function SCCPanel({ sccs, go }: { sccs: K8sResource[]; go: (path: string, title:
   const hostPID = sccs.filter(s => (s as any).allowHostPID === true);
 
   return (
-    <div className="bg-slate-900 rounded-lg border border-slate-800">
+    <Card>
       <button onClick={() => setExpanded(!expanded)}
         className="w-full px-4 py-3 border-b border-slate-800 flex items-center justify-between hover:bg-slate-800/30 transition-colors">
         <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
@@ -426,7 +427,7 @@ function SCCPanel({ sccs, go }: { sccs: K8sResource[]; go: (path: string, title:
           </table>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 

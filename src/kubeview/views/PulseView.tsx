@@ -11,11 +11,13 @@ export default function PulseView() {
   const selectedNamespace = useUIStore((s) => s.selectedNamespace);
 
   const nsFilter = selectedNamespace !== '*' ? selectedNamespace : undefined;
-  const { data: nodes = [] } = useK8sListWatch({ apiPath: '/api/v1/nodes' });
-  const { data: pods = [] } = useK8sListWatch({ apiPath: '/api/v1/pods', namespace: nsFilter });
-  const { data: deployments = [] } = useK8sListWatch({ apiPath: '/apis/apps/v1/deployments', namespace: nsFilter });
+  const { data: nodes = [], isLoading: nodesLoading } = useK8sListWatch({ apiPath: '/api/v1/nodes' });
+  const { data: pods = [], isLoading: podsLoading } = useK8sListWatch({ apiPath: '/api/v1/pods', namespace: nsFilter });
+  const { data: deployments = [], isLoading: deploysLoading } = useK8sListWatch({ apiPath: '/apis/apps/v1/deployments', namespace: nsFilter });
   const { data: pvcs = [] } = useK8sListWatch({ apiPath: '/api/v1/persistentvolumeclaims', namespace: nsFilter });
   const { data: operators = [] } = useK8sListWatch({ apiPath: '/apis/config.openshift.io/v1/clusteroperators' });
+
+  const isLoading = nodesLoading || podsLoading || deploysLoading;
 
   return (
     <div className="h-full overflow-auto bg-slate-950 p-6">
@@ -31,6 +33,17 @@ export default function PulseView() {
           </p>
         </div>
 
+        {isLoading ? (
+          <div className="space-y-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="bg-slate-900 rounded-lg border border-slate-800 p-6 animate-pulse">
+                <div className="h-4 bg-slate-800 rounded w-1/3 mb-3" />
+                <div className="h-3 bg-slate-800 rounded w-2/3 mb-2" />
+                <div className="h-3 bg-slate-800 rounded w-1/2" />
+              </div>
+            ))}
+          </div>
+        ) : (
         <ReportTab
           nodes={nodes as K8sResource[]}
           allPods={pods as K8sResource[]}
@@ -39,6 +52,7 @@ export default function PulseView() {
           operators={operators as K8sResource[]}
           go={go}
         />
+        )}
       </div>
     </div>
   );

@@ -8,12 +8,14 @@ import { cn } from '@/lib/utils';
 import { k8sList } from '../engine/query';
 import { queryInstant } from '../components/metrics/prometheus';
 import { MetricCard } from '../components/metrics/Sparkline';
+import { CHART_COLORS } from '../engine/colors';
 import type { K8sResource } from '../engine/renderers';
 import type { Node, Pod, Machine, MachineSet, Taint } from '../engine/types';
 import { getNodeStatus } from '../engine/renderers/statusUtils';
 import { useNavigateTab } from '../hooks/useNavigateTab';
 import { useK8sListWatch } from '../hooks/useK8sListWatch';
 import { useClusterStore } from '../store/clusterStore';
+import { Card } from '../components/primitives/Card';
 
 /** Prometheus instant-query result entry */
 type PrometheusResult = { metric: Record<string, string>; value: number };
@@ -71,8 +73,12 @@ function parseQuantity(q: string | undefined): number {
   if (unit === 'Mi') return val * 1024 * 1024;
   if (unit === 'Gi') return val * 1024 * 1024 * 1024;
   if (unit === 'Ti') return val * 1024 * 1024 * 1024 * 1024;
+  if (unit === 'Pi') return val * 1024 * 1024 * 1024 * 1024 * 1024;
+  if (unit === 'Ei') return val * 1024 * 1024 * 1024 * 1024 * 1024 * 1024;
   if (unit === 'm') return val / 1000;
   if (unit === 'k') return val * 1000;
+  if (unit === 'M') return val * 1000 * 1000;
+  if (unit === 'G') return val * 1000 * 1000 * 1000;
   return val;
 }
 
@@ -131,17 +137,21 @@ export default function ComputeView() {
     enabled: !isHyperShift,
   });
 
-  // Per-node CPU usage from Prometheus
+  // Per-node CPU usage from Prometheus (joined via kube_node_info for reliable node name matching)
   const { data: nodeCpuMetrics = [] } = useQuery({
     queryKey: ['compute', 'node-cpu'],
-    queryFn: () => queryInstant('sum(rate(node_cpu_seconds_total{mode!="idle"}[5m])) by (instance)').catch(() => []),
+    queryFn: () => queryInstant('sum(rate(node_cpu_seconds_total{mode!="idle"}[5m])) by (instance) * on(instance) group_left(node) kube_node_info').catch(() =>
+      queryInstant('sum(rate(node_cpu_seconds_total{mode!="idle"}[5m])) by (instance)').catch(() => [])
+    ),
     refetchInterval: 30000,
   });
 
-  // Per-node memory usage from Prometheus
+  // Per-node memory usage from Prometheus (joined via kube_node_info for reliable node name matching)
   const { data: nodeMemMetrics = [] } = useQuery({
     queryKey: ['compute', 'node-mem'],
-    queryFn: () => queryInstant('(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100').catch(() => []),
+    queryFn: () => queryInstant('(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 * on(instance) group_left(node) kube_node_info').catch(() =>
+      queryInstant('(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100').catch(() => [])
+    ),
     refetchInterval: 30000,
   });
 
@@ -209,11 +219,14 @@ export default function ComputeView() {
       const cpuCap = parseQuantity(capacity.cpu);
       const memCap = parseQuantity(capacity.memory);
 
-      // Try to find per-node metrics (match by instance name containing node name)
+      // Match per-node metrics: prefer `node` label (from kube_node_info join), fall back to `instance` substring
       const nodeName = node.metadata.name;
-      const memMetric = (nodeMemMetrics as PrometheusResult[]).find((m) => m.metric?.instance?.includes(nodeName));
+      const findMetric = (metrics: PrometheusResult[]) =>
+        metrics.find((m) => m.metric?.node === nodeName) ??
+        metrics.find((m) => m.metric?.instance?.includes(nodeName));
+      const memMetric = findMetric(nodeMemMetrics as PrometheusResult[]);
       const memUsagePct = memMetric?.value ?? null;
-      const cpuMetric = (nodeCpuMetrics as PrometheusResult[]).find((m) => m.metric?.instance?.includes(nodeName));
+      const cpuMetric = findMetric(nodeCpuMetrics as PrometheusResult[]);
       const cpuUsageCores = cpuMetric?.value ?? null;
       const cpuUsagePct = cpuCap > 0 && cpuUsageCores !== null ? (cpuUsageCores / cpuCap) * 100 : null;
 
@@ -260,27 +273,27 @@ export default function ComputeView() {
             title="Cluster CPU"
             query="sum(rate(node_cpu_seconds_total{mode!='idle'}[5m])) / sum(machine_cpu_cores) * 100"
             unit="%"
-            color="#3b82f6"
+            color={CHART_COLORS.blue}
             thresholds={{ warning: 70, critical: 90 }}
           />
           <MetricCard
             title="Cluster Memory"
             query="(1 - sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes)) * 100"
             unit="%"
-            color="#8b5cf6"
+            color={CHART_COLORS.violet}
             thresholds={{ warning: 75, critical: 90 }}
           />
           <MetricCard
             title="Node Load (1m)"
             query="avg(node_load1)"
             unit=""
-            color="#f59e0b"
+            color={CHART_COLORS.amber}
           />
           <MetricCard
             title="Filesystem Usage"
             query="(1 - sum(node_filesystem_avail_bytes{fstype!~'tmpfs|overlay|squashfs'}) / sum(node_filesystem_size_bytes{fstype!~'tmpfs|overlay|squashfs'})) * 100"
             unit="%"
-            color="#06b6d4"
+            color={CHART_COLORS.cyan}
             thresholds={{ warning: 80, critical: 95 }}
           />
         </div>
@@ -332,7 +345,7 @@ export default function ComputeView() {
         )}
 
         {/* Node table */}
-        <div className="bg-slate-900 rounded-lg border border-slate-800 overflow-hidden">
+        <Card className="overflow-hidden">
           <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-100">Nodes ({nodes.length})</h2>
             <button onClick={() => go('/r/v1~nodes', 'Nodes')} className="text-xs text-blue-400 hover:text-blue-300">View all →</button>
@@ -445,22 +458,22 @@ export default function ComputeView() {
               </tbody>
             </table>
           </div>
-        </div>
+        </Card>
 
         {/* Machine Management — hidden on HyperShift where Machine API is managed externally */}
         {isHyperShift ? (
-          <div className="bg-slate-900 rounded-lg border border-slate-800 p-4">
+          <Card className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <Info className="w-4 h-4 text-blue-400" />
               <span className="text-sm font-medium text-slate-200">Machine Management</span>
               <span className="text-xs px-2 py-0.5 bg-blue-900/60 text-blue-300 rounded-full border border-blue-700/50">Hosted Control Plane</span>
             </div>
             <p className="text-xs text-slate-400">Machine API resources (MachineSets, Machines, MachineHealthChecks, Autoscaling) are managed by the hosting provider on HyperShift clusters. Worker node scaling is handled through the hosted cluster's NodePool resource in the management cluster.</p>
-          </div>
+          </Card>
         ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* MachineSets */}
-          <div className="bg-slate-900 rounded-lg border border-slate-800">
+          <Card>
             <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-slate-100">MachineSets ({machineSets.length})</h2>
               <button onClick={() => go('/r/machine.openshift.io~v1beta1~machinesets', 'MachineSets')} className="text-xs text-blue-400 hover:text-blue-300">View all →</button>
@@ -484,10 +497,10 @@ export default function ComputeView() {
                 );
               })}
             </div>
-          </div>
+          </Card>
 
           {/* Machines */}
-          <div className="bg-slate-900 rounded-lg border border-slate-800">
+          <Card>
             <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-slate-100">Machines ({machines.length})</h2>
               <button onClick={() => go('/r/machine.openshift.io~v1beta1~machines', 'Machines')} className="text-xs text-blue-400 hover:text-blue-300">View all →</button>
@@ -519,10 +532,10 @@ export default function ComputeView() {
                 );
               })}
             </div>
-          </div>
+          </Card>
 
           {/* MachineHealthChecks */}
-          <div className="bg-slate-900 rounded-lg border border-slate-800">
+          <Card>
             <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-slate-100">Machine Health Checks ({healthChecks.length})</h2>
               <button onClick={() => go('/r/machine.openshift.io~v1beta1~machinehealthchecks', 'HealthChecks')} className="text-xs text-blue-400 hover:text-blue-300">View all →</button>
@@ -550,10 +563,10 @@ export default function ComputeView() {
                 );
               })}
             </div>
-          </div>
+          </Card>
 
           {/* Autoscaling */}
-          <div className="bg-slate-900 rounded-lg border border-slate-800">
+          <Card>
             <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-slate-100">Autoscaling</h2>
               {clusterAutoscaler.length > 0 && <span className="text-xs px-1.5 py-0.5 bg-green-900/50 text-green-300 rounded">Enabled</span>}
@@ -616,14 +629,14 @@ export default function ComputeView() {
                 </>
               )}
             </div>
-          </div>
+          </Card>
         </div>
         )}
 
         {/* MachineConfig Management */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* MachineConfigPools */}
-          <div className="bg-slate-900 rounded-lg border border-slate-800">
+          <Card>
             <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-slate-100">MachineConfigPools ({machineConfigPools.length})</h2>
               <button onClick={() => go('/r/machineconfiguration.openshift.io~v1~machineconfigpools', 'MachineConfigPools')} className="text-xs text-blue-400 hover:text-blue-300">View all →</button>
@@ -666,10 +679,10 @@ export default function ComputeView() {
                 );
               })}
             </div>
-          </div>
+          </Card>
 
           {/* MachineConfigs quick access */}
-          <div className="bg-slate-900 rounded-lg border border-slate-800">
+          <Card>
             <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-slate-100">Machine Configuration</h2>
               <button onClick={() => go('/r/machineconfiguration.openshift.io~v1~machineconfigs', 'MachineConfigs')} className="text-xs text-blue-400 hover:text-blue-300">View all →</button>
@@ -694,7 +707,7 @@ export default function ComputeView() {
                 ))}
               </div>
             </div>
-          </div>
+          </Card>
         </div>
       </div>
     </div>
@@ -972,7 +985,7 @@ spec:
   const score = Math.round((totalPassing / checks.length) * 100);
 
   return (
-    <div className="bg-slate-900 rounded-lg border border-slate-800">
+    <Card>
       <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
           <Activity className="w-4 h-4 text-blue-400" /> Compute Health Audit
@@ -1098,6 +1111,6 @@ spec:
           );
         })}
       </div>
-    </div>
+    </Card>
   );
 }

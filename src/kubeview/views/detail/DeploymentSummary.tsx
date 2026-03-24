@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import type { K8sResource } from '../../engine/renderers';
 import type { Deployment, Pod, Container, ContainerPort, ContainerStatus } from '../../engine/types';
+import { Card } from '../../components/primitives/Card';
 
 interface DeploymentSummaryProps {
   resource: K8sResource;
@@ -82,7 +83,7 @@ export function DeploymentSummary({ resource, managedPods, go }: DeploymentSumma
         </div>
 
         {/* Strategy */}
-        <div className="bg-slate-900 rounded-lg border border-slate-800 p-3">
+        <Card className="p-3">
           <div className="text-xs text-slate-400 mb-1">Strategy</div>
           <div className="text-lg font-bold text-slate-100">{strategy}</div>
           {strategy === 'RollingUpdate' && (
@@ -90,29 +91,29 @@ export function DeploymentSummary({ resource, managedPods, go }: DeploymentSumma
               surge {maxSurge}, unavail {maxUnavailable}
             </div>
           )}
-        </div>
+        </Card>
 
         {/* Containers */}
-        <div className="bg-slate-900 rounded-lg border border-slate-800 p-3">
+        <Card className="p-3">
           <div className="text-xs text-slate-400 mb-1">Containers</div>
           <div className="text-lg font-bold text-slate-100">{containers.length}</div>
           <div className="text-xs text-slate-500 mt-1 truncate">
             {containers.map(c => c.name).join(', ')}
           </div>
-        </div>
+        </Card>
 
         {/* Age */}
-        <div className="bg-slate-900 rounded-lg border border-slate-800 p-3">
+        <Card className="p-3">
           <div className="text-xs text-slate-400 mb-1">Age</div>
           <div className="text-lg font-bold text-slate-100">{age}</div>
           <div className="text-xs text-slate-500 mt-1">
             Gen {generation}{observedGeneration !== generation ? ` (observed: ${observedGeneration})` : ''}
           </div>
-        </div>
+        </Card>
       </div>
 
       {/* Container images row */}
-      <div className="bg-slate-900 rounded-lg border border-slate-800">
+      <Card>
         <div className="px-4 py-2.5 border-b border-slate-800">
           <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Container Images</h3>
         </div>
@@ -155,10 +156,10 @@ export function DeploymentSummary({ resource, managedPods, go }: DeploymentSumma
             );
           })}
         </div>
-      </div>
+      </Card>
 
       {/* Pods breakdown */}
-      <div className="bg-slate-900 rounded-lg border border-slate-800">
+      <Card>
         <div className="px-4 py-2.5 border-b border-slate-800 flex items-center justify-between">
           <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
             <Box className="w-3.5 h-3.5 text-blue-400" />
@@ -224,11 +225,11 @@ export function DeploymentSummary({ resource, managedPods, go }: DeploymentSumma
             })
           )}
         </div>
-      </div>
+      </Card>
 
       {/* Selector */}
       {Object.keys(selector).length > 0 && (
-        <div className="bg-slate-900 rounded-lg border border-slate-800 px-4 py-3">
+        <Card className="px-4 py-3">
           <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Selector</h3>
           <div className="flex flex-wrap gap-2">
             {Object.entries(selector).map(([k, v]) => (
@@ -237,7 +238,7 @@ export function DeploymentSummary({ resource, managedPods, go }: DeploymentSumma
               </span>
             ))}
           </div>
-        </div>
+        </Card>
       )}
     </div>
   );
