@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { k8sList, k8sGet } from '../../engine/query';
+import { parseResourceValue } from '../../engine/formatting';
 import { queryInstant } from '../../components/metrics/prometheus';
 import { MetricCard } from '../../components/metrics/Sparkline';
 import { CHART_COLORS } from '../../engine/colors';
@@ -264,9 +265,9 @@ export function ReportTab({ nodes, allPods, deployments, pvcs, operators, go }: 
       const hard = rqTyped.status?.hard || {};
       const used = rqTyped.status?.used || {};
       for (const resource of Object.keys(hard)) {
-        const hardVal = parseFloat(hard[resource]);
-        const usedVal = parseFloat(used[resource] || '0');
-        if (!isNaN(hardVal) && !isNaN(usedVal) && usedVal > hardVal) {
+        const hardVal = parseResourceValue(hard[resource]);
+        const usedVal = parseResourceValue(used[resource] || '0');
+        if (hardVal > 0 && usedVal > hardVal) {
           overages.push({ namespace: rq.metadata.namespace || '', name: rq.metadata.name, resource, used: used[resource], hard: hard[resource] });
         }
       }
