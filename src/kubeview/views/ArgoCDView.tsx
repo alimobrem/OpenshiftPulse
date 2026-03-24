@@ -1,5 +1,5 @@
 import React from 'react';
-import { GitBranch, RefreshCw, Loader2, Info } from 'lucide-react';
+import { GitBranch, RefreshCw, Loader2, Info, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useArgoCD, useArgoCDRefresh } from '../hooks/useArgoCD';
 import { useArgoCDStore } from '../store/argoCDStore';
@@ -43,18 +43,38 @@ export default function ArgoCDView() {
     }
   };
 
-  // Not available — show info
+  // Not available — show setup guide
   if (!available && !detecting) {
     return (
       <div className="h-full overflow-auto bg-slate-950 p-6">
-        <div className="max-w-5xl mx-auto">
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <Info className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-              <p className="text-slate-400 text-sm">ArgoCD is not installed on this cluster</p>
-              <p className="text-slate-500 text-xs mt-1">Install OpenShift GitOps or ArgoCD to enable GitOps features</p>
-            </div>
+        <div className="max-w-3xl mx-auto space-y-6">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
+              <GitBranch className="w-6 h-6 text-violet-500" /> GitOps
+            </h1>
+            <p className="text-sm text-slate-400 mt-1">Manage your cluster declaratively via Git</p>
           </div>
+
+          <Card className="p-6">
+            <h2 className="text-lg font-semibold text-slate-100 mb-4">Get Started with GitOps</h2>
+            <p className="text-sm text-slate-400 mb-6">GitOps uses Git as the single source of truth for your cluster configuration. Changes are made via pull requests, and ArgoCD ensures your cluster matches the desired state in Git.</p>
+
+            <div className="space-y-4">
+              <StepCard number={1} title="Install OpenShift GitOps" description="Install the OpenShift GitOps operator from OperatorHub. This deploys ArgoCD in the openshift-gitops namespace." action="Install Operator" onClick={() => go('/create/v1~pods?tab=operators&q=openshift-gitops', 'Operators')} />
+              <StepCard number={2} title="Create a Git Repository" description="Create a Git repo (GitHub, GitLab, or Bitbucket) to store your Kubernetes manifests. Organize by environment or application." />
+              <StepCard number={3} title="Create an ArgoCD Application" description="Define an Application resource that points to your Git repo and target namespace. ArgoCD will sync your manifests to the cluster." />
+              <StepCard number={4} title="Configure Pulse Integration" description="Go to Admin → GitOps tab to connect Pulse to your Git provider. This enables auto-PR on resource edits and drift tracking." action="Configure" onClick={() => go('/admin?tab=gitops', 'Admin')} />
+            </div>
+          </Card>
+
+          <Card className="p-4">
+            <h3 className="text-sm font-semibold text-slate-200 mb-2">Why GitOps?</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-slate-400">
+              <div><span className="text-emerald-400 font-medium">Audit Trail</span> — Every change tracked in Git history</div>
+              <div><span className="text-blue-400 font-medium">Rollback</span> — Revert to any previous state with git revert</div>
+              <div><span className="text-violet-400 font-medium">Drift Detection</span> — ArgoCD alerts when cluster diverges from Git</div>
+            </div>
+          </Card>
         </div>
       </div>
     );
@@ -155,6 +175,27 @@ export default function ArgoCDView() {
               <DriftTab applications={applications} onSync={handleSync} syncing={syncing} go={go} />
             )}
           </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StepCard({ number, title, description, action, onClick }: {
+  number: number; title: string; description: string; action?: string; onClick?: () => void;
+}) {
+  return (
+    <div className="flex gap-4 p-4 rounded-lg border border-slate-800 bg-slate-800/30">
+      <div className="w-7 h-7 rounded-full bg-violet-600 text-white text-sm font-bold flex items-center justify-center shrink-0">
+        {number}
+      </div>
+      <div className="flex-1">
+        <div className="text-sm font-medium text-slate-200">{title}</div>
+        <p className="text-xs text-slate-400 mt-1">{description}</p>
+        {action && onClick && (
+          <button onClick={onClick} className="mt-2 text-xs text-violet-400 hover:text-violet-300 flex items-center gap-1 transition-colors">
+            {action} <ArrowRight className="w-3 h-3" />
+          </button>
         )}
       </div>
     </div>

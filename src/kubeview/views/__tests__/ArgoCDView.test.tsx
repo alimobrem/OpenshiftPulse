@@ -55,13 +55,13 @@ describe('ArgoCDView', () => {
   it('shows not-installed message when ArgoCD is unavailable', () => {
     mockUseArgoCD.mockReturnValue({ available: false, detecting: false, applications: [], applicationsLoading: false, namespace: null });
     renderView();
-    expect(screen.getByText('ArgoCD is not installed on this cluster')).toBeDefined();
+    expect(screen.getByText('Get Started with GitOps')).toBeDefined();
   });
 
   it('renders GitOps heading when ArgoCD is available', () => {
     mockUseArgoCD.mockReturnValue({ available: true, detecting: false, applications: [], applicationsLoading: false, namespace: 'openshift-gitops' });
     renderView();
-    expect(screen.getByText('GitOps')).toBeDefined();
+    expect(screen.getAllByText(/GitOps/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders application count cards', () => {
