@@ -122,6 +122,11 @@ function ResourceRow({ resource, go }: { resource: ArgoManagedResource; go: (pat
         {resource.namespace && <span className="text-xs text-slate-600">{resource.namespace}</span>}
       </div>
       <div className="flex items-center gap-2 shrink-0">
+        {resource.requiresPruning && (
+          <span className="text-xs px-1.5 py-0.5 rounded bg-red-900/50 text-red-300" title="Will be deleted on next sync with prune enabled">
+            prune
+          </span>
+        )}
         <span className={cn('text-xs', SYNC_COLORS[resource.status])}>
           {resource.status}
         </span>
