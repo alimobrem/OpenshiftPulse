@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, memo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Bot, Shield, Send, Trash2, Loader2, Wrench, Brain, AlertTriangle, CheckCircle, XCircle, Wifi, WifiOff, Copy, Check, Clock, Square } from 'lucide-react';
 import { useAgentStore } from '../store/agentStore';
@@ -401,7 +401,7 @@ export default function AgentView() {
   );
 }
 
-function MessageBubble({ message, mode }: { message: AgentMessage; mode: AgentMode }) {
+const MessageBubble = memo(function MessageBubble({ message, mode }: { message: AgentMessage; mode: AgentMode }) {
   const isUser = message.role === 'user';
   const Icon = isUser ? undefined : MODE_CONFIG[mode].icon;
   const [copied, setCopied] = useState(false);
@@ -465,4 +465,4 @@ function MessageBubble({ message, mode }: { message: AgentMessage; mode: AgentMo
       </div>
     </div>
   );
-}
+});

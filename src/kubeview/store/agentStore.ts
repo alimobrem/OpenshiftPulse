@@ -1,7 +1,7 @@
 /**
  * Agent Store — manages chat state for the Pulse Agent integration.
  * Messages persist to localStorage so conversation survives navigation.
- * Component specs from tools are accumulated during streaming and merged into messages.
+ * Streaming deltas are batched via requestAnimationFrame to prevent render thrashing.
  */
 
 import { create } from 'zustand';
@@ -16,28 +16,21 @@ import {
 } from '../engine/agentClient';
 import { type ComponentSpec, truncateForPersistence } from '../engine/agentComponents';
 
+/** Max messages kept in history (older ones are trimmed) */
+const MAX_MESSAGES = 100;
+
 interface AgentState {
-  // Connection
   connected: boolean;
   mode: AgentMode;
-
-  // Chat (persisted)
   messages: AgentMessage[];
-
-  // Streaming (transient)
   streaming: boolean;
   streamingText: string;
   thinkingText: string;
   activeTools: string[];
   streamingComponents: ComponentSpec[];
-
-  // Confirmation
   pendingConfirm: ConfirmRequest | null;
-
-  // Error
   error: string | null;
 
-  // Actions
   connect: () => void;
   disconnect: () => void;
   sendMessage: (content: string, context?: ResourceContext) => void;
@@ -54,6 +47,38 @@ let nextId = 1;
 
 function makeId(): string {
   return `msg-${nextId++}`;
+}
+
+// --- Batched delta accumulator to prevent render thrashing ---
+let pendingTextDelta = '';
+let pendingThinkingDelta = '';
+let rafScheduled = false;
+
+function flushDeltas(set: (fn: (s: AgentState) => Partial<AgentState>) => void) {
+  if (!pendingTextDelta && !pendingThinkingDelta) return;
+  const text = pendingTextDelta;
+  const thinking = pendingThinkingDelta;
+  pendingTextDelta = '';
+  pendingThinkingDelta = '';
+  rafScheduled = false;
+  set((s) => ({
+    streamingText: s.streamingText + text,
+    thinkingText: s.thinkingText + thinking,
+  }));
+}
+
+function scheduleDeltaFlush(set: (fn: (s: AgentState) => Partial<AgentState>) => void) {
+  if (rafScheduled) return;
+  rafScheduled = true;
+  if (typeof requestAnimationFrame !== 'undefined') {
+    requestAnimationFrame(() => flushDeltas(set));
+  } else {
+    setTimeout(() => flushDeltas(set), 16);
+  }
+}
+
+function trimMessages(messages: AgentMessage[]): AgentMessage[] {
+  return messages.length > MAX_MESSAGES ? messages.slice(-MAX_MESSAGES) : messages;
 }
 
 export const useAgentStore = create<AgentState>()(
@@ -84,10 +109,12 @@ export const useAgentStore = create<AgentState>()(
               set({ connected: false });
               break;
             case 'text_delta':
-              set((s) => ({ streamingText: s.streamingText + event.text }));
+              pendingTextDelta += event.text;
+              scheduleDeltaFlush(set);
               break;
             case 'thinking_delta':
-              set((s) => ({ thinkingText: s.thinkingText + event.thinking }));
+              pendingThinkingDelta += event.thinking;
+              scheduleDeltaFlush(set);
               break;
             case 'tool_use':
               set((s) => ({ activeTools: [...s.activeTools, event.tool] }));
@@ -99,6 +126,8 @@ export const useAgentStore = create<AgentState>()(
               set({ pendingConfirm: { tool: event.tool, input: event.input } });
               break;
             case 'done': {
+              // Flush any remaining deltas
+              flushDeltas(set);
               const components = get().streamingComponents.map(truncateForPersistence);
               const msg: AgentMessage = {
                 id: makeId(),
@@ -108,7 +137,7 @@ export const useAgentStore = create<AgentState>()(
                 components: components.length > 0 ? components : undefined,
               };
               set((s) => ({
-                messages: [...s.messages, msg],
+                messages: trimMessages([...s.messages, msg]),
                 streaming: false,
                 streamingText: '',
                 thinkingText: '',
@@ -119,6 +148,7 @@ export const useAgentStore = create<AgentState>()(
               break;
             }
             case 'error':
+              flushDeltas(set);
               set({
                 error: event.message,
                 streaming: false,
@@ -145,6 +175,8 @@ export const useAgentStore = create<AgentState>()(
 
       sendMessage: (content, context) => {
         if (!client) return;
+        pendingTextDelta = '';
+        pendingThinkingDelta = '';
 
         const userMsg: AgentMessage = {
           id: makeId(),
@@ -155,7 +187,7 @@ export const useAgentStore = create<AgentState>()(
         };
 
         set((s) => ({
-          messages: [...s.messages, userMsg],
+          messages: trimMessages([...s.messages, userMsg]),
           streaming: true,
           streamingText: '',
           thinkingText: '',
@@ -168,11 +200,15 @@ export const useAgentStore = create<AgentState>()(
       },
 
       switchMode: (mode) => {
+        pendingTextDelta = '';
+        pendingThinkingDelta = '';
         set({ mode, messages: [], streamingText: '', thinkingText: '', activeTools: [], streamingComponents: [] });
         if (client) client.switchMode(mode);
       },
 
       clearChat: () => {
+        pendingTextDelta = '';
+        pendingThinkingDelta = '';
         set({ messages: [], streamingText: '', thinkingText: '', activeTools: [], streamingComponents: [], error: null });
         if (client) client.clear();
       },
@@ -183,14 +219,11 @@ export const useAgentStore = create<AgentState>()(
       },
 
       cancelQuery: () => {
-        // Disconnect and immediately reconnect to abort the running query
+        pendingTextDelta = '';
+        pendingThinkingDelta = '';
         if (client) {
           client.disconnect();
-          client = new AgentClient(get().mode);
-          if (unsubscribe) unsubscribe();
-          // Re-register the event handler (connect will be called by the component)
         }
-        // Save any partial streaming text as the assistant response
         const partial = get().streamingText;
         if (partial) {
           const msg: AgentMessage = {
@@ -198,10 +231,12 @@ export const useAgentStore = create<AgentState>()(
             role: 'assistant',
             content: partial + '\n\n*(cancelled)*',
             timestamp: Date.now(),
-            components: get().streamingComponents.length > 0 ? get().streamingComponents : undefined,
+            components: get().streamingComponents.length > 0
+              ? get().streamingComponents.map(truncateForPersistence)
+              : undefined,
           };
           set((s) => ({
-            messages: [...s.messages, msg],
+            messages: trimMessages([...s.messages, msg]),
             streaming: false,
             streamingText: '',
             thinkingText: '',
@@ -219,17 +254,14 @@ export const useAgentStore = create<AgentState>()(
             pendingConfirm: null,
           });
         }
-        // Reconnect
         get().connect();
       },
 
       editLastMessage: () => {
         const messages = get().messages;
-        // Find the last user message
         for (let i = messages.length - 1; i >= 0; i--) {
           if (messages[i].role === 'user') {
             const content = messages[i].content;
-            // Remove the last user message and any assistant response after it
             set({ messages: messages.slice(0, i) });
             if (client) client.clear();
             return content;
@@ -241,7 +273,7 @@ export const useAgentStore = create<AgentState>()(
     {
       name: 'openshiftpulse-agent',
       partialize: (state) => ({
-        messages: state.messages,
+        messages: state.messages.slice(-50), // Only persist last 50 messages
         mode: state.mode,
       }),
     },
