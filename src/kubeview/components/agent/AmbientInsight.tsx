@@ -7,7 +7,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Sparkles, Loader2, X, RefreshCw } from 'lucide-react';
+import { Loader2, X, RefreshCw } from 'lucide-react';
+import { AIIconStatic, AI_ACCENT, aiGlowClass } from './AIBranding';
 
 import { AgentClient, type ResourceContext, type AgentEvent } from '../../engine/agentClient';
 import type { ComponentSpec } from '../../engine/agentComponents';
@@ -186,14 +187,17 @@ export function AmbientInsight({
   /* ---- Idle state: show trigger button ---- */
   if (state === 'idle') {
     return (
-      <div className={cn('rounded-lg border border-slate-700 bg-slate-800 p-4', className)}>
+      <div className={cn('rounded-lg border bg-slate-800 p-4', AI_ACCENT.border, className)}>
         <button
           onClick={runQuery}
-          className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors"
+          className={cn('flex items-center gap-2 text-sm transition-colors', AI_ACCENT.text, AI_ACCENT.textHover)}
         >
-          <Sparkles className="h-4 w-4" />
+          <AIIconStatic size={16} />
           Analyze with AI
         </button>
+        <p className="text-xs text-slate-500 mt-1">
+          {context.kind ? `Get an AI analysis of this ${context.kind.toLowerCase()}` : 'Get an AI-powered analysis'}
+        </p>
       </div>
     );
   }
@@ -250,8 +254,8 @@ export function AmbientInsight({
       )}
     >
       <div className="flex items-center gap-2 text-sm font-medium text-slate-200 mb-3">
-        <Sparkles className="h-4 w-4 text-amber-400" />
-        AI Insight
+        <AIIconStatic size={16} />
+        <span className={AI_ACCENT.text}>AI Insight</span>
       </div>
       <div className="text-sm text-slate-300">
         <MarkdownRenderer content={result} />

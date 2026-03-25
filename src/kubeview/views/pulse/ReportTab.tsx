@@ -9,6 +9,10 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { k8sList, k8sGet } from '../../engine/query';
+import { AIIconStatic, AI_ACCENT, PromptPill } from '../../components/agent/AIBranding';
+import { useUIStore } from '../../store/uiStore';
+import { useAgentStore } from '../../store/agentStore';
+import { generateSmartPrompts } from '../../engine/smartPrompts';
 import { parseResourceValue } from '../../engine/formatting';
 import { queryInstant } from '../../components/metrics/prometheus';
 import { MetricCard } from '../../components/metrics/Sparkline';
@@ -138,6 +142,17 @@ export function ReportTab({ nodes, allPods, deployments, pvcs, operators, go }: 
   const isHyperShift = useClusterStore((s) => s.isHyperShift);
   const [showScoreDetails, setShowScoreDetails] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const openDock = useUIStore((s) => s.openDock);
+  const sendMessage = useAgentStore((s) => s.sendMessage);
+  const agentConnect = useAgentStore((s) => s.connect);
+  const agentConnected = useAgentStore((s) => s.connected);
+
+  /** Open dock agent panel with a prompt */
+  const askAgent = (prompt: string) => {
+    if (!agentConnected) agentConnect();
+    setTimeout(() => sendMessage(prompt), 100);
+    openDock('agent');
+  };
 
   const toggleExpanded = (key: string) => {
     setExpandedItems(prev => {
@@ -663,7 +678,7 @@ export function ReportTab({ nodes, allPods, deployments, pvcs, operators, go }: 
                 const key = `attention-${i}`;
                 const isExpanded = expandedItems.has(key);
                 return (
-                  <div key={i}>
+                  <div key={i} className="relative">
                     <button onClick={() => item.steps ? toggleExpanded(key) : go(item.path, item.pathTitle)}
                       className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-800/50 transition-colors text-left group">
                       {item.severity === 'critical'
@@ -676,6 +691,20 @@ export function ReportTab({ nodes, allPods, deployments, pvcs, operators, go }: 
                       {item.steps
                         ? (isExpanded ? <ChevronDown className="w-3.5 h-3.5 text-slate-600 shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-600 shrink-0" />)
                         : <ChevronRight className="w-3.5 h-3.5 text-slate-600 group-hover:text-slate-400 shrink-0" />}
+                    </button>
+                    {/* Ask AI button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        askAgent(`Diagnose: ${item.title}. ${item.detail}`);
+                      }}
+                      className={cn(
+                        'absolute right-12 top-1/2 -translate-y-1/2 flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium opacity-0 group-hover:opacity-100 transition-opacity',
+                        AI_ACCENT.bg, AI_ACCENT.text, AI_ACCENT.border, 'border',
+                      )}
+                      title="Ask Pulse Agent to diagnose"
+                    >
+                      <AIIconStatic size={10} /> Ask AI
                     </button>
                     {isExpanded && item.steps && (
                       <div className="px-4 pb-3 pl-11">
@@ -817,6 +846,25 @@ export function ReportTab({ nodes, allPods, deployments, pvcs, operators, go }: 
             <AlertTriangle className="w-3 h-3" /> Alerts
           </button>
         </div>
+
+        {/* Ask the Agent — smart prompts */}
+        <Card className={cn('p-4 border', AI_ACCENT.border)}>
+          <div className="flex items-center gap-2 mb-3">
+            <AIIconStatic size={14} />
+            <span className={cn('text-xs font-medium', AI_ACCENT.text)}>Ask the Agent</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {generateSmartPrompts({
+              failedPods: failedPods.map(p => ({ name: p.metadata.name, namespace: p.metadata.namespace || '', status: 'Failed' })),
+              degradedOperators: degradedOperators.map(o => ({ name: o.metadata.name })),
+              currentView: '/pulse',
+            }).slice(0, 4).map((sp, i) => (
+              <PromptPill key={i} onClick={() => askAgent(sp.text)}>
+                {sp.text}
+              </PromptPill>
+            ))}
+          </div>
+        </Card>
       </div>
     </div>
   );

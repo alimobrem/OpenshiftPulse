@@ -6,9 +6,10 @@
  */
 
 import { useCallback, useRef, useState } from 'react';
-import { Sparkles, Loader2, X } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
 
 import { AgentClient, type AgentEvent } from '../../engine/agentClient';
+import { AIIconStatic, AI_ACCENT } from './AIBranding';
 import { cn } from '@/lib/utils';
 
 /* ---------------------------------------------------------------------------
@@ -134,7 +135,7 @@ export function NLFilterBar({ resourceKind, columns, onFiltersApplied }: NLFilte
         {loading ? (
           <Loader2 className="w-4 h-4 text-blue-400 animate-spin shrink-0" />
         ) : (
-          <Sparkles className="w-4 h-4 text-slate-500 shrink-0" />
+          <AIIconStatic size={16} className="shrink-0" />
         )}
         <input
           type="text"

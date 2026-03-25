@@ -1,9 +1,12 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Search, Command, Globe } from 'lucide-react';
 import { useUIStore } from '../store/uiStore';
+import { useAgentStore } from '../store/agentStore';
 import { getFavorites } from '../engine/favorites';
 import { useClusterStore } from '../store/clusterStore';
+import { generateSmartPrompts } from '../engine/smartPrompts';
+import { AIIconStatic, AI_ACCENT, aiGlowClass } from './agent/AIBranding';
 import { cn } from '@/lib/utils';
 import { getResourceIcon } from '../engine/iconRegistry';
 import { isMultiCluster } from '../engine/clusterConnection';
@@ -16,7 +19,7 @@ function titleCase(s: string): string {
 }
 
 interface CommandItem {
-  type: 'resource' | 'action' | 'recent' | 'nav';
+  type: 'resource' | 'action' | 'recent' | 'nav' | 'ai';
   id: string;
   title: string;
   subtitle?: string;
@@ -55,9 +58,14 @@ function saveRecent(item: CommandItem) {
 
 export function CommandPalette() {
   const navigate = useNavigate();
+  const location = useLocation();
   const closeCommandPalette = useUIStore((s) => s.closeCommandPalette);
+  const openDock = useUIStore((s) => s.openDock);
   const addTab = useUIStore((s) => s.addTab);
   const resourceRegistry = useClusterStore((s) => s.resourceRegistry);
+  const sendMessage = useAgentStore((s) => s.sendMessage);
+  const agentConnect = useAgentStore((s) => s.connect);
+  const agentConnected = useAgentStore((s) => s.connected);
 
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -110,9 +118,19 @@ export function CommandPalette() {
   }, [searchAllClusters, query]);
 
   // Build command items based on mode
-  const items = getCommandItems(mode, query, resourceRegistry);
+  const items = getCommandItems(mode, query, resourceRegistry, location.pathname);
 
   const handleSelect = useCallback((item: CommandItem) => {
+    // AI query items: send to dock agent panel
+    if (item.type === 'ai') {
+      if (!agentConnected) agentConnect();
+      // Small delay to ensure connection before sending
+      setTimeout(() => sendMessage(item.title), 100);
+      openDock('agent');
+      closeCommandPalette();
+      return;
+    }
+
     if (item.action) {
       item.action();
     } else if (item.path) {
@@ -131,7 +149,7 @@ export function CommandPalette() {
     }
 
     closeCommandPalette();
-  }, [addTab, navigate, closeCommandPalette]);
+  }, [mode, addTab, navigate, closeCommandPalette, agentConnected, agentConnect, sendMessage, openDock]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -165,16 +183,23 @@ export function CommandPalette() {
 
       {/* Palette */}
       <div className="fixed left-1/2 top-20 z-50 w-full max-w-2xl -translate-x-1/2" role="dialog" aria-modal="true" aria-label="Command palette">
-        <div className="rounded-lg border border-slate-600 bg-slate-800 shadow-2xl">
+        <div className={cn(
+          'rounded-lg border bg-slate-800 shadow-2xl',
+          mode === 'query' ? `border-violet-500/40 ${aiGlowClass}` : 'border-slate-600',
+        )}>
           {/* Search input */}
           <div className="flex items-center gap-3 border-b border-slate-700 px-4 py-3">
-            <Search className="h-5 w-5 text-slate-400" />
+            {mode === 'query' ? (
+              <AIIconStatic size={20} />
+            ) : (
+              <Search className="h-5 w-5 text-slate-400" />
+            )}
             <input
               ref={inputRef}
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search resources, actions, or queries..."
+              placeholder={mode === 'query' ? 'Ask Pulse Agent anything...' : 'Search resources, actions, or queries...'}
               className="flex-1 bg-transparent text-slate-100 placeholder-slate-500 outline-none"
               role="combobox"
               aria-expanded="true"
@@ -258,14 +283,24 @@ export function CommandPalette() {
           </div>
 
           {/* Hints */}
-          <div className="border-t border-slate-700 px-4 py-2 text-xs text-slate-500">
-            <span className="font-medium">/</span> browse{' '}
-            <span className="mx-2">·</span>
-            <span className="font-medium">:</span> action{' '}
-            <span className="mx-2">·</span>
-            <span className="font-medium">?</span> query{' '}
-            <span className="mx-2">·</span>
-            <span className="font-medium">⌘K</span> close
+          <div className="flex items-center justify-between border-t border-slate-700 px-4 py-2 text-xs text-slate-500">
+            <div>
+              <span className="font-medium">/</span> browse{' '}
+              <span className="mx-2">·</span>
+              <span className="font-medium">:</span> action{' '}
+              <span className="mx-2">·</span>
+              <span className={cn('font-medium', mode === 'query' && AI_ACCENT.text)}>?</span>
+              {' '}
+              <span className={cn(mode === 'query' && AI_ACCENT.text)}>ask AI</span>
+              {' '}
+              <span className="mx-2">·</span>
+              <span className="font-medium">⌘K</span> close
+            </div>
+            {mode === 'query' && (
+              <span className={cn('flex items-center gap-1', AI_ACCENT.text)}>
+                <AIIconStatic size={10} /> Enter sends to Pulse Agent
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -276,7 +311,8 @@ export function CommandPalette() {
 function getCommandItems(
   mode: string,
   query: string,
-  resourceRegistry: Map<string, any> | null
+  resourceRegistry: Map<string, any> | null,
+  currentPath: string = '/',
 ): CommandItem[] {
   const cleanQuery = query.replace(/^[/:?]/, '').toLowerCase();
 
@@ -409,26 +445,29 @@ function getCommandItems(
   }
 
   if (mode === 'query') {
-    // Show query suggestions — navigate to troubleshoot / pod list
-    return ([
-      {
-        type: 'nav' as const,
-        id: 'failing-pods',
-        title: 'Show failing pods',
-        subtitle: 'Pods with CrashLoopBackOff or Error',
-        icon: 'AlertTriangle',
-        path: '/pulse',
-      },
-      {
-        type: 'nav' as const,
-        id: 'high-memory',
-        title: 'Show high memory pods',
-        subtitle: 'Pods using >80% memory',
-        icon: 'TrendingUp',
-        path: '/pulse',
-      },
-    ] satisfies CommandItem[]).filter((item) =>
-      item.title.toLowerCase().includes(cleanQuery)
+    // AI-powered query mode — smart prompts + custom queries sent to agent
+    const smartPrompts = generateSmartPrompts({ currentView: currentPath });
+    const promptItems: CommandItem[] = smartPrompts.slice(0, 8).map((sp, i) => ({
+      type: 'ai' as const,
+      id: `smart-${i}`,
+      title: sp.text,
+      subtitle: `AI ${sp.category}`,
+      icon: 'Sparkles',
+    }));
+
+    // If user typed a custom query, add it as the first "ask agent" item
+    if (cleanQuery.length > 2) {
+      promptItems.unshift({
+        type: 'ai' as const,
+        id: 'custom-query',
+        title: cleanQuery,
+        subtitle: 'Ask Pulse Agent',
+        icon: 'Sparkles',
+      });
+    }
+
+    return promptItems.filter((item) =>
+      !cleanQuery || item.title.toLowerCase().includes(cleanQuery) || item.id === 'custom-query'
     );
   }
 
@@ -450,7 +489,8 @@ function renderGroups(
   for (const item of items) {
     const group = item.type === 'recent' ? 'FAVORITES' :
                   item.type === 'resource' ? 'RESOURCES' :
-                  item.type === 'action' ? 'ACTIONS' : 'PAGES';
+                  item.type === 'action' ? 'ACTIONS' :
+                  item.type === 'ai' ? 'PULSE AI' : 'PAGES';
 
     if (!grouped.has(group)) {
       grouped.set(group, []);
@@ -464,7 +504,10 @@ function renderGroups(
   for (const [groupName, groupItems] of grouped) {
     elements.push(
       <div key={groupName} className="mb-2">
-        <div className="mb-1 px-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+        <div className={cn(
+          'mb-1 px-2 text-xs font-semibold uppercase tracking-wider',
+          groupName === 'PULSE AI' ? AI_ACCENT.text : 'text-slate-500',
+        )}>
           {groupName}
         </div>
         {groupItems.map((item) => {

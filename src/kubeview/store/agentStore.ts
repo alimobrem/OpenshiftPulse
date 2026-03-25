@@ -30,6 +30,8 @@ interface AgentState {
   streamingComponents: ComponentSpec[];
   pendingConfirm: ConfirmRequest | null;
   error: string | null;
+  /** True when background health polling found an unread insight */
+  hasUnreadInsight: boolean;
 
   connect: () => void;
   disconnect: () => void;
@@ -39,6 +41,7 @@ interface AgentState {
   confirmAction: (approved: boolean) => void;
   cancelQuery: () => void;
   editLastMessage: () => string;
+  setUnreadInsight: (value: boolean) => void;
 }
 
 let client: AgentClient | null = null;
@@ -94,6 +97,9 @@ export const useAgentStore = create<AgentState>()(
       streamingComponents: [],
       pendingConfirm: null,
       error: null,
+      hasUnreadInsight: false,
+
+      setUnreadInsight: (value) => set({ hasUnreadInsight: value }),
 
       connect: () => {
         if (unsubscribe) unsubscribe();

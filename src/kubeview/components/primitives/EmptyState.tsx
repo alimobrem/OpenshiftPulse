@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { PromptPill } from '../agent/AIBranding';
 
 interface EmptyStateProps {
   icon?: React.ReactNode;
@@ -8,6 +9,8 @@ interface EmptyStateProps {
     label: string;
     onClick: () => void;
   };
+  /** AI prompt suggestions shown below the description */
+  aiPrompts?: Array<{ label: string; onAsk: () => void }>;
   className?: string;
 }
 
@@ -16,6 +19,7 @@ export function EmptyState({
   title,
   description,
   action,
+  aiPrompts,
   className,
 }: EmptyStateProps) {
   return (
@@ -38,6 +42,15 @@ export function EmptyState({
         >
           {action.label}
         </button>
+      )}
+      {aiPrompts && aiPrompts.length > 0 && (
+        <div className="mt-4 flex flex-wrap justify-center gap-2">
+          {aiPrompts.map((prompt) => (
+            <PromptPill key={prompt.label} onClick={prompt.onAsk}>
+              {prompt.label}
+            </PromptPill>
+          ))}
+        </div>
       )}
     </div>
   );

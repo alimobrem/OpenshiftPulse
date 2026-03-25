@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  Bot,
   Send,
   Square,
   ChevronDown,
@@ -16,12 +15,18 @@ import { MessageBubble } from './MessageBubble';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { AgentComponentRenderer } from './AgentComponentRenderer';
 import { ConfirmationCard } from './ConfirmationCard';
+import { AIIcon, AIIconStatic, AI_ACCENT, aiGlowClass } from './AIBranding';
+import { generateSmartPrompts } from '../../engine/smartPrompts';
 import { cn } from '@/lib/utils';
 
 interface InlineAgentProps {
   context: ResourceContext;
   initialPrompt?: string;
   defaultExpanded?: boolean;
+  /** Auto-expand when resource is in unhealthy state */
+  autoExpandWhenUnhealthy?: boolean;
+  /** Whether the resource is currently unhealthy (drives auto-expand + visual emphasis) */
+  isUnhealthy?: boolean;
   maxHeight?: string;
   mode?: AgentMode;
   quickPrompts?: string[];
@@ -32,12 +37,15 @@ export const InlineAgent: React.FC<InlineAgentProps> = ({
   context,
   initialPrompt,
   defaultExpanded = false,
+  autoExpandWhenUnhealthy = false,
+  isUnhealthy = false,
   maxHeight = '400px',
   mode = 'sre',
   quickPrompts,
   className,
 }) => {
-  const [expanded, setExpanded] = useState(defaultExpanded);
+  const shouldAutoExpand = autoExpandWhenUnhealthy && isUnhealthy;
+  const [expanded, setExpanded] = useState(defaultExpanded || shouldAutoExpand);
   const [input, setInput] = useState('');
   const [initialSent, setInitialSent] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -111,22 +119,41 @@ export const InlineAgent: React.FC<InlineAgentProps> = ({
     setExpanded((prev) => !prev);
   }, []);
 
+  // Generate a smart prompt preview for the collapsed state
+  const previewPrompt = generateSmartPrompts({
+    resourceKind: context.kind,
+    resourceName: context.name,
+    resourceNamespace: context.namespace,
+  })[0];
+
   // Collapsed state
   if (!expanded) {
     return (
       <button
         onClick={toggleExpanded}
         className={cn(
-          'w-full bg-slate-800 border border-slate-700 rounded-lg p-3',
-          'flex items-center gap-2 text-slate-300 hover:bg-slate-750 hover:border-slate-600',
-          'transition-colors cursor-pointer text-sm',
+          'w-full rounded-lg p-3 border',
+          'flex items-center gap-2 hover:bg-slate-750',
+          'transition-all cursor-pointer text-sm',
+          isUnhealthy
+            ? cn('bg-slate-800', AI_ACCENT.border, aiGlowClass, 'animate-pulse')
+            : 'bg-slate-800 border-slate-700 hover:border-slate-600',
           className,
         )}
         aria-label={`Ask about this ${context.kind}`}
       >
-        <Bot className="h-4 w-4 text-blue-400 shrink-0" />
-        <span className="flex-1 text-left">Ask about this {context.kind}</span>
-        <ChevronDown className="h-4 w-4 shrink-0" />
+        <AIIconStatic size={16} className={isUnhealthy ? '' : 'text-slate-400'} />
+        <div className="flex-1 text-left">
+          <span className={cn('block', isUnhealthy ? AI_ACCENT.text : 'text-slate-300')}>
+            Ask about this {context.kind}
+          </span>
+          {previewPrompt && (
+            <span className="block text-xs text-slate-500 mt-0.5 truncate">
+              Try: "{previewPrompt.text}"
+            </span>
+          )}
+        </div>
+        <ChevronDown className="h-4 w-4 shrink-0 text-slate-500" />
       </button>
     );
   }
@@ -144,7 +171,7 @@ export const InlineAgent: React.FC<InlineAgentProps> = ({
         onClick={toggleExpanded}
         className="w-full flex items-center gap-2 p-3 text-sm text-slate-300 hover:bg-slate-750 transition-colors cursor-pointer border-b border-slate-700"
       >
-        <Bot className="h-4 w-4 text-blue-400 shrink-0" />
+        <AIIcon size={16} pulseWhenStreaming />
         <span className="flex-1 text-left font-medium">Ask about this {context.kind}</span>
         {!connected && <Loader2 className="h-3 w-3 animate-spin text-slate-500" />}
         <ChevronUp className="h-4 w-4 shrink-0" />

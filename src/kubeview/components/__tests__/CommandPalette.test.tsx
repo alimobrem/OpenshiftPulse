@@ -213,11 +213,13 @@ describe('OpenShift Pulse CommandPalette', () => {
     expect(screen.getByText('Scale deployment')).toBeDefined();
   });
 
-  it('shows query suggestions when query starts with ?', () => {
+  it('shows AI-powered query suggestions when query starts with ?', () => {
     renderPalette();
     const input = screen.getByPlaceholderText(/Search resources/);
-    fireEvent.change(input, { target: { value: '?fail' } });
-    expect(screen.getByText('Show failing pods')).toBeDefined();
+    fireEvent.change(input, { target: { value: '?' } });
+    // Smart prompts should appear under "PULSE AI" group
+    expect(screen.getByText('PULSE AI')).toBeDefined();
+    expect(screen.getByText('Check overall cluster health')).toBeDefined();
   });
 
   it('keyboard navigation cycles through items', () => {

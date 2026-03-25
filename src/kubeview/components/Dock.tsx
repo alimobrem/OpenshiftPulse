@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, lazy, Suspense } from 'react';
-import { Minus, X, GripHorizontal, Bot } from 'lucide-react';
+import { Minus, X, GripHorizontal } from 'lucide-react';
 import { useUIStore } from '../store/uiStore';
+import { useAgentStore } from '../store/agentStore';
+import { AIIconStatic, AIBadge, AI_ACCENT, aiActiveClass } from './agent/AIBranding';
 import { cn } from '@/lib/utils';
 
 const DockAgentPanel = lazy(() => import('./agent/DockAgentPanel').then(m => ({ default: m.DockAgentPanel })));
@@ -13,6 +15,8 @@ export function Dock() {
   const openDock = useUIStore((s) => s.openDock);
   const closeDock = useUIStore((s) => s.closeDock);
   const dockContext = useUIStore((s) => s.dockContext);
+  const hasUnreadInsight = useAgentStore((s) => s.hasUnreadInsight);
+  const clearUnread = useAgentStore((s) => s.setUnreadInsight);
 
   const [isResizing, setIsResizing] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -86,16 +90,20 @@ export function Dock() {
             Events
           </button>
           <button
-            onClick={() => openDock('agent')}
+            onClick={() => { openDock('agent'); clearUnread(false); }}
             className={cn(
-              'flex items-center gap-1 px-2 py-1 transition-colors',
+              'relative flex items-center gap-1 px-2 py-1 transition-colors',
               dockPanel === 'agent'
-                ? 'text-emerald-400'
-                : 'text-slate-400 hover:text-slate-200'
+                ? AI_ACCENT.text
+                : 'text-slate-400 hover:text-violet-300'
             )}
           >
-            <Bot className="h-3.5 w-3.5" />
+            <AIIconStatic size={14} className={dockPanel === 'agent' ? '' : 'text-slate-400'} />
             Agent
+            <AIBadge className="ml-1" />
+            {hasUnreadInsight && (
+              <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-amber-400" />
+            )}
           </button>
         </div>
 
@@ -165,16 +173,20 @@ export function Dock() {
             Events
           </button>
           <button
-            onClick={() => openDock('agent')}
+            onClick={() => { openDock('agent'); clearUnread(false); }}
             className={cn(
-              'flex items-center gap-1 px-2 py-1 transition-colors',
+              'relative flex items-center gap-1 px-2 py-1 transition-colors',
               dockPanel === 'agent'
-                ? 'border-b-2 border-emerald-400 text-emerald-400'
-                : 'text-slate-400 hover:text-slate-200'
+                ? aiActiveClass
+                : 'text-slate-400 hover:text-violet-300'
             )}
           >
-            <Bot className="h-3.5 w-3.5" />
+            <AIIconStatic size={14} className={dockPanel === 'agent' ? '' : 'text-slate-400'} />
             Agent
+            <AIBadge className="ml-1" />
+            {hasUnreadInsight && (
+              <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-amber-400" />
+            )}
           </button>
         </div>
 

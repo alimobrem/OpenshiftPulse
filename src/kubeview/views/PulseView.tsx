@@ -7,6 +7,7 @@ import { useNavigateTab } from '../hooks/useNavigateTab';
 import { useK8sListWatch } from '../hooks/useK8sListWatch';
 import { ReportTab } from './pulse/ReportTab';
 import { FleetReportTab } from './pulse/FleetReportTab';
+import { AIOnboarding } from '../components/agent/AIOnboarding';
 
 export default function PulseView() {
   const go = useNavigateTab();
@@ -35,6 +36,8 @@ export default function PulseView() {
             {selectedNamespace !== '*' && <span className="text-blue-400 ml-1">· {selectedNamespace}</span>}
           </p>
         </div>
+
+        <AIOnboarding compact className="mb-2" />
 
         {fleetMode === 'multi' ? (
           <FleetReportTab />

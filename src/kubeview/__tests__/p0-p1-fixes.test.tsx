@@ -148,15 +148,13 @@ describe('P0: Command Palette action/query items have paths', () => {
     expect(deleteMatch).not.toBeNull();
   });
 
-  it('query mode items have path properties', () => {
+  it('query mode uses AI-powered smart prompts', () => {
     const source = readSrc('components/CommandPalette.tsx');
 
-    const failingMatch = source.match(/id:\s*'failing-pods'[\s\S]*?path:\s*'([^']+)'/);
-    expect(failingMatch).not.toBeNull();
-    expect(failingMatch![1]).toBe('/pulse');
-
-    const memoryMatch = source.match(/id:\s*'high-memory'[\s\S]*?path:\s*'([^']+)'/);
-    expect(memoryMatch).not.toBeNull();
+    // Query mode now uses generateSmartPrompts instead of static items
+    expect(source).toMatch(/generateSmartPrompts/);
+    // Items are typed as 'ai' for the AI query group
+    expect(source).toMatch(/type:\s*'ai'\s*as\s*const/);
   });
 });
 
