@@ -2,13 +2,16 @@ import React from 'react';
 import { HeartPulse } from 'lucide-react';
 import type { K8sResource } from '../engine/renderers';
 import { useUIStore } from '../store/uiStore';
+import { useFleetStore } from '../store/fleetStore';
 import { useNavigateTab } from '../hooks/useNavigateTab';
 import { useK8sListWatch } from '../hooks/useK8sListWatch';
 import { ReportTab } from './pulse/ReportTab';
+import { FleetReportTab } from './pulse/FleetReportTab';
 
 export default function PulseView() {
   const go = useNavigateTab();
   const selectedNamespace = useUIStore((s) => s.selectedNamespace);
+  const fleetMode = useFleetStore((s) => s.fleetMode);
 
   const nsFilter = selectedNamespace !== '*' ? selectedNamespace : undefined;
   const { data: nodes = [], isLoading: nodesLoading } = useK8sListWatch({ apiPath: '/api/v1/nodes' });
@@ -33,7 +36,9 @@ export default function PulseView() {
           </p>
         </div>
 
-        {isLoading ? (
+        {fleetMode === 'multi' ? (
+          <FleetReportTab />
+        ) : isLoading ? (
           <div className="space-y-4">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="bg-slate-900 rounded-lg border border-slate-800 p-6 animate-pulse">

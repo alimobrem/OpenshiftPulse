@@ -22,7 +22,7 @@ export interface ToastData {
   };
 }
 
-export type DockPanel = 'logs' | 'terminal' | 'events' | null;
+export type DockPanel = 'logs' | 'terminal' | 'events' | 'agent' | null;
 export type ConnectionStatus = 'connected' | 'reconnecting' | 'disconnected';
 
 interface UIState {

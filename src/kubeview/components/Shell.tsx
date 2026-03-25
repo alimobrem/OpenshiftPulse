@@ -10,6 +10,8 @@ import { ErrorBoundary, CssHealthCheck } from './ErrorBoundary';
 import { useKeyboardShortcuts, useDiscovery } from '../hooks';
 import { useUIStore } from '../store/uiStore';
 import { registerBuiltinEnhancers } from '../engine/enhancers/register';
+import { startAgentNotifications, stopAgentNotifications } from '../engine/agentNotifications';
+import { useEffect } from 'react';
 
 // Register enhancers once at module load
 registerBuiltinEnhancers();
@@ -20,6 +22,12 @@ export function Shell() {
 
   // Trigger API discovery on mount
   useDiscovery();
+
+  // Start background agent notifications
+  useEffect(() => {
+    startAgentNotifications();
+    return () => stopAgentNotifications();
+  }, []);
 
   // Get overlay state
   const commandPaletteOpen = useUIStore((s) => s.commandPaletteOpen);

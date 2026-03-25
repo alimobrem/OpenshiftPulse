@@ -1,5 +1,8 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+
+const AmbientInsight = lazy(() => import('../components/agent/AmbientInsight').then(m => ({ default: m.AmbientInsight })));
+const InlineAgent = lazy(() => import('../components/agent/InlineAgent').then(m => ({ default: m.InlineAgent })));
 import { useNavigate } from 'react-router-dom';
 import {
   AlertCircle,
@@ -949,6 +952,25 @@ export default function DetailView({ gvrKey, namespace, name }: DetailViewProps)
 
             {/* Workload Health Audit (Deployment/StatefulSet/DaemonSet) */}
             {isWorkload && resource && <WorkloadAudit resource={resource} go={go} />}
+
+            {/* AI Insight + Inline Agent for pods and workloads */}
+            {(resource.kind === 'Pod' || isWorkload) && namespace && (
+              <Suspense fallback={null}>
+                <AmbientInsight
+                  context={{ kind: resource.kind, name: resource.metadata.name, namespace }}
+                  prompt={`Analyze this ${resource.kind}. Check for issues, misconfigurations, and optimization opportunities. Be concise.`}
+                  trigger="manual"
+                />
+                <InlineAgent
+                  context={{ kind: resource.kind, name: resource.metadata.name, namespace, gvr: gvrKey }}
+                  quickPrompts={[
+                    `Why is this ${resource.kind} unhealthy?`,
+                    `What changed recently?`,
+                    `How can I optimize this?`,
+                  ]}
+                />
+              </Suspense>
+            )}
 
             {/* Quick event count for non-pod/workload resources */}
             {resource.kind !== 'Pod' && !isWorkload && sortedEvents.length > 0 && (

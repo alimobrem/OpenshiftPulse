@@ -1,7 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
-import { Minus, X, GripHorizontal } from 'lucide-react';
+import { useState, useRef, useEffect, lazy, Suspense } from 'react';
+import { Minus, X, GripHorizontal, Bot } from 'lucide-react';
 import { useUIStore } from '../store/uiStore';
 import { cn } from '@/lib/utils';
+
+const DockAgentPanel = lazy(() => import('./agent/DockAgentPanel').then(m => ({ default: m.DockAgentPanel })));
 
 export function Dock() {
   const dockPanel = useUIStore((s) => s.dockPanel);
@@ -81,6 +83,18 @@ export function Dock() {
           >
             Events
           </button>
+          <button
+            onClick={() => openDock('agent')}
+            className={cn(
+              'flex items-center gap-1 px-2 py-1 transition-colors',
+              dockPanel === 'agent'
+                ? 'text-emerald-400'
+                : 'text-slate-400 hover:text-slate-200'
+            )}
+          >
+            <Bot className="h-3.5 w-3.5" />
+            Agent
+          </button>
         </div>
 
         <div className="flex items-center gap-2">
@@ -148,6 +162,18 @@ export function Dock() {
           >
             Events
           </button>
+          <button
+            onClick={() => openDock('agent')}
+            className={cn(
+              'flex items-center gap-1 px-2 py-1 transition-colors',
+              dockPanel === 'agent'
+                ? 'border-b-2 border-emerald-400 text-emerald-400'
+                : 'text-slate-400 hover:text-slate-200'
+            )}
+          >
+            <Bot className="h-3.5 w-3.5" />
+            Agent
+          </button>
         </div>
 
         <div className="flex items-center gap-2">
@@ -186,6 +212,12 @@ export function Dock() {
           <div className="text-sm text-slate-300">
             <div className="text-slate-500">No events</div>
           </div>
+        )}
+
+        {dockPanel === 'agent' && (
+          <Suspense fallback={<div className="text-sm text-slate-500">Loading agent...</div>}>
+            <DockAgentPanel />
+          </Suspense>
         )}
       </div>
     </div>

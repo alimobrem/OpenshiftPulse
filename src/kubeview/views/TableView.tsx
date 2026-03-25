@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Search, ChevronUp, ChevronDown, Trash2, Tag, Plus, Filter, Columns3, X, Download, Loader2, CheckCircle, XCircle, FileEdit } from 'lucide-react';
+import { Search, ChevronUp, ChevronDown, Trash2, Tag, Plus, Filter, Columns3, X, Download, Loader2, CheckCircle, XCircle, FileEdit, Sparkles } from 'lucide-react';
+
+const NLFilterBar = lazy(() => import('../components/agent/NLFilterBar').then(m => ({ default: m.NLFilterBar })));
 import { cn } from '@/lib/utils';
 import { k8sPatch, k8sDelete } from '../engine/query';
 import { useK8sListWatch } from '../hooks/useK8sListWatch';
@@ -115,6 +117,7 @@ export default function TableView({ gvrKey, namespace: namespaceProp }: TableVie
     return () => clearTimeout(timer);
   }, [searchInput]);
   const [showFilters, setShowFilters] = React.useState(false);
+  const [showNLFilter, setShowNLFilter] = React.useState(false);
   const [sortState, setSortState] = React.useState<SortState>({
     column: enhancer?.defaultSort?.column || 'name',
     direction: enhancer?.defaultSort?.direction || 'asc',
@@ -595,6 +598,16 @@ export default function TableView({ gvrKey, namespace: namespaceProp }: TableVie
             >
               <Filter className="w-4 h-4" />
             </button>
+            <button
+              onClick={() => setShowNLFilter(!showNLFilter)}
+              className={cn(
+                'p-1.5 rounded transition-colors',
+                showNLFilter ? 'bg-amber-600 text-white' : 'bg-slate-900 border border-slate-700 text-slate-400 hover:text-slate-200'
+              )}
+              title="AI filter"
+            >
+              <Sparkles className="w-4 h-4" />
+            </button>
             {/* Column picker */}
             <div className="relative">
               <button
@@ -642,6 +655,19 @@ export default function TableView({ gvrKey, namespace: namespaceProp }: TableVie
           </div>
         </div>
       </div>
+
+      {/* NL Filter Bar */}
+      {showNLFilter && (
+        <div className="px-4 py-2 border-b border-slate-800">
+          <Suspense fallback={<div className="h-8" />}>
+            <NLFilterBar
+              resourceKind={resourceType?.kind || resourceName}
+              columns={visibleColumns.map(c => c.id)}
+              onFiltersApplied={(filters) => setColumnFilters(prev => ({ ...prev, ...filters }))}
+            />
+          </Suspense>
+        </div>
+      )}
 
       {/* Table + Preview */}
       <div className="flex-1 flex overflow-hidden">

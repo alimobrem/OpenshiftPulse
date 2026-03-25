@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState, useCallback, memo } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Bot, Shield, Send, Trash2, Loader2, Wrench, Brain, AlertTriangle, CheckCircle, XCircle, Wifi, WifiOff, Copy, Check, Clock, Square, Maximize2, Minimize2 } from 'lucide-react';
+import { Bot, Shield, Send, Trash2, Loader2, Wrench, Brain, AlertTriangle, Wifi, WifiOff, Square } from 'lucide-react';
 import { useAgentStore } from '../store/agentStore';
 import { useUIStore } from '../store/uiStore';
-import type { AgentMode, AgentMessage, ResourceContext } from '../engine/agentClient';
-import { Panel } from '../components/primitives/Panel';
-import { MarkdownRenderer } from '../components/agent/MarkdownRenderer';
+import type { AgentMode, ResourceContext } from '../engine/agentClient';
 import { AgentComponentRenderer } from '../components/agent/AgentComponentRenderer';
+import { MarkdownRenderer } from '../components/agent/MarkdownRenderer';
+import { MessageBubble } from '../components/agent/MessageBubble';
+import { ConfirmationCard } from '../components/agent/ConfirmationCard';
 import { cn } from '@/lib/utils';
 
 const MODE_CONFIG: Record<AgentMode, { label: string; icon: typeof Bot; color: string; description: string }> = {
@@ -23,42 +24,6 @@ const MODE_CONFIG: Record<AgentMode, { label: string; icon: typeof Bot; color: s
     description: 'Scan pods, RBAC, network policies, SCCs, images, and secrets',
   },
 };
-
-/** Describe a write tool in plain English for the confirmation dialog */
-function describeToolAction(tool: string, input: Record<string, unknown>): string {
-  switch (tool) {
-    case 'scale_deployment':
-      return `Scale deployment ${input.namespace}/${input.name} to ${input.replicas} replicas`;
-    case 'restart_deployment':
-      return `Trigger rolling restart of deployment ${input.namespace}/${input.name}`;
-    case 'cordon_node':
-      return `Mark node ${input.node_name} as unschedulable (cordon)`;
-    case 'uncordon_node':
-      return `Mark node ${input.node_name} as schedulable (uncordon)`;
-    case 'delete_pod':
-      return `Delete pod ${input.namespace}/${input.pod_name} (grace period: ${input.grace_period_seconds || 30}s)`;
-    case 'apply_yaml':
-      return `${input.dry_run ? 'Dry-run validate' : 'Apply'} YAML to ${input.namespace || 'default'}`;
-    case 'create_network_policy':
-      return `Create ${input.policy_type} NetworkPolicy "${input.name}" in ${input.namespace}`;
-    case 'rollback_deployment':
-      return `Rollback deployment ${input.namespace}/${input.name} to revision ${input.revision || 'previous'}`;
-    case 'drain_node':
-      return `Drain node ${input.node_name} (cordon + evict all pods, respecting PDBs)`;
-    default:
-      return `Execute ${tool}`;
-  }
-}
-
-function riskLevel(tool: string, input: Record<string, unknown>): { level: string; color: string } {
-  if (tool === 'delete_pod') return { level: 'MEDIUM', color: 'text-amber-400' };
-  if (tool === 'apply_yaml' && !input.dry_run) return { level: 'HIGH', color: 'text-red-400' };
-  if (tool === 'cordon_node') return { level: 'MEDIUM', color: 'text-amber-400' };
-  if (tool === 'create_network_policy') return { level: 'MEDIUM', color: 'text-amber-400' };
-  if (tool === 'rollback_deployment') return { level: 'HIGH', color: 'text-red-400' };
-  if (tool === 'drain_node') return { level: 'HIGH', color: 'text-red-400' };
-  return { level: 'LOW', color: 'text-green-400' };
-}
 
 export default function AgentView() {
   const {
@@ -136,16 +101,6 @@ export default function AgentView() {
     return () => window.removeEventListener('keydown', handleEsc);
   }, [streaming]);
 
-  // Global keyboard shortcuts for confirmation
-  useEffect(() => {
-    if (!pendingConfirm) return;
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === 'y' || e.key === 'Y') { e.preventDefault(); confirmAction(true); }
-      if (e.key === 'n' || e.key === 'N' || e.key === 'Escape') { e.preventDefault(); confirmAction(false); }
-    }
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [pendingConfirm]);
 
   const handleSend = () => {
     const text = input.trim();
@@ -294,46 +249,7 @@ export default function AgentView() {
 
         {/* Confirmation dialog */}
         {pendingConfirm && (
-          <Panel className="border-amber-700 bg-amber-950/30">
-            <div className="flex items-start gap-3" role="alertdialog" aria-modal="true" aria-label="Confirm write operation">
-              <AlertTriangle className="h-5 w-5 text-amber-400 mt-0.5 shrink-0" aria-hidden="true" />
-              <div className="flex-1">
-                <h3 className="text-sm font-medium text-amber-200 mb-1">Confirm write operation</h3>
-                <p className="text-sm text-slate-200 mb-1">
-                  {describeToolAction(pendingConfirm.tool, pendingConfirm.input)}
-                </p>
-                <p className="text-xs mb-2">
-                  Risk: <span className={riskLevel(pendingConfirm.tool, pendingConfirm.input).color}>
-                    {riskLevel(pendingConfirm.tool, pendingConfirm.input).level}
-                  </span>
-                </p>
-                <details className="mb-3">
-                  <summary className="text-xs text-slate-500 cursor-pointer hover:text-slate-300">Show raw parameters</summary>
-                  <pre className="text-xs text-slate-400 bg-slate-900 rounded p-2 mt-1 overflow-auto max-h-32">
-                    {JSON.stringify(pendingConfirm.input, null, 2)}
-                  </pre>
-                </details>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => confirmAction(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green-700 hover:bg-green-600 text-white rounded transition-colors"
-                    aria-label="Approve operation (Y)"
-                  >
-                    <CheckCircle className="h-3.5 w-3.5" aria-hidden="true" />
-                    Approve <kbd className="ml-1 text-[10px] opacity-60 bg-green-900 px-1 rounded">Y</kbd>
-                  </button>
-                  <button
-                    onClick={() => confirmAction(false)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-red-700 hover:bg-red-600 text-white rounded transition-colors"
-                    aria-label="Deny operation (N)"
-                  >
-                    <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
-                    Deny <kbd className="ml-1 text-[10px] opacity-60 bg-red-900 px-1 rounded">N</kbd>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </Panel>
+          <ConfirmationCard confirm={pendingConfirm} onConfirm={confirmAction} />
         )}
 
         <div ref={messagesEndRef} />
@@ -400,120 +316,3 @@ export default function AgentView() {
     </div>
   );
 }
-
-/** Detect HTML documents in content and render them in a sandboxed iframe */
-function RichContent({ content, components }: { content: string; components?: import('../engine/agentComponents').ComponentSpec[] }) {
-  const [expanded, setExpanded] = useState(false);
-
-  // Extract HTML document from content (may be wrapped in ```html blocks or standalone)
-  const htmlMatch = content.match(/<!DOCTYPE html[\s\S]*<\/html>/i)
-    || content.match(/```html\s*\n(<!DOCTYPE html[\s\S]*?<\/html>)\s*\n```/i);
-
-  if (htmlMatch) {
-    const htmlContent = htmlMatch[1] || htmlMatch[0];
-    // Text before/after the HTML block
-    const fullMatch = htmlMatch[0];
-    const beforeHtml = content.slice(0, content.indexOf(fullMatch)).trim();
-    const afterHtml = content.slice(content.indexOf(fullMatch) + fullMatch.length).trim();
-
-    return (
-      <>
-        {beforeHtml && <MarkdownRenderer content={beforeHtml} />}
-        <div className={cn(
-          'my-2 border border-slate-600 rounded-lg overflow-hidden transition-all',
-          expanded ? 'fixed inset-4 z-50 bg-slate-900' : 'relative',
-        )}>
-          <div className="flex items-center justify-between px-3 py-1.5 bg-slate-800 border-b border-slate-700">
-            <span className="text-xs text-slate-400">Generated Dashboard</span>
-            <button
-              onClick={() => setExpanded(!expanded)}
-              className="text-slate-400 hover:text-white p-0.5"
-              aria-label={expanded ? 'Minimize' : 'Maximize'}
-            >
-              {expanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-            </button>
-          </div>
-          <iframe
-            srcDoc={htmlContent}
-            sandbox="allow-scripts"
-            className={cn('w-full border-0', expanded ? 'h-[calc(100%-32px)]' : 'h-[500px]')}
-            title="Agent generated view"
-          />
-        </div>
-        {afterHtml && <MarkdownRenderer content={afterHtml} />}
-      </>
-    );
-  }
-
-  // No HTML — render markdown + components
-  return (
-    <>
-      <MarkdownRenderer content={content} />
-      {components && components.length > 0 && (
-        <div className="mt-2 space-y-1">
-          {components.map((spec, i) => (
-            <AgentComponentRenderer key={i} spec={spec} />
-          ))}
-        </div>
-      )}
-    </>
-  );
-}
-
-const MessageBubble = memo(function MessageBubble({ message, mode }: { message: AgentMessage; mode: AgentMode }) {
-  const isUser = message.role === 'user';
-  const Icon = isUser ? undefined : MODE_CONFIG[mode].icon;
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(message.content).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  }, [message.content]);
-
-  const timeStr = new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-  return (
-    <div className={cn('flex gap-3 items-start group', isUser && 'flex-row-reverse')} role="article" aria-label={`${isUser ? 'You' : 'Agent'} at ${timeStr}`}>
-      {isUser ? (
-        <div className="h-7 w-7 rounded-full bg-slate-700 flex items-center justify-center shrink-0" aria-hidden="true">
-          <span className="text-xs font-medium">You</span>
-        </div>
-      ) : (
-        Icon && <Icon className={cn('h-5 w-5 mt-0.5 shrink-0', mode === 'sre' ? 'text-blue-400' : 'text-red-400')} aria-hidden="true" />
-      )}
-      <div className={cn(
-        'max-w-3xl rounded-lg px-4 py-2.5 text-sm relative',
-        isUser
-          ? 'bg-blue-600/20 border border-blue-500/30 text-slate-100'
-          : 'bg-slate-800 border border-slate-700 text-slate-200',
-      )}>
-        {message.context && (
-          <div className="text-xs text-slate-500 mb-1">
-            Context: {message.context.kind} {message.context.namespace}/{message.context.name}
-          </div>
-        )}
-        {isUser ? (
-          <pre className="whitespace-pre-wrap font-sans">{message.content}</pre>
-        ) : (
-          <RichContent content={message.content} components={message.components} />
-        )}
-        <div className="flex items-center justify-between mt-1.5 pt-1 border-t border-slate-700/50">
-          <span className="text-[10px] text-slate-500 flex items-center gap-1">
-            <Clock className="h-2.5 w-2.5" aria-hidden="true" />
-            {timeStr}
-          </span>
-          <button
-            onClick={handleCopy}
-            className="text-slate-500 hover:text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity p-0.5"
-            aria-label="Copy message"
-            title="Copy to clipboard"
-          >
-            {copied ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-});
