@@ -23,12 +23,47 @@ export default function LogsView({ namespace, podName }: LogsViewProps) {
   const selector = searchParams.get('selector');
   const kind = searchParams.get('kind');
 
+  // Build logs use the Build API, not pod logs
+  if (kind === 'Build') {
+    return <BuildLogsView namespace={namespace} buildName={podName} />;
+  }
+
   // If we have a label selector, this is a deployment/workload-level log view
   if (selector && kind) {
     return <WorkloadLogsView namespace={namespace} name={podName} selector={selector} kind={kind} />;
   }
 
   return <PodLogsView namespace={namespace} podName={podName} />;
+}
+
+// --- Build logs (OpenShift Build API) ---
+function BuildLogsView({ namespace, buildName }: { namespace: string; buildName: string }) {
+  const { data: logText, isLoading, error } = useQuery({
+    queryKey: ['build-log', namespace, buildName],
+    queryFn: async () => {
+      const res = await fetch(`/api/kubernetes/apis/build.openshift.io/v1/namespaces/${namespace}/builds/${buildName}/log`);
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      return res.text();
+    },
+    refetchInterval: 5000, // poll every 5s for running builds
+  });
+
+  return (
+    <div className="h-full flex flex-col">
+      <div className="px-4 py-2 border-b border-slate-700 flex items-center gap-2">
+        <span className="text-sm text-slate-400">Build Logs</span>
+        <span className="text-sm font-medium">{buildName}</span>
+        <span className="text-xs px-2 py-0.5 bg-orange-900/50 text-orange-300 rounded">Build</span>
+        <span className="text-xs px-2 py-0.5 bg-slate-700 rounded text-slate-300">{namespace}</span>
+      </div>
+      <div className="flex-1 overflow-auto bg-slate-950 p-4 font-mono text-xs text-slate-300">
+        {isLoading && <div className="text-slate-500">Loading build logs...</div>}
+        {error && <div className="text-red-400">Failed to load build logs: {error instanceof Error ? error.message : String(error)}</div>}
+        {logText && <pre className="whitespace-pre-wrap">{logText}</pre>}
+        {!isLoading && !error && !logText && <div className="text-slate-500">No logs available yet.</div>}
+      </div>
+    </div>
+  );
 }
 
 // --- Workload (Deployment/StatefulSet) logs ---

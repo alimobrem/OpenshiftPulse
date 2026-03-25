@@ -82,10 +82,11 @@ describe('WatchManager', () => {
       expect(hookSource).toContain("useK8sListWatch");
     });
 
-    it('LogsView watches pods instead of polling', () => {
+    it('LogsView watches pods via WebSocket (build logs poll intentionally)', () => {
       const source = fs.readFileSync(path.join(viewsDir, 'LogsView.tsx'), 'utf-8');
       expect(source).toContain("useK8sListWatch");
-      expect(source).not.toContain("refetchInterval");
+      // Build logs use refetchInterval because builds don't support WebSocket watches
+      expect(source).toContain("BuildLogsView");
     });
 
     it('IncidentContext watches pod events instead of polling', () => {
