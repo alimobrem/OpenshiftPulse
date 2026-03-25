@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle, XCircle, ShieldAlert, ShieldCheck, Shield, FlaskConical, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import type { ConfirmRequest } from '../../engine/agentClient';
 import { describeToolAction, riskLevel } from './MessageBubble';
@@ -66,9 +66,12 @@ export function ConfirmationCard({ confirm, onConfirm }: ConfirmationCardProps) 
   const riskBg = risk.level === 'HIGH' ? 'bg-red-950/40' : risk.level === 'MEDIUM' ? 'bg-amber-950/30' : 'bg-slate-800';
   const riskBorder = risk.level === 'HIGH' ? 'border-red-700' : risk.level === 'MEDIUM' ? 'border-amber-700' : 'border-slate-700';
 
-  // Auto-approve based on trust level
+  // Auto-approve based on trust level (fire once per confirm request)
+  const autoApprovedRef = useRef(false);
   useEffect(() => {
+    if (autoApprovedRef.current) return;
     if (shouldAutoApprove(confirm.tool, risk.level)) {
+      autoApprovedRef.current = true;
       recordConfirmation({ tool: confirm.tool, approved: true, timestamp: Date.now(), riskLevel: risk.level as 'LOW' | 'MEDIUM' | 'HIGH' });
       addToast({
         type: 'success',
