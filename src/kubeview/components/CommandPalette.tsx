@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Command } from 'lucide-react';
+import { Search, Command, Globe } from 'lucide-react';
 import { useUIStore } from '../store/uiStore';
 import { getFavorites } from '../engine/favorites';
 import { useClusterStore } from '../store/clusterStore';
 import { cn } from '@/lib/utils';
 import { getResourceIcon } from '../engine/iconRegistry';
+import { isMultiCluster } from '../engine/clusterConnection';
+import { fleetSearch } from '../engine/fleet';
+import type { FleetResult } from '../engine/fleet';
 
 /** Capitalize first letter of each word: "deployments" → "Deployments", "poddisruptionbudgets" → "Poddisruptionbudgets" */
 function titleCase(s: string): string {
@@ -59,8 +62,12 @@ export function CommandPalette() {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [mode, setMode] = useState<'default' | 'browse' | 'action' | 'query'>('default');
+  const [searchAllClusters, setSearchAllClusters] = useState(false);
+  const [fleetResults, setFleetResults] = useState<FleetResult<any>[]>([]);
+  const [fleetLoading, setFleetLoading] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const multiCluster = isMultiCluster();
 
   // Focus input on mount
   useEffect(() => {
@@ -80,6 +87,27 @@ export function CommandPalette() {
     }
     setSelectedIndex(0);
   }, [query]);
+
+  // Cross-cluster search: fan out when toggle is on and query is non-empty
+  useEffect(() => {
+    if (!searchAllClusters || !query.trim() || query.startsWith('/') || query.startsWith(':') || query.startsWith('?')) {
+      setFleetResults([]);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setFleetLoading(true);
+      try {
+        const results = await fleetSearch('/api/v1/pods', query.trim());
+        if (!cancelled) setFleetResults(results);
+      } catch {
+        if (!cancelled) setFleetResults([]);
+      } finally {
+        if (!cancelled) setFleetLoading(false);
+      }
+    }, 300); // debounce
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [searchAllClusters, query]);
 
   // Build command items based on mode
   const items = getCommandItems(mode, query, resourceRegistry);
@@ -154,18 +182,78 @@ export function CommandPalette() {
               aria-activedescendant={items[selectedIndex] ? `cp-item-${items[selectedIndex].id}` : undefined}
               aria-label="Search"
             />
+            {multiCluster && (
+              <button
+                onClick={() => setSearchAllClusters(!searchAllClusters)}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors whitespace-nowrap',
+                  searchAllClusters
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+                )}
+                aria-label={searchAllClusters ? 'Search all clusters' : 'Search this cluster'}
+                aria-pressed={searchAllClusters}
+              >
+                <Globe className="h-3 w-3" />
+                {searchAllClusters ? 'All Clusters' : 'This Cluster'}
+              </button>
+            )}
           </div>
 
           {/* Results */}
           <div className="max-h-96 overflow-auto p-2" id="command-palette-results" role="listbox">
-            {items.length === 0 ? (
-              <div className="py-8 text-center text-sm text-slate-500">
-                No results found
+            {searchAllClusters && fleetLoading && (
+              <div className="py-4 text-center text-sm text-slate-500">
+                Searching all clusters...
               </div>
-            ) : (
-              <div className="space-y-1">
-                {renderGroups(items, selectedIndex, handleSelect)}
+            )}
+            {searchAllClusters && fleetResults.length > 0 && !fleetLoading && (
+              <div className="space-y-1 mb-2">
+                {fleetResults.map((clusterResult) => (
+                  <div key={clusterResult.clusterId} className="mb-2">
+                    <div className="mb-1 px-2 text-xs font-semibold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                      <Globe className="h-3 w-3" />
+                      {clusterResult.clusterName}
+                      {clusterResult.status === 'rejected' && (
+                        <span className="text-red-400 normal-case font-normal ml-1">
+                          (unreachable{clusterResult.error ? `: ${clusterResult.error}` : ''})
+                        </span>
+                      )}
+                    </div>
+                    {clusterResult.data.length === 0 && clusterResult.status === 'fulfilled' && (
+                      <div className="px-3 py-1 text-xs text-slate-500">No matches</div>
+                    )}
+                    {clusterResult.data.map((resource: any) => (
+                      <button
+                        key={`${clusterResult.clusterId}-${resource.metadata.namespace || ''}-${resource.metadata.name}`}
+                        onClick={() => {
+                          closeCommandPalette();
+                        }}
+                        className="flex w-full items-center gap-3 rounded px-3 py-2 text-left text-slate-300 hover:bg-slate-700 transition-colors"
+                      >
+                        <Search className="h-4 w-4 shrink-0 text-slate-500" />
+                        <div className="flex-1 overflow-hidden">
+                          <div className="truncate text-sm font-medium">{resource.metadata.name}</div>
+                          <div className="truncate text-xs opacity-75">
+                            {resource.kind || ''}{resource.metadata.namespace ? ` · ${resource.metadata.namespace}` : ''}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ))}
               </div>
+            )}
+            {(!searchAllClusters || fleetResults.length === 0) && !fleetLoading && (
+              items.length === 0 ? (
+                <div className="py-8 text-center text-sm text-slate-500">
+                  No results found
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {renderGroups(items, selectedIndex, handleSelect)}
+                </div>
+              )
             )}
           </div>
 
