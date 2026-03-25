@@ -114,7 +114,6 @@ export function DockAgentPanel() {
           <ConfirmationCard confirm={pendingConfirm} onConfirm={confirmAction} />
         )}
 
-        <TrustUpgradeNudge />
         <div ref={messagesEndRef} />
       </div>
 

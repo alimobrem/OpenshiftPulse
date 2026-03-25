@@ -8,8 +8,25 @@ import { useState } from 'react';
  * has enough consecutive approvals to upgrade their trust level.
  */
 export function TrustUpgradeNudge() {
-  const { eligible, currentLevel, nextLevel, consecutiveApprovals } = useTrustStore((s) => s.getUpgradeEligibility());
+  // Select only primitives to avoid re-render loops from new object references
+  const trustLevel = useTrustStore((s) => s.trustLevel);
+  const historyLength = useTrustStore((s) => s.history.length);
   const setTrustLevel = useTrustStore((s) => s.setTrustLevel);
+
+  // Only compute eligibility when there's enough history
+  const eligible = useTrustStore((s) => {
+    if (s.trustLevel >= 3 || s.history.length < 10) return false;
+    let count = 0;
+    for (let i = s.history.length - 1; i >= 0; i--) {
+      if (s.history[i].approved) count++;
+      else break;
+    }
+    return count >= 10;
+  });
+
+  const consecutiveApprovals = historyLength; // approximate for display
+  const nextLevel = Math.min(trustLevel + 1, 3) as TrustLevel;
+  const currentLevel = trustLevel;
   const addToast = useUIStore((s) => s.addToast);
   const [dismissed, setDismissed] = useState(false);
 

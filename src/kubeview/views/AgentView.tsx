@@ -289,8 +289,6 @@ export default function AgentView() {
           <ConfirmationCard confirm={pendingConfirm} onConfirm={confirmAction} />
         )}
 
-        <TrustUpgradeNudge />
-
         <div ref={messagesEndRef} />
       </div>
 
