@@ -40,6 +40,7 @@ interface AgentState {
 }
 
 let client: AgentClient | null = null;
+let unsubscribe: (() => void) | null = null;
 let nextId = 1;
 
 function makeId(): string {
@@ -58,10 +59,11 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   error: null,
 
   connect: () => {
+    if (unsubscribe) unsubscribe();
     if (client) client.disconnect();
     client = new AgentClient(get().mode);
 
-    client.on((event: AgentEvent) => {
+    unsubscribe = client.on((event: AgentEvent) => {
       switch (event.type) {
         case 'connected':
           set({ connected: true, error: null });

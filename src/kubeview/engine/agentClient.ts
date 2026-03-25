@@ -120,7 +120,7 @@ export class AgentClient {
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       this.connect();
-    }, RECONNECT_DELAY * this.reconnectAttempts);
+    }, RECONNECT_DELAY * this.reconnectAttempts + Math.random() * 1000);
   }
 
   /** Disconnect and stop reconnecting. */

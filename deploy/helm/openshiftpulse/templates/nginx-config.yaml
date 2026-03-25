@@ -66,6 +66,14 @@ data:
           proxy_read_timeout 60s;
         }
 
+        location /api/agent/ {
+          proxy_pass http://{{ .Values.agent.serviceName | default "pulse-agent-sre-agent" }}:8080/;
+          proxy_set_header Upgrade $http_upgrade;
+          proxy_set_header Connection $connection_upgrade;
+          proxy_http_version 1.1;
+          proxy_read_timeout 3600s;
+        }
+
         location / { try_files $uri $uri/ /index.html; }
         location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff2?)$ {
           expires 1y;
