@@ -59,6 +59,7 @@ describe('route modules', () => {
         'path="storage"', 'path="builds"', 'path="crds"',
         'path="security"', 'path="access-control"', 'path="users"',
         'path="admin"', 'path="alerts"',
+        'path="fleet/workloads"', 'path="fleet/alerts"', 'path="fleet/r/:gvr"',
       ];
       for (const p of paths) {
         expect(source).toContain(p);
@@ -73,6 +74,15 @@ describe('route modules', () => {
       ];
       for (const view of views) {
         expect(source).toContain(`lazy(() => import('../views/${view}'))`);
+      }
+    });
+
+    it('lazy-loads fleet cross-cluster views', () => {
+      const fleetViews = [
+        'FleetResourceView', 'FleetWorkloadsView', 'FleetAlertsView',
+      ];
+      for (const view of fleetViews) {
+        expect(source).toContain(`lazy(() => import('../views/fleet/${view}'))`);
       }
     });
   });

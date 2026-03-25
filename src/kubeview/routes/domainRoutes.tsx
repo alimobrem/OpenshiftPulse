@@ -1,5 +1,5 @@
-import { Route } from 'react-router-dom';
-import { Suspense, lazy } from 'react';
+import { Route, useParams } from 'react-router-dom';
+import React, { Suspense, lazy } from 'react';
 
 const AccessControlView = lazy(() => import('../views/AccessControlView'));
 const UserManagementView = lazy(() => import('../views/UserManagementView'));
@@ -15,6 +15,10 @@ const SecurityView = lazy(() => import('../views/SecurityView'));
 const ArgoCDView = lazy(() => import('../views/ArgoCDView'));
 const FleetView = lazy(() => import('../views/FleetView'));
 const CompareView = lazy(() => import('../views/fleet/CompareView'));
+const ComplianceView = lazy(() => import('../views/fleet/ComplianceView'));
+const FleetResourceView = lazy(() => import('../views/fleet/FleetResourceView'));
+const FleetWorkloadsView = lazy(() => import('../views/fleet/FleetWorkloadsView'));
+const FleetAlertsView = lazy(() => import('../views/fleet/FleetAlertsView'));
 
 function LoadingFallback() {
   return (
@@ -26,6 +30,12 @@ function LoadingFallback() {
 
 function Lazy({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<LoadingFallback />}>{children}</Suspense>;
+}
+
+function FleetResourceRoute() {
+  const { gvr } = useParams<{ gvr: string }>();
+  const gvrKey = (gvr || '').replace(/~/g, '/');
+  return <FleetResourceView gvrKey={gvrKey} />;
 }
 
 export function domainRoutes() {
@@ -45,6 +55,10 @@ export function domainRoutes() {
       <Route path="gitops" element={<Lazy><ArgoCDView /></Lazy>} />
       <Route path="fleet" element={<Lazy><FleetView /></Lazy>} />
       <Route path="fleet/compare" element={<Lazy><CompareView /></Lazy>} />
+      <Route path="fleet/compliance" element={<Lazy><ComplianceView /></Lazy>} />
+      <Route path="fleet/workloads" element={<Lazy><FleetWorkloadsView /></Lazy>} />
+      <Route path="fleet/alerts" element={<Lazy><FleetAlertsView /></Lazy>} />
+      <Route path="fleet/r/:gvr" element={<Lazy><FleetResourceRoute /></Lazy>} />
     </>
   );
 }

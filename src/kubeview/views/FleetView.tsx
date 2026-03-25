@@ -7,7 +7,7 @@
 import React from 'react';
 import {
   Globe, RefreshCw, Loader2, Plus, Info, Server,
-  CheckCircle, AlertTriangle,
+  CheckCircle, AlertTriangle, Layers, Bell, GitCompare, Box,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFleetStore } from '../store/fleetStore';
@@ -138,6 +138,48 @@ export default function FleetView() {
               <span className="text-violet-400">ACM managed</span>
             </>
           )}
+        </div>
+
+        {/* Fleet navigation */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => go('/fleet/r/apps~v1~deployments', 'Fleet Resources')}
+            className="px-3 py-1.5 text-xs rounded border border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors"
+          >
+            <span className="inline-flex items-center gap-1.5">
+              <Layers className="w-3 h-3" /> Resources
+            </span>
+          </button>
+          <button
+            onClick={() => go('/fleet/workloads', 'Fleet Workloads')}
+            className="px-3 py-1.5 text-xs rounded border border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors"
+          >
+            <span className="inline-flex items-center gap-1.5">
+              <Box className="w-3 h-3" /> Workloads
+            </span>
+          </button>
+          <button
+            onClick={() => go('/fleet/alerts', 'Fleet Alerts')}
+            className="px-3 py-1.5 text-xs rounded border border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors"
+          >
+            <span className="inline-flex items-center gap-1.5">
+              <Bell className="w-3 h-3" /> Alerts
+            </span>
+          </button>
+          <button
+            onClick={() => go('/fleet/compare', 'Fleet Compare')}
+            className="px-3 py-1.5 text-xs rounded border border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors"
+          >
+            <span className="inline-flex items-center gap-1.5">
+              <GitCompare className="w-3 h-3" /> Compare
+            </span>
+          </button>
+          <button
+            onClick={() => go('/fleet/compliance', 'Fleet Compliance')}
+            className="px-3 py-1.5 text-xs rounded border border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors"
+          >
+            <span className="inline-flex items-center gap-1.5">Compliance</span>
+          </button>
         </div>
 
         {/* Cluster cards grid */}
