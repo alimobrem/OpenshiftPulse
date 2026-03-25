@@ -138,8 +138,10 @@ export function Dock() {
 
       {/* Header */}
       <div className="flex h-9 items-center justify-between border-b border-slate-700 bg-slate-800 px-4">
-        <div className="flex items-center gap-3 text-sm">
+        <div className="flex items-center gap-3 text-sm" role="tablist" aria-label="Dock panels">
           <button
+            role="tab"
+            aria-selected={dockPanel === 'logs'}
             onClick={() => openDock('logs')}
             className={cn(
               'px-2 py-1 transition-colors',
@@ -151,6 +153,8 @@ export function Dock() {
             Logs
           </button>
           <button
+            role="tab"
+            aria-selected={dockPanel === 'terminal'}
             onClick={() => openDock('terminal')}
             className={cn(
               'px-2 py-1 transition-colors',
@@ -162,6 +166,8 @@ export function Dock() {
             Terminal
           </button>
           <button
+            role="tab"
+            aria-selected={dockPanel === 'events'}
             onClick={() => openDock('events')}
             className={cn(
               'px-2 py-1 transition-colors',
@@ -173,6 +179,8 @@ export function Dock() {
             Events
           </button>
           <button
+            role="tab"
+            aria-selected={dockPanel === 'agent'}
             onClick={() => { openDock('agent'); clearUnread(false); }}
             className={cn(
               'relative flex items-center gap-1 px-2 py-1 transition-colors',

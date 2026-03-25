@@ -47,15 +47,15 @@ export function AIIcon({ className, size = 16, pulseWhenStreaming = false }: AII
   const shouldPulse = pulseWhenStreaming && streaming;
 
   if (shouldPulse) {
-    return <Loader2 className={cn('animate-spin', AI_ACCENT.text, className)} style={{ width: size, height: size }} />;
+    return <Loader2 aria-label="AI processing" role="img" className={cn('animate-spin', AI_ACCENT.text, className)} style={{ width: size, height: size }} />;
   }
 
-  return <Sparkles className={cn(AI_ACCENT.text, className)} style={{ width: size, height: size }} />;
+  return <Sparkles aria-hidden="true" className={cn(AI_ACCENT.text, className)} style={{ width: size, height: size }} />;
 }
 
 /** Standalone AIIcon that doesn't depend on agent store (for static contexts) */
 export function AIIconStatic({ className, size = 16 }: { className?: string; size?: number }) {
-  return <Sparkles className={cn(AI_ACCENT.text, className)} style={{ width: size, height: size }} />;
+  return <Sparkles aria-hidden="true" className={cn(AI_ACCENT.text, className)} style={{ width: size, height: size }} />;
 }
 
 /** Small "AI" badge pill */
@@ -78,7 +78,7 @@ export function AIBadge({ className }: { className?: string }) {
 /** Shimmer skeleton loader with AI accent */
 export function AIShimmer({ lines = 3, className }: { lines?: number; className?: string }) {
   return (
-    <div className={cn('space-y-2 animate-pulse', className)}>
+    <div className={cn('space-y-2 animate-pulse', className)} role="status" aria-label="Loading AI content">
       {Array.from({ length: lines }).map((_, i) => (
         <div
           key={i}
