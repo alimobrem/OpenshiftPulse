@@ -19,6 +19,7 @@ const ComplianceView = lazy(() => import('../views/fleet/ComplianceView'));
 const FleetResourceView = lazy(() => import('../views/fleet/FleetResourceView'));
 const FleetWorkloadsView = lazy(() => import('../views/fleet/FleetWorkloadsView'));
 const FleetAlertsView = lazy(() => import('../views/fleet/FleetAlertsView'));
+const AgentView = lazy(() => import('../views/AgentView'));
 
 function LoadingFallback() {
   return (
@@ -59,6 +60,7 @@ export function domainRoutes() {
       <Route path="fleet/workloads" element={<Lazy><FleetWorkloadsView /></Lazy>} />
       <Route path="fleet/alerts" element={<Lazy><FleetAlertsView /></Lazy>} />
       <Route path="fleet/r/:gvr" element={<Lazy><FleetResourceRoute /></Lazy>} />
+      <Route path="agent" element={<Lazy><AgentView /></Lazy>} />
     </>
   );
 }

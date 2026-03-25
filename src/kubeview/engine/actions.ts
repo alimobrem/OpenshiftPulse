@@ -390,10 +390,27 @@ const drainAction: ResourceAction = {
 /**
  * All built-in actions
  */
+const askAgentAction: ResourceAction = {
+  id: 'ask-agent',
+  label: 'Ask Agent',
+  icon: 'Bot',
+  category: 'navigate',
+  available: () => true,
+  execute: async (resource, context) => {
+    const kind = resource.kind;
+    const name = resource.metadata.name;
+    const ns = resource.metadata.namespace;
+    const query = encodeURIComponent(`Diagnose ${kind} ${ns ? ns + '/' : ''}${name}`);
+    context.navigate(`/agent?context=${encodeURIComponent(JSON.stringify({ kind, name, namespace: ns }))}&prompt=${query}`);
+    return { success: true, message: 'Opened agent' };
+  },
+};
+
 const BUILT_IN_ACTIONS: ResourceAction[] = [
   editYamlAction,
   viewLogsAction,
   openTerminalAction,
+  askAgentAction,
   scaleAction,
   restartRolloutAction,
   cordonAction,

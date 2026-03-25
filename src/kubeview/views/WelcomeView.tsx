@@ -5,7 +5,7 @@ import {
   CheckCircle, XCircle, GitBranch, Clock, ChevronDown,
   Github, HeartPulse, Search, AlertCircle,
   FileCode, History, GitGraph, ScrollText, Camera,
-  Diff, Monitor, Terminal,
+  Diff, Monitor, Terminal, Bot,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '../store/uiStore';
@@ -140,6 +140,7 @@ export default function WelcomeView() {
             <ViewTile icon={<Puzzle className="w-4 h-4 text-violet-400" />}   title="CRDs"           onClick={() => go('/crds', 'CRDs')} />
             <ViewTile icon={<GitBranch className="w-4 h-4 text-violet-400" />} title="GitOps"        onClick={() => go('/gitops', 'GitOps')} />
             <ViewTile icon={<Globe className="w-4 h-4 text-blue-400" />} title="Fleet"          onClick={() => go('/fleet', 'Fleet')} />
+            <ViewTile icon={<Bot className="w-4 h-4 text-cyan-400" />} title="Agent"          onClick={() => go('/agent', 'Agent')} />
             <ViewTile icon={<Settings className="w-4 h-4 text-slate-400" />}  title="Administration" onClick={() => go('/admin', 'Administration')} />
             <ViewTile icon={<Package className="w-4 h-4 text-blue-400" />}    title="Software"       onClick={() => go('/create/v1~pods', 'Software')} />
             <ViewTile icon={<Clock className="w-4 h-4 text-blue-400" />}      title="Timeline"       onClick={() => go('/admin?tab=timeline', 'Timeline')} />
@@ -157,6 +158,7 @@ export default function WelcomeView() {
           <div className="rounded-xl border border-slate-800/60 bg-slate-900/50 divide-y divide-slate-800/60">
             <CapabilityRow iconColor="text-violet-400" icon={<FileCode className="w-4 h-4" />} title="YAML Editor" description="Autocomplete, diff preview, server-side dry-run validation" onClick={() => go('/r/apps~v1~deployments', 'Deployments')} />
             <CapabilityRow iconColor="text-violet-400" icon={<GitBranch className="w-4 h-4" />} title="GitOps / ArgoCD" description="Sync badges, auto-PR on save, drift detection — GitHub, GitLab, Bitbucket" onClick={() => go('/gitops', 'GitOps')} />
+            <CapabilityRow iconColor="text-cyan-400" icon={<Bot className="w-4 h-4" />} title="AI Agent" description="Claude-powered SRE diagnostics, security scanning, and cluster operations" onClick={() => go('/agent', 'Agent')} />
             <CapabilityRow iconColor="text-blue-400" icon={<Clock className="w-4 h-4" />} title="Incident Timeline" description="Correlated alerts, events, rollouts, and config changes" onClick={() => go('/admin?tab=timeline', 'Timeline')} />
             <CapabilityRow iconColor="text-emerald-400" icon={<Monitor className="w-4 h-4" />} title="Health Audits" description="77 automated checks with YAML fix examples and remediation steps" onClick={() => go('/admin?tab=readiness', 'Readiness')} />
             <CapabilityRow iconColor="text-indigo-400" icon={<Shield className="w-4 h-4" />} title="Security Audit" description="TLS, encryption, SCCs, network policies, ACS detection" onClick={() => go('/security', 'Security')} />

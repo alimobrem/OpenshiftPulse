@@ -199,6 +199,14 @@ export default defineConfig({
           Authorization: `Bearer ${getOCToken()}`,
         },
       }] : []),
+      {
+        context: ['/api/agent'],
+        target: process.env.PULSE_AGENT_URL || 'http://localhost:8080',
+        changeOrigin: true,
+        secure: false,
+        ws: true,
+        pathRewrite: (path: string) => path.replace(/^\/api\/agent/, ''),
+      },
       ...(process.env.ALERTMANAGER_URL ? [{
         context: ['/api/alertmanager'],
         target: process.env.ALERTMANAGER_URL,
