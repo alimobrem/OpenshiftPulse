@@ -41,6 +41,7 @@ resources:
 # Pulse Agent (AI SRE assistant)
 agent:
   serviceName: pulse-agent-sre-agent
+  wsToken: "pulse-agent-internal-token"
 
 # Quota for the namespace
 quota:

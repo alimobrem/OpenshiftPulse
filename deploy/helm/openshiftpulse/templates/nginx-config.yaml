@@ -74,7 +74,13 @@ data:
           proxy_read_timeout 3600s;
         }
 
-        location / { try_files $uri $uri/ /index.html; }
+        location / {
+          try_files $uri $uri/ /index.html;
+          # Inject agent WS token into JS bundles at serve time
+          sub_filter '__PULSE_AGENT_TOKEN__' '{{ .Values.agent.wsToken | default "pulse-agent-internal-token" }}';
+          sub_filter_once off;
+          sub_filter_types application/javascript;
+        }
         location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff2?)$ {
           expires 1y;
           add_header Cache-Control "public, immutable";

@@ -47,6 +47,7 @@ export type AgentEvent =
 type EventHandler = (event: AgentEvent) => void;
 
 const AGENT_BASE = '/api/agent';
+const AGENT_TOKEN = '__PULSE_AGENT_TOKEN__'; // Replaced at deploy time via nginx sub_filter or env
 const RECONNECT_DELAY = 3000;
 const MAX_RECONNECT_ATTEMPTS = 5;
 
@@ -87,7 +88,9 @@ export class AgentClient {
     if (this.ws) this.disconnect();
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const url = `${protocol}//${window.location.host}${AGENT_BASE}/ws/${this.mode}`;
+    // Token auth — read from nginx-injected header or use default internal token
+    const token = encodeURIComponent(AGENT_TOKEN);
+    const url = `${protocol}//${window.location.host}${AGENT_BASE}/ws/${this.mode}?token=${token}`;
 
     this.ws = new WebSocket(url);
 
