@@ -2,12 +2,33 @@ import React from 'react';
 import {
   CheckCircle, XCircle, AlertTriangle, RefreshCw, Loader2,
   ExternalLink, ArrowRight, HelpCircle, Pause, Clock, Box,
-  AlertOctagon, Globe,
+  AlertOctagon, Globe, Plus, Copy,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ArgoApplication, ArgoSyncStatus, ArgoHealthStatus } from '../../engine/types';
 import { Card } from '../../components/primitives/Card';
 import { timeAgo } from '../../engine/dateUtils';
+
+const SAMPLE_APPLICATION_YAML = `apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app
+  namespace: openshift-gitops
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/your-org/your-repo.git
+    targetRevision: HEAD
+    path: manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true`;
 
 interface ApplicationsTabProps {
   applications: ArgoApplication[];
@@ -34,14 +55,71 @@ const SYNC_COLORS: Record<ArgoSyncStatus, string> = {
 export function ApplicationsTab({ applications, syncing, onSync, go }: ApplicationsTabProps) {
   const [expandedApp, setExpandedApp] = React.useState<string | null>(null);
 
+  const [showYaml, setShowYaml] = React.useState(false);
+  const [copied, setCopied] = React.useState(false);
+
   if (applications.length === 0) {
     return (
-      <div className="flex items-center justify-center h-48">
-        <div className="text-center">
-          <HelpCircle className="w-10 h-10 text-slate-600 mx-auto mb-2" />
-          <p className="text-slate-400 text-sm">No ArgoCD Applications found</p>
-          <p className="text-slate-500 text-xs mt-1">Create an Application in ArgoCD to manage resources via GitOps</p>
+      <div className="space-y-4">
+        <div className="flex items-center justify-center py-8">
+          <div className="text-center max-w-md">
+            <HelpCircle className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+            <p className="text-slate-300 text-sm font-medium">No ArgoCD Applications found</p>
+            <p className="text-slate-500 text-xs mt-1 mb-4">
+              Create an Application to start managing resources declaratively via Git.
+              The Application tells ArgoCD which Git repo to watch and where to deploy.
+            </p>
+            <div className="flex items-center justify-center gap-3">
+              <button
+                onClick={() => setShowYaml(!showYaml)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-violet-600 hover:bg-violet-500 text-white transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" /> Create Application
+              </button>
+              <button
+                onClick={() => go('/create/v1~pods?tab=yaml', 'Import YAML')}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-slate-600 text-slate-300 hover:bg-slate-800 transition-colors"
+              >
+                Import YAML
+              </button>
+            </div>
+          </div>
         </div>
+
+        {showYaml && (
+          <Card className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-slate-200">Sample Application YAML</h3>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(SAMPLE_APPLICATION_YAML).catch(() => {});
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+                className={cn(
+                  'flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors',
+                  copied ? 'text-emerald-400 bg-emerald-900/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800',
+                )}
+              >
+                {copied ? <CheckCircle className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                {copied ? 'Copied' : 'Copy'}
+              </button>
+            </div>
+            <div className="bg-slate-950 rounded-lg p-3 overflow-x-auto">
+              <pre className="text-xs text-slate-300 font-mono whitespace-pre">{SAMPLE_APPLICATION_YAML}</pre>
+            </div>
+            <div className="mt-3 space-y-2 text-xs text-slate-500">
+              <p><strong className="text-slate-400">Before applying:</strong> Update the following fields:</p>
+              <ul className="list-disc list-inside space-y-1 ml-2">
+                <li><code className="bg-slate-800 px-1 rounded">metadata.name</code> — your application name</li>
+                <li><code className="bg-slate-800 px-1 rounded">spec.source.repoURL</code> — your Git repository URL</li>
+                <li><code className="bg-slate-800 px-1 rounded">spec.source.path</code> — directory containing your K8s manifests</li>
+                <li><code className="bg-slate-800 px-1 rounded">spec.destination.namespace</code> — target namespace on this cluster</li>
+              </ul>
+              <p className="mt-2">Apply with: <code className="bg-slate-800 px-1.5 py-0.5 rounded font-mono">oc apply -f application.yaml</code></p>
+            </div>
+          </Card>
+        )}
       </div>
     );
   }
