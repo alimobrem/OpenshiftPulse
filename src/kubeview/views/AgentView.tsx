@@ -90,10 +90,14 @@ export default function AgentView() {
     }
   }, [connected]);
 
-  // Auto-scroll
+  // Auto-scroll — debounced during streaming to prevent layout thrashing
+  const scrollTimer = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streamingText, thinkingText]);
+    clearTimeout(scrollTimer.current);
+    scrollTimer.current = setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
+    }, streaming ? 200 : 0);
+  }, [messages, streamingText, thinkingText, streaming]);
 
   // Focus input after streaming
   useEffect(() => {

@@ -67,10 +67,13 @@ export const InlineAgent: React.FC<InlineAgentProps> = ({
     disconnect,
   } = useAgentSession({ context, mode });
 
-  // Scroll to bottom when messages change
+  // Scroll to bottom — debounced during streaming to prevent layout thrashing
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streamingText, thinkingText]);
+    const timer = setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
+    }, streaming ? 200 : 0);
+    return () => clearTimeout(timer);
+  }, [messages, streamingText, thinkingText, streaming]);
 
   // Send initial prompt on first expand
   useEffect(() => {

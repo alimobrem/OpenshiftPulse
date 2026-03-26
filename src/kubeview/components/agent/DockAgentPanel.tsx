@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Send, StopCircle, Bot, Loader2, Wrench, Brain, AlertTriangle, Trash2 } from 'lucide-react';
 import { useAgentStore } from '../../store/agentStore';
 import { useTrustStore, TRUST_LABELS } from '../../store/trustStore';
@@ -29,10 +29,14 @@ export function DockAgentPanel() {
     if (!connected) connect();
   }, []);
 
-  // Auto-scroll
+  // Auto-scroll — debounced during streaming to prevent layout thrashing
+  const scrollTimer = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streamingText, thinkingText]);
+    clearTimeout(scrollTimer.current);
+    scrollTimer.current = setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
+    }, streaming ? 200 : 0);
+  }, [messages, streamingText, thinkingText, streaming]);
 
   // Focus input after streaming
   useEffect(() => {

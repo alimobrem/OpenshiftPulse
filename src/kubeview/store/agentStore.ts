@@ -82,11 +82,9 @@ function resetStreamingState() {
 function scheduleDeltaFlush(set: (fn: (s: AgentState) => Partial<AgentState>) => void) {
   if (rafScheduled) return;
   rafScheduled = true;
-  if (typeof requestAnimationFrame !== 'undefined') {
-    requestAnimationFrame(() => flushDeltas(set));
-  } else {
-    setTimeout(() => flushDeltas(set), 16);
-  }
+  // Throttle to 100ms — 60fps text updates cause layout thrashing
+  // with MarkdownRenderer re-parsing + scrollIntoView on every frame
+  setTimeout(() => flushDeltas(set), 100);
 }
 
 function trimMessages(messages: AgentMessage[]): AgentMessage[] {
