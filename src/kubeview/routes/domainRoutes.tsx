@@ -19,7 +19,6 @@ const ComplianceView = lazy(() => import('../views/fleet/ComplianceView'));
 const FleetResourceView = lazy(() => import('../views/fleet/FleetResourceView'));
 const FleetWorkloadsView = lazy(() => import('../views/fleet/FleetWorkloadsView'));
 const FleetAlertsView = lazy(() => import('../views/fleet/FleetAlertsView'));
-const AgentView = lazy(() => import('../views/AgentView'));
 const DriftDetectorView = lazy(() => import('../views/fleet/DriftDetectorView').then(m => ({ default: m.DriftDetectorView })));
 const DynamicView = lazy(() => import('../views/DynamicView').then(m => ({ default: m.DynamicView })));
 
@@ -68,7 +67,6 @@ export function domainRoutes() {
       <Route path="fleet/alerts" element={<Lazy><FleetAlertsView /></Lazy>} />
       <Route path="fleet/r/:gvr" element={<Lazy><FleetResourceRoute /></Lazy>} />
       <Route path="fleet/drift" element={<Lazy><DriftDetectorView /></Lazy>} />
-      <Route path="agent" element={<Lazy><AgentView /></Lazy>} />
       <Route path="dynamic/:id" element={<Lazy><DynamicViewRoute /></Lazy>} />
     </>
   );
