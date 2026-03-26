@@ -69,11 +69,62 @@ else
     --set rbac.allowSecretAccess=true
 fi
 
-# 6. Build Agent image
+# 6. Build Agent image (two-stage: deps base + code overlay)
 echo "[6/8] Building Agent image..."
+
+# 6a. Ensure deps base image exists and is up-to-date
+DEPS_HASH=$(md5 -q "$AGENT_REPO/pyproject.toml" 2>/dev/null || md5sum "$AGENT_REPO/pyproject.toml" | cut -d' ' -f1)
+CURRENT_HASH=$(oc get istag pulse-agent-deps:latest -n "$NAMESPACE" \
+  -o jsonpath='{.image.dockerImageMetadata.Config.Labels.deps-hash}' 2>/dev/null || echo "none")
+
+if [[ "$DEPS_HASH" != "$CURRENT_HASH" ]]; then
+  echo "  Deps image needs rebuild (pyproject.toml changed)..."
+  oc create imagestream pulse-agent-deps -n "$NAMESPACE" 2>/dev/null || true
+  if ! oc get bc pulse-agent-deps -n "$NAMESPACE" &>/dev/null; then
+    cat <<DEPEOF | oc apply -f - -n "$NAMESPACE"
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: pulse-agent-deps
+spec:
+  output:
+    to:
+      kind: ImageStreamTag
+      name: "pulse-agent-deps:latest"
+  source:
+    type: Binary
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile.deps
+DEPEOF
+  fi
+  oc start-build pulse-agent-deps --from-dir=. --build-arg="DEPS_HASH=$DEPS_HASH" --follow -n "$NAMESPACE" 2>&1 | tail -3
+fi
+
+# 6b. Ensure code BC uses deps as base
 oc get bc pulse-agent -n "$NAMESPACE" &>/dev/null || \
   oc new-build --binary --name=pulse-agent --to=pulse-agent:latest -n "$NAMESPACE" 2>&1 | tail -1
-oc start-build pulse-agent --from-dir=. --follow -n "$NAMESPACE" 2>&1 | tail -2
+oc patch bc pulse-agent -n "$NAMESPACE" --type=json \
+  -p='[{"op":"replace","path":"/spec/strategy/dockerStrategy","value":{"from":{"kind":"ImageStreamTag","name":"pulse-agent-deps:latest"}}}]' \
+  2>/dev/null || true
+
+# 6c. Code-only build (fast — deps already cached in base image)
+echo "  Building code image..."
+if ! oc start-build pulse-agent --from-dir=. --follow -n "$NAMESPACE" 2>&1 | tail -3; then
+  echo "  Code build failed. Checking if deps image exists..."
+  if ! oc get istag pulse-agent-deps:latest -n "$NAMESPACE" &>/dev/null; then
+    echo "  Deps image missing — falling back to full single-stage build..."
+    oc patch bc pulse-agent -n "$NAMESPACE" --type=json \
+      -p='[{"op":"replace","path":"/spec/strategy/dockerStrategy","value":{"dockerfilePath":"Dockerfile.full"}}]'
+    oc start-build pulse-agent --from-dir=. --follow -n "$NAMESPACE" 2>&1 | tail -3
+    oc patch bc pulse-agent -n "$NAMESPACE" --type=json \
+      -p='[{"op":"replace","path":"/spec/strategy/dockerStrategy","value":{"from":{"kind":"ImageStreamTag","name":"pulse-agent-deps:latest"}}}]'
+  else
+    echo "  ERROR: Code build failed but deps image exists. Check build logs."
+    exit 1
+  fi
+fi
 
 # 7. Configure Agent
 echo "[7/8] Configuring Agent..."
