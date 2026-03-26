@@ -1,5 +1,5 @@
-import React from 'react';
-import { GitBranch, RefreshCw, Loader2, Info, ArrowRight } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { GitBranch, RefreshCw, Loader2, Info, ArrowRight, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useArgoCD, useArgoCDRefresh } from '../hooks/useArgoCD';
 import { useArgoCDStore } from '../store/argoCDStore';
@@ -11,6 +11,8 @@ import { Card } from '../components/primitives/Card';
 import { showErrorToast } from '../engine/errorToast';
 import { MetricGrid } from '../components/primitives/MetricGrid';
 import { useGitOpsConfig } from '../hooks/useGitOpsConfig';
+import { useGitOpsSetupStore } from '../store/gitopsSetupStore';
+import { GitOpsSetupWizard } from './argocd/GitOpsSetupWizard';
 import { ApplicationsTab } from './argocd/ApplicationsTab';
 import { SyncHistoryTab } from './argocd/SyncHistoryTab';
 import { DriftTab } from './argocd/DriftTab';
@@ -25,6 +27,12 @@ export default function ArgoCDView() {
   const { available, detecting, applications, applicationsLoading, namespace } = useArgoCD();
   const refresh = useArgoCDRefresh();
   const { isConfigured } = useGitOpsConfig();
+  const { openWizard, wizardOpen, completedSteps, detectCompletedSteps } = useGitOpsSetupStore();
+
+  // Detect setup progress on mount
+  useEffect(() => {
+    detectCompletedSteps();
+  }, [available]);
   const [activeTab, setActiveTab] = React.useState<Tab>('applications');
   const [syncing, setSyncing] = React.useState<string | null>(null);
   const [confirmSync, setConfirmSync] = React.useState<{name: string, ns: string} | null>(null);
@@ -69,7 +77,7 @@ export default function ArgoCDView() {
     );
   }
 
-  // Not available — show setup guide
+  // Not available — show setup wizard CTA
   if (!available) {
     return (
       <div className="h-full overflow-auto bg-slate-950 p-6">
@@ -81,16 +89,20 @@ export default function ArgoCDView() {
             <p className="text-sm text-slate-400 mt-1">Manage your cluster declaratively via Git</p>
           </div>
 
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold text-slate-100 mb-4">Get Started with GitOps</h2>
-            <p className="text-sm text-slate-400 mb-6">GitOps uses Git as the single source of truth for your cluster configuration. Changes are made via pull requests, and ArgoCD ensures your cluster matches the desired state in Git.</p>
-
-            <div className="space-y-4">
-              <StepCard number={1} title="Install OpenShift GitOps" description="Install the OpenShift GitOps operator from OperatorHub. This deploys ArgoCD in the openshift-gitops namespace and provides ArgoCD Application CRDs." action="Open Operator Catalog" onClick={() => go('/create/v1~pods?tab=operators&q=openshift+gitops', 'Operator Catalog')} />
-              <StepCard number={2} title="Create a Git Repository" description="Create a Git repo (GitHub, GitLab, or Bitbucket) to store your Kubernetes manifests. Organize by environment or application." />
-              <StepCard number={3} title="Create an ArgoCD Application" description="Define an Application resource that points to your Git repo and target namespace. ArgoCD will sync your manifests to the cluster. Once the operator is installed, return here for a sample YAML template." action="View Template" onClick={() => go('/gitops', 'GitOps')} />
-              <StepCard number={4} title="Configure Pulse Integration" description="Go to Admin → GitOps tab to connect Pulse to your Git provider. This enables auto-PR on resource edits and drift tracking." action="Configure" onClick={() => go('/admin?tab=gitops', 'Admin')} />
-            </div>
+          <Card className="p-8 text-center">
+            <Sparkles className="w-12 h-12 text-violet-400 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-slate-100 mb-2">Set Up GitOps</h2>
+            <p className="text-sm text-slate-400 mb-6 max-w-md mx-auto">
+              A guided wizard will install the OpenShift GitOps operator, configure your Git provider,
+              and create your first ArgoCD application — all without leaving Pulse.
+            </p>
+            <button
+              onClick={() => openWizard()}
+              className="px-8 py-3 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-2"
+            >
+              <Sparkles className="w-4 h-4" />
+              Start Setup Wizard
+            </button>
           </Card>
 
           <Card className="p-4">
@@ -102,6 +114,7 @@ export default function ArgoCDView() {
             </div>
           </Card>
         </div>
+        <GitOpsSetupWizard />
       </div>
     );
   }
@@ -138,6 +151,30 @@ export default function ArgoCDView() {
             Refresh
           </button>
         </div>
+
+        {/* Continue setup banner (partially set up) */}
+        {(!isConfigured || applications.length === 0) && (
+          <div className="flex items-center justify-between bg-slate-800 border border-slate-700 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <Sparkles className="w-5 h-5 text-violet-400" />
+              <div>
+                <p className="text-sm font-medium text-slate-200">
+                  {!isConfigured ? 'Continue GitOps Setup' : 'Create Your First Application'}
+                </p>
+                <p className="text-xs text-slate-400">
+                  {!isConfigured ? 'Configure your Git provider to enable auto-PR and drift tracking' : 'No ArgoCD applications yet — create one to start syncing'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => openWizard(!isConfigured ? 'git-config' : 'first-app')}
+              className="px-4 py-2 text-xs bg-violet-600 hover:bg-violet-500 text-white rounded-lg transition-colors flex items-center gap-1.5"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              {!isConfigured ? 'Open Wizard' : 'Create Application'}
+            </button>
+          </div>
+        )}
 
         {/* Summary */}
         <MetricGrid>
@@ -247,6 +284,7 @@ export default function ArgoCDView() {
         onConfirm={executeSync}
         onClose={() => setConfirmSync(null)}
       />
+      <GitOpsSetupWizard />
     </div>
   );
 }

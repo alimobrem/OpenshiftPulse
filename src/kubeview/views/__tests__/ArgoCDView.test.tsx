@@ -52,10 +52,10 @@ describe('ArgoCDView', () => {
     vi.clearAllMocks();
   });
 
-  it('shows not-installed message when ArgoCD is unavailable', () => {
+  it('shows setup wizard CTA when ArgoCD is unavailable', () => {
     mockUseArgoCD.mockReturnValue({ available: false, detecting: false, applications: [], applicationsLoading: false, namespace: null });
     renderView();
-    expect(screen.getByText('Get Started with GitOps')).toBeDefined();
+    expect(screen.getByText('Set Up GitOps')).toBeDefined();
   });
 
   it('renders GitOps heading when ArgoCD is available', () => {
