@@ -11,17 +11,18 @@ import type { ArgoSyncInfo, ArgoApplication } from '../engine/types';
 export function useArgoCD() {
   const available = useArgoCDStore((s) => s.available);
   const detecting = useArgoCDStore((s) => s.detecting);
+  const detected = useArgoCDStore((s) => s.detected);
   const applications = useArgoCDStore((s) => s.applications);
   const applicationsLoading = useArgoCDStore((s) => s.applicationsLoading);
   const namespace = useArgoCDStore((s) => s.namespace);
   const detect = useArgoCDStore((s) => s.detect);
 
-  // Trigger detection once
+  // Trigger detection once — don't retry after detection completes
   useEffect(() => {
-    if (!available && !detecting) {
+    if (!detected && !detecting) {
       detect();
     }
-  }, [available, detecting, detect]);
+  }, [detected, detecting, detect]);
 
   return { available, detecting, applications, applicationsLoading, namespace };
 }

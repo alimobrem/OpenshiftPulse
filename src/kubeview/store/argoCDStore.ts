@@ -12,6 +12,8 @@ interface ArgoCDState {
   // Detection
   available: boolean;
   detecting: boolean;
+  /** True once detection has completed (regardless of result) — prevents retry loops */
+  detected: boolean;
   detectionError: string | null;
   namespace: string | null; // namespace where ArgoCD apps live (e.g., 'openshift-gitops')
   rolloutsAvailable: boolean;
@@ -65,6 +67,7 @@ function buildResourceCache(apps: ArgoApplication[]): Map<string, ArgoSyncInfo> 
 export const useArgoCDStore = create<ArgoCDState>((set, get) => ({
   available: false,
   detecting: false,
+  detected: false,
   detectionError: null,
   namespace: null,
   rolloutsAvailable: false,
@@ -80,7 +83,7 @@ export const useArgoCDStore = create<ArgoCDState>((set, get) => ({
       // Check if argoproj.io API group exists
       const res = await fetch('/api/kubernetes/apis/argoproj.io/v1alpha1', { headers: getImpersonationHeaders() });
       if (!res.ok) {
-        set({ available: false, detecting: false });
+        set({ available: false, detecting: false, detected: true });
         return;
       }
 
@@ -106,6 +109,7 @@ export const useArgoCDStore = create<ArgoCDState>((set, get) => ({
           set({
             available: true,
             detecting: false,
+            detected: true,
             namespace: ns,
           });
           // Load applications fully
@@ -126,6 +130,7 @@ export const useArgoCDStore = create<ArgoCDState>((set, get) => ({
           set({
             available: true,
             detecting: false,
+            detected: true,
             namespace: firstNs,
           });
           get().loadApplications();
@@ -136,11 +141,12 @@ export const useArgoCDStore = create<ArgoCDState>((set, get) => ({
       }
 
       // API group exists but no apps found or accessible
-      set({ available: true, detecting: false, namespace: null });
+      set({ available: true, detecting: false, detected: true, namespace: null });
     } catch {
       set({
         available: false,
         detecting: false,
+        detected: true,
         detectionError: 'Failed to detect ArgoCD',
       });
     }
