@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 
 /**
  * DockAgentPanel — compact agent conversation for the dock panel.
- * Shares state with the full AgentView via useAgentStore.
+ * Shares state via useAgentStore.
  */
 export function DockAgentPanel() {
   const {

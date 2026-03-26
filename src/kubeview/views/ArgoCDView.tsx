@@ -288,24 +288,5 @@ export default function ArgoCDView() {
     </div>
   );
 }
-
-function StepCard({ number, title, description, action, onClick }: {
-  number: number; title: string; description: string; action?: string; onClick?: () => void;
-}) {
-  return (
-    <div className="flex gap-4 p-4 rounded-lg border border-slate-800 bg-slate-800/30">
-      <div className="w-7 h-7 rounded-full bg-violet-600 text-white text-sm font-bold flex items-center justify-center shrink-0">
-        {number}
-      </div>
-      <div className="flex-1">
-        <div className="text-sm font-medium text-slate-200">{title}</div>
-        <p className="text-xs text-slate-400 mt-1">{description}</p>
-        {action && onClick && (
-          <button onClick={onClick} className="mt-2 text-xs text-violet-400 hover:text-violet-300 flex items-center gap-1 transition-colors">
-            {action} <ArrowRight className="w-3 h-3" />
-          </button>
-        )}
-      </div>
-    </div>
   );
 }
