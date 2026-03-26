@@ -417,4 +417,105 @@ describe('DetailView', () => {
       expect(screen.getAllByText('nginx:latest').length).toBeGreaterThanOrEqual(1);
     });
   });
+
+  describe('Add Label dialog', () => {
+    it('opens a modal dialog instead of window.prompt when Add label is clicked', async () => {
+      const pod = makePod();
+      mockK8sGet.mockResolvedValue(pod);
+
+      renderDetailView({ gvrKey: 'v1/pods', namespace: 'default', name: 'my-pod' });
+
+      // Wait for the Add label button to appear (labels section renders after resource loads)
+      await waitFor(() => {
+        expect(screen.getByText('+ Add label')).toBeDefined();
+      });
+
+      // Click the Add label button
+      const addLabelBtn = screen.getByText('+ Add label');
+      fireEvent.click(addLabelBtn);
+
+      // Dialog should appear with key and value inputs
+      await waitFor(() => {
+        expect(screen.getByRole('dialog', { name: 'Add label' })).toBeDefined();
+        expect(screen.getByLabelText('Key')).toBeDefined();
+        expect(screen.getByLabelText('Value')).toBeDefined();
+        expect(screen.getByText('Cancel')).toBeDefined();
+        expect(screen.getByText('Add')).toBeDefined();
+      });
+
+      // window.prompt should NOT have been called
+      const promptSpy = vi.spyOn(window, 'prompt');
+      expect(promptSpy).not.toHaveBeenCalled();
+      promptSpy.mockRestore();
+    });
+
+    it('submits label key/value and calls k8sPatch', async () => {
+      const pod = makePod();
+      mockK8sGet.mockResolvedValue(pod);
+      mockK8sPatch.mockResolvedValue({});
+
+      renderDetailView({ gvrKey: 'v1/pods', namespace: 'default', name: 'my-pod' });
+
+      await waitFor(() => {
+        expect(screen.getAllByText('my-pod').length).toBeGreaterThanOrEqual(1);
+      });
+
+      // Open dialog
+      fireEvent.click(screen.getByText('+ Add label'));
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Key')).toBeDefined();
+      });
+
+      // Enter key and value
+      fireEvent.change(screen.getByLabelText('Key'), { target: { value: 'env' } });
+      fireEvent.change(screen.getByLabelText('Value'), { target: { value: 'production' } });
+
+      // Submit the form
+      fireEvent.click(screen.getByText('Add'));
+
+      await waitFor(() => {
+        expect(mockK8sPatch).toHaveBeenCalledWith(
+          '/api/v1/namespaces/default/pods/my-pod',
+          { metadata: { labels: { env: 'production' } } },
+        );
+      });
+
+      // Success toast
+      await waitFor(() => {
+        expect(addToastMock).toHaveBeenCalledWith(
+          expect.objectContaining({ type: 'success', title: 'Label env=production added' }),
+        );
+      });
+    });
+
+    it('closes dialog when Cancel is clicked', async () => {
+      const pod = makePod();
+      mockK8sGet.mockResolvedValue(pod);
+
+      renderDetailView({ gvrKey: 'v1/pods', namespace: 'default', name: 'my-pod' });
+
+      await waitFor(() => {
+        expect(screen.getAllByText('my-pod').length).toBeGreaterThanOrEqual(1);
+      });
+
+      // Open dialog
+      fireEvent.click(screen.getByText('+ Add label'));
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog', { name: 'Add label' })).toBeDefined();
+      });
+
+      // Click Cancel
+      fireEvent.click(screen.getByText('Cancel'));
+
+      // Dialog should be gone
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog', { name: 'Add label' })).toBeNull();
+      });
+
+      // k8sPatch should NOT have been called
+      expect(mockK8sPatch).not.toHaveBeenCalled();
+    });
+  });
 });
