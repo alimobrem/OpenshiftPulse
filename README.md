@@ -10,8 +10,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/alimobrem/OpenshiftPulse/releases/tag/v5.10.0"><img src="https://img.shields.io/badge/release-v5.10.0-2563eb?style=for-the-badge" alt="Version"></a>
-  <img src="https://img.shields.io/badge/tests-1700%20passed-10b981?style=for-the-badge" alt="Tests">
+  <a href="https://github.com/alimobrem/OpenshiftPulse/releases/tag/v5.11.0"><img src="https://img.shields.io/badge/release-v5.11.0-2563eb?style=for-the-badge" alt="Version"></a>
+  <img src="https://img.shields.io/badge/tests-1710%20passed-10b981?style=for-the-badge" alt="Tests">
   <img src="https://img.shields.io/badge/health%20checks-77-f59e0b?style=for-the-badge" alt="Health Checks">
   <img src="https://img.shields.io/badge/CVEs-0-10b981?style=for-the-badge" alt="CVEs">
   <img src="https://img.shields.io/badge/license-MIT-6366f1?style=for-the-badge" alt="License">
@@ -86,12 +86,14 @@ npm run dev    # http://localhost:9000
 | Category | What You Get |
 |----------|-------------|
 | **AI Agent** | Claude-powered SRE diagnostics and security scanning. 68 tools, 10 runbooks, dynamic UI rendering (tables, charts, cards), dashboard generation, prompt caching, dynamic tool selection, cluster context injection. [pulse-agent](https://github.com/alimobrem/pulse-agent) |
+| **Predictive AI** | Live cluster-aware smart prompts: AI suggestions reflect actual issues (crash-looping pods, degraded operators, pending PVCs) not generic templates. Integrated into Command Palette (`?` mode), dock agent panel, and empty states. |
 | **Native AI Layer** | Unified intelligence layer across all surfaces: smart prompts adapt to cluster state, AI query mode in Command Palette (`?`), violet-branded AI surfaces, auto-expanding InlineAgent for unhealthy resources, "Ask AI" buttons on PulseView attention items, first-run onboarding, dock notification dot for background insights |
 | **Ambient AI** | AI insights on every resource detail view, inline "Ask about this" agent, natural language table filters, dock agent panel, proactive background notifications, fleet-wide AI analysis |
 | **Error Intelligence** | Structured PulseError classification (7 categories), actionable suggestions on every error toast, "Ask AI" button for agent-assisted diagnosis, Admin > Errors tab for ops visibility, error tracking store with persistence |
 | **Multi-Cluster Fleet** | Fleet dashboard with health scores, cluster switcher (`Cmd+Shift+C`), cross-cluster search, compliance matrix, certificate heat map, RBAC comparison, config drift detection. Auto-detects ACM/MCE managed clusters. |
 | **Cluster Health** | 77 automated checks (31 cluster + 46 domain) with YAML fix examples and "Why it matters" explanations |
-| **Daily Briefing** | Risk score ring, control plane status, certificate expiry, attention items with remediation steps |
+| **Daily Briefing** | Risk score ring, control plane status, certificate expiry, attention items with remediation steps. "Cluster Zen" calm state when everything is healthy. |
+| **Instant Navigation** | Hover-prefetch preloads view data before click — navigation feels instant with zero skeleton flash. Applied to Welcome tiles and Command Palette. |
 | **Incident Timeline** | Unified timeline merging alerts, events, rollouts, and config changes with correlation groups |
 | **Admin Overview** | Firing alerts, named degraded operators, cert warnings, quota hot spots, health score — the 8am view |
 | **ArgoCD / GitOps** | 4-step setup wizard (operator install → git config → first app → verify), sync badges, auto-PR on save, drift detection, Rollouts (canary/blue-green), Projects. GitHub, GitLab, Bitbucket. |
@@ -131,7 +133,7 @@ npm run dev    # http://localhost:9000
 | View | Highlights |
 |------|-----------|
 | **Welcome** | Quick nav, cluster status with error recovery, all capabilities clickable, keyboard shortcuts |
-| **Pulse** | Daily briefing with 4-zone risk assessment. Fleet mode: cluster health table, risk scores, AI analysis |
+| **Pulse** | Daily briefing with 4-zone risk assessment. "Cluster Zen" calm state when healthy. Fleet mode: cluster health table, risk scores, AI analysis |
 | **Workloads** | Metrics + 6-check health audit, deployments sorted unhealthy-first |
 | **Compute** | Node metrics, CPU/memory bars, HyperShift-aware |
 | **Storage** | PVC health, capacity audit, CSI drivers |
@@ -157,7 +159,7 @@ npm run dev    # http://localhost:9000
 | **State** | Zustand + TanStack Query | Client + server state separation |
 | **Real-time** | WebSocket watches | Instant updates, 60s polling fallback |
 | **Styling** | Tailwind CSS 3.4 + Radix UI | Utility-first, headless components, CVA variants |
-| **Testing** | Vitest + jsdom | 1700 tests in ~4s |
+| **Testing** | Vitest + jsdom | 1710 tests in ~4s |
 | **Charts** | Pure SVG sparklines | Zero chart library dependency |
 | **Security** | Red Hat UBI images | 0 CVEs, all images from Red Hat registries |
 
@@ -285,7 +287,7 @@ src/kubeview/
 │   ├── primitives/      # Button, Card, Badge, Tabs, Input, Tooltip, DataTable, StatCard, SectionHeader
 │   ├── feedback/        # Toast, ConfirmDialog, ProgressModal, InlineFeedback
 │   └── agent/           # MessageBubble, InlineAgent, AmbientInsight, ConfirmationCard, NLFilterBar, DockAgentPanel
-├── hooks/               # useK8sListWatch, useCanI, useIncidentTimeline
+├── hooks/               # useK8sListWatch, useCanI, useSmartPrompts, usePrefetchOnHover
 ├── store/               # Zustand (UI, cluster, fleet, agent state)
 └── App.tsx              # Shell + routes (~45 lines)
 ```
@@ -310,7 +312,7 @@ Browser --> OAuth Proxy (8443/TLS) --> nginx (8080) --> K8s API / Prometheus / A
 ---
 
 <p align="center">
-  <strong>1700 tests</strong> &bull; <strong>77 health checks</strong> &bull; <strong>~1s builds</strong> &bull; <strong>0 CVEs</strong> &bull; <strong>16 views</strong> &bull; <strong>68 AI tools</strong> &bull; <strong>500+ operators</strong>
+  <strong>1710 tests</strong> &bull; <strong>77 health checks</strong> &bull; <strong>~1s builds</strong> &bull; <strong>0 CVEs</strong> &bull; <strong>15 views</strong> &bull; <strong>68 AI tools</strong> &bull; <strong>500+ operators</strong>
 </p>
 
 <p align="center">
