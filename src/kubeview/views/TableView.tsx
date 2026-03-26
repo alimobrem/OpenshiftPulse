@@ -5,6 +5,7 @@ import { Search, ChevronUp, ChevronDown, Trash2, Tag, Plus, Filter, Columns3, X,
 
 const NLFilterBar = lazy(() => import('../components/agent/NLFilterBar').then(m => ({ default: m.NLFilterBar })));
 import { cn } from '@/lib/utils';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { k8sPatch, k8sDelete } from '../engine/query';
 import { useK8sListWatch } from '../hooks/useK8sListWatch';
 import { buildApiPathFromResource } from '../hooks/useResourceUrl';
@@ -656,13 +657,20 @@ export default function TableView({ gvrKey, namespace: namespaceProp }: TableVie
       {/* NL Filter Bar */}
       {showNLFilter && (
         <div className="px-4 py-2 border-b border-slate-800">
-          <Suspense fallback={<div className="h-8" />}>
-            <NLFilterBar
-              resourceKind={resourceType?.kind || resourceName}
-              columns={visibleColumns.map(c => c.id)}
-              onFiltersApplied={(filters) => setColumnFilters(prev => ({ ...prev, ...filters }))}
-            />
-          </Suspense>
+          <ErrorBoundary fallbackTitle="AI filter failed to load">
+            <Suspense fallback={
+              <div className="flex items-center gap-3 animate-pulse">
+                <div className="h-8 bg-slate-800 rounded flex-1" />
+                <div className="h-8 w-20 bg-slate-800 rounded" />
+              </div>
+            }>
+              <NLFilterBar
+                resourceKind={resourceType?.kind || resourceName}
+                columns={visibleColumns.map(c => c.id)}
+                onFiltersApplied={(filters) => setColumnFilters(prev => ({ ...prev, ...filters }))}
+              />
+            </Suspense>
+          </ErrorBoundary>
         </div>
       )}
 

@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 const AmbientInsight = lazy(() => import('../components/agent/AmbientInsight').then(m => ({ default: m.AmbientInsight })));
 const InlineAgent = lazy(() => import('../components/agent/InlineAgent').then(m => ({ default: m.InlineAgent })));
 import { useNavigate } from 'react-router-dom';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import {
   AlertCircle,
   XCircle,
@@ -963,21 +964,45 @@ export default function DetailView({ gvrKey, namespace, name }: DetailViewProps)
 
             {/* AI Insight + Inline Agent for pods and workloads */}
             {(resource.kind === 'Pod' || isWorkload) && namespace && (
-              <Suspense fallback={null}>
-                <AmbientInsight
-                  context={{ kind: resource.kind, name: resource.metadata.name, namespace }}
-                  prompt={`Analyze this ${resource.kind} "${resource.metadata.name}" in namespace "${namespace}". If unhealthy, explain the root cause and give a specific fix command. If healthy, say so in one sentence. Do not list the resource name or namespace back to me.`}
-                  trigger="manual"
-                />
-                <InlineAgent
-                  context={{ kind: resource.kind, name: resource.metadata.name, namespace, gvr: gvrKey }}
-                  quickPrompts={[
-                    `Why is this ${resource.kind} unhealthy?`,
-                    `What changed recently?`,
-                    `How can I optimize this?`,
-                  ]}
-                />
-              </Suspense>
+              <>
+                <ErrorBoundary fallbackTitle="AI insight unavailable">
+                  <Suspense fallback={
+                    <div className="animate-pulse space-y-2 rounded-lg border border-slate-800 bg-slate-900 p-4">
+                      <div className="h-4 w-32 bg-slate-800 rounded" />
+                      <div className="h-3 w-full bg-slate-800 rounded" />
+                      <div className="h-3 w-3/4 bg-slate-800 rounded" />
+                    </div>
+                  }>
+                    <AmbientInsight
+                      context={{ kind: resource.kind, name: resource.metadata.name, namespace }}
+                      prompt={`Analyze this ${resource.kind} "${resource.metadata.name}" in namespace "${namespace}". If unhealthy, explain the root cause and give a specific fix command. If healthy, say so in one sentence. Do not list the resource name or namespace back to me.`}
+                      trigger="manual"
+                    />
+                  </Suspense>
+                </ErrorBoundary>
+                <ErrorBoundary fallbackTitle="Inline agent unavailable">
+                  <Suspense fallback={
+                    <div className="animate-pulse space-y-2 rounded-lg border border-slate-800 bg-slate-900 p-4">
+                      <div className="h-4 w-24 bg-slate-800 rounded" />
+                      <div className="h-8 w-full bg-slate-800 rounded" />
+                      <div className="flex gap-2">
+                        <div className="h-6 w-28 bg-slate-800 rounded-full" />
+                        <div className="h-6 w-28 bg-slate-800 rounded-full" />
+                        <div className="h-6 w-28 bg-slate-800 rounded-full" />
+                      </div>
+                    </div>
+                  }>
+                    <InlineAgent
+                      context={{ kind: resource.kind, name: resource.metadata.name, namespace, gvr: gvrKey }}
+                      quickPrompts={[
+                        `Why is this ${resource.kind} unhealthy?`,
+                        `What changed recently?`,
+                        `How can I optimize this?`,
+                      ]}
+                    />
+                  </Suspense>
+                </ErrorBoundary>
+              </>
             )}
 
             {/* Quick event count for non-pod/workload resources */}
