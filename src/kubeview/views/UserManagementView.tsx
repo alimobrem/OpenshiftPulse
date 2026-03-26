@@ -167,13 +167,13 @@ export default function UserManagementView() {
 
         {/* Tabs + Search */}
         <div className="flex items-center gap-3">
-          <div className="flex gap-1 bg-slate-900 rounded-lg p-1">
+          <div className="flex gap-1 bg-slate-900 rounded-lg p-1" role="tablist" aria-label="User management tabs">
             {([
               { id: 'users' as const, label: `Users (${users.length})` },
               { id: 'groups' as const, label: `Groups (${groups.length})` },
               { id: 'serviceaccounts' as const, label: `Service Accounts` },
             ]).map((tab) => (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={cn('px-3 py-1.5 text-xs rounded-md transition-colors', activeTab === tab.id ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200')}>
+              <button key={tab.id} role="tab" aria-selected={activeTab === tab.id} onClick={() => setActiveTab(tab.id)} className={cn('px-3 py-1.5 text-xs rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500', activeTab === tab.id ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200')}>
                 {tab.label}
               </button>
             ))}
@@ -308,6 +308,7 @@ export default function UserManagementView() {
                       <button
                         onClick={() => handleImpersonate(saName)}
                         className="px-2 py-1 text-xs text-slate-400 hover:bg-slate-800 hover:text-slate-200 rounded transition-colors"
+                        aria-label="Impersonate"
                       >
                         <UserCheck className="w-3.5 h-3.5" />
                       </button>

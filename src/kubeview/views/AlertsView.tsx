@@ -456,13 +456,13 @@ export default function AlertsView() {
 
         {/* Tabs + Search + Filters */}
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex gap-1 bg-slate-900 rounded-lg p-1">
+          <div className="flex gap-1 bg-slate-900 rounded-lg p-1" role="tablist" aria-label="Alert tabs">
             {([
               { id: 'firing' as Tab, label: `Firing (${allAlerts.length})` },
               { id: 'rules' as Tab, label: `Rules (${allRules.length})` },
               { id: 'silences' as Tab, label: `Silences (${activeSilences.length})` },
             ]).map((tab) => (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={cn('px-3 py-1.5 text-xs rounded-md transition-colors', activeTab === tab.id ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200')}>
+              <button key={tab.id} role="tab" aria-selected={activeTab === tab.id} onClick={() => setActiveTab(tab.id)} className={cn('px-3 py-1.5 text-xs rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500', activeTab === tab.id ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200')}>
                 {tab.label}
               </button>
             ))}
@@ -583,7 +583,7 @@ export default function AlertsView() {
                 <div className="px-4 py-4 space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-slate-200">New Silence</h3>
-                    <button onClick={resetSilenceForm} className="text-slate-400 hover:text-slate-200">
+                    <button onClick={resetSilenceForm} className="text-slate-400 hover:text-slate-200" aria-label="Close">
                       <X className="w-4 h-4" />
                     </button>
                   </div>
@@ -621,6 +621,7 @@ export default function AlertsView() {
                             <button
                               onClick={() => removeMatcher(idx)}
                               className="p-1 text-red-400 hover:text-red-300"
+                              aria-label="Remove matcher"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>

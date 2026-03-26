@@ -107,9 +107,9 @@ describe('AlertsView', () => {
   it('renders 3 tabs: Firing, Rules, Silences', () => {
     renderAlerts();
     // Tab buttons contain text like "Firing (0)", "Rules (0)", "Silences (0)"
-    expect(screen.getByRole('button', { name: /^Firing \(/ })).toBeDefined();
-    expect(screen.getByRole('button', { name: /^Rules \(/ })).toBeDefined();
-    expect(screen.getByRole('button', { name: /^Silences \(/ })).toBeDefined();
+    expect(screen.getByRole('tab', { name: /^Firing \(/ })).toBeDefined();
+    expect(screen.getByRole('tab', { name: /^Rules \(/ })).toBeDefined();
+    expect(screen.getByRole('tab', { name: /^Silences \(/ })).toBeDefined();
   });
 
   it('shows "No alerts firing" badge when no alerts', () => {
@@ -152,7 +152,7 @@ describe('AlertsView', () => {
 
   it('shows "No active silences" when switching to silences tab', () => {
     renderAlerts();
-    const silencesTab = screen.getByRole('button', { name: /^Silences \(/ });
+    const silencesTab = screen.getByRole('tab', { name: /^Silences \(/ });
     fireEvent.click(silencesTab);
     expect(screen.getByText('No active silences')).toBeDefined();
   });
@@ -166,14 +166,14 @@ describe('AlertsView', () => {
 
   it('shows Create Silence button in silences tab', () => {
     renderAlerts();
-    const silencesTab = screen.getByRole('button', { name: /^Silences \(/ });
+    const silencesTab = screen.getByRole('tab', { name: /^Silences \(/ });
     fireEvent.click(silencesTab);
     expect(screen.getByText('Create Silence')).toBeDefined();
   });
 
   it('opens silence form when Create Silence is clicked', () => {
     renderAlerts();
-    const silencesTab = screen.getByRole('button', { name: /^Silences \(/ });
+    const silencesTab = screen.getByRole('tab', { name: /^Silences \(/ });
     fireEvent.click(silencesTab);
     const createBtn = screen.getByText('Create Silence');
     fireEvent.click(createBtn);
@@ -183,7 +183,7 @@ describe('AlertsView', () => {
 
   it('silence form shows duration presets', () => {
     renderAlerts();
-    const silencesTab = screen.getByRole('button', { name: /^Silences \(/ });
+    const silencesTab = screen.getByRole('tab', { name: /^Silences \(/ });
     fireEvent.click(silencesTab);
     const createBtn = screen.getByText('Create Silence');
     fireEvent.click(createBtn);
@@ -198,7 +198,7 @@ describe('AlertsView', () => {
 
   it('silence form has matchers section', () => {
     renderAlerts();
-    const silencesTab = screen.getByRole('button', { name: /^Silences \(/ });
+    const silencesTab = screen.getByRole('tab', { name: /^Silences \(/ });
     fireEvent.click(silencesTab);
     const createBtn = screen.getByText('Create Silence');
     fireEvent.click(createBtn);
@@ -284,7 +284,7 @@ describe('AlertsView', () => {
     });
 
     renderAlerts();
-    const silencesTab = screen.getByRole('button', { name: /^Silences \(/ });
+    const silencesTab = screen.getByRole('tab', { name: /^Silences \(/ });
     fireEvent.click(silencesTab);
 
     // Wait for silences to load
@@ -294,7 +294,7 @@ describe('AlertsView', () => {
 
   it('silence form can add and remove matchers', () => {
     renderAlerts();
-    const silencesTab = screen.getByRole('button', { name: /^Silences \(/ });
+    const silencesTab = screen.getByRole('tab', { name: /^Silences \(/ });
     fireEvent.click(silencesTab);
     const createBtn = screen.getByText('Create Silence');
     fireEvent.click(createBtn);
@@ -310,7 +310,7 @@ describe('AlertsView', () => {
 
   it('silence form closes when Cancel is clicked', () => {
     renderAlerts();
-    const silencesTab = screen.getByRole('button', { name: /^Silences \(/ });
+    const silencesTab = screen.getByRole('tab', { name: /^Silences \(/ });
     fireEvent.click(silencesTab);
     const createBtn = screen.getByText('Create Silence');
     fireEvent.click(createBtn);
@@ -326,7 +326,7 @@ describe('AlertsView', () => {
 
   it('shows EmptyState with guidance when firing alerts tab is empty', () => {
     renderAlerts();
-    const firingTab = screen.getByRole('button', { name: /^Firing \(/ });
+    const firingTab = screen.getByRole('tab', { name: /^Firing \(/ });
     fireEvent.click(firingTab);
     expect(screen.getAllByText('No alerts firing').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/Your cluster is healthy.*no alerts are currently firing/)).toBeDefined();
@@ -334,7 +334,7 @@ describe('AlertsView', () => {
 
   it('shows EmptyState with guidance when rules tab is empty', () => {
     renderAlerts();
-    const rulesTab = screen.getByRole('button', { name: /^Rules \(/ });
+    const rulesTab = screen.getByRole('tab', { name: /^Rules \(/ });
     fireEvent.click(rulesTab);
     expect(screen.getByText('No alert rules found')).toBeDefined();
     expect(screen.getByText('Alert rules are configured in Prometheus. Make sure Alertmanager is connected and accessible.')).toBeDefined();
@@ -342,7 +342,7 @@ describe('AlertsView', () => {
 
   it('shows EmptyState with guidance when silences tab is empty', () => {
     renderAlerts();
-    const silencesTab = screen.getByRole('button', { name: /^Silences \(/ });
+    const silencesTab = screen.getByRole('tab', { name: /^Silences \(/ });
     fireEvent.click(silencesTab);
     expect(screen.getByText('No active silences')).toBeDefined();
     expect(screen.getByText('Silences temporarily mute alerts. Create one to suppress a noisy alert during maintenance.')).toBeDefined();

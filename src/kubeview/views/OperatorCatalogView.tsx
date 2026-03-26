@@ -737,15 +737,15 @@ export default function OperatorCatalogView() {
             <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search operators..."
               className="w-full pl-9 pr-3 py-2.5 text-sm bg-slate-900 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
-          <div className="flex gap-1 bg-slate-900 rounded-lg p-1">
-            <button onClick={() => setCatalogFilter('all')} className={cn('px-3 py-1.5 text-xs rounded-md', catalogFilter === 'all' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200')}>
+          <div className="flex gap-1 bg-slate-900 rounded-lg p-1" role="tablist" aria-label="Catalog filter">
+            <button role="tab" aria-selected={catalogFilter === 'all'} onClick={() => setCatalogFilter('all')} className={cn('px-3 py-1.5 text-xs rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500', catalogFilter === 'all' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200')}>
               All ({dedupedPackages.length})
             </button>
             {catalogs.map(([name, count]) => {
               const info = CATALOG_LABELS[name];
               return (
-                <button key={name} onClick={() => setCatalogFilter(name)}
-                  className={cn('px-3 py-1.5 text-xs rounded-md', catalogFilter === name ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200')}>
+                <button key={name} role="tab" aria-selected={catalogFilter === name} onClick={() => setCatalogFilter(name)}
+                  className={cn('px-3 py-1.5 text-xs rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500', catalogFilter === name ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200')}>
                   {info?.label || name} ({count})
                 </button>
               );

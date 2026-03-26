@@ -1,6 +1,8 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Server, CheckCircle, Activity, AlertTriangle } from 'lucide-react';
+import { Server } from 'lucide-react';
+import { HealthAuditPanel } from '../components/audit/HealthAuditPanel';
+import type { AuditCheck } from '../components/audit/types';
 import { cn } from '@/lib/utils';
 import { k8sList } from '../engine/query';
 import { queryInstant } from '../components/metrics/prometheus';
@@ -208,10 +210,10 @@ export default function ComputeView() {
         </div>
 
         {/* Tabs */}
-        <Card className="flex gap-1 p-1">
+        <Card className="flex gap-1 p-1" role="tablist" aria-label="Compute tabs">
           {([['overview', 'Overview'], ['capacity', 'Capacity Planning']] as const).map(([id, label]) => (
-            <button key={id} onClick={() => { const url = new URL(window.location.href); if (id === 'overview') url.searchParams.delete('tab'); else url.searchParams.set('tab', id); window.history.replaceState(null, '', url.toString()); setComputeTab(id); }}
-              className={cn('px-3 py-1.5 text-xs rounded-md transition-colors whitespace-nowrap', computeTab === id ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200')}>
+            <button key={id} role="tab" aria-selected={computeTab === id} onClick={() => { const url = new URL(window.location.href); if (id === 'overview') url.searchParams.delete('tab'); else url.searchParams.set('tab', id); window.history.replaceState(null, '', url.toString()); setComputeTab(id); }}
+              className={cn('px-3 py-1.5 text-xs rounded-md transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500', computeTab === id ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200')}>
               {label}
             </button>
           ))}
@@ -308,15 +310,6 @@ interface AuditItem {
   _kubeletVersion?: string;
 }
 
-interface AuditCheck {
-  id: string;
-  title: string;
-  description: string;
-  why: string;
-  passing: AuditItem[];
-  failing: AuditItem[];
-  yamlExample: string;
-}
 
 function ComputeHealthAudit({
   nodes,
@@ -562,136 +555,26 @@ spec:
 
   if (nodes.length === 0) return null;
 
-  const totalPassing = checks.reduce((s, c) => s + (c.failing.length === 0 ? 1 : 0), 0);
-  const score = Math.round((totalPassing / checks.length) * 100);
-
   return (
-    <Card>
-      <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
-          <Activity className="w-4 h-4 text-blue-400" /> Compute Health Audit
-        </h2>
-        <div className="flex items-center gap-2">
-          <span className={cn('text-sm font-bold', score === 100 ? 'text-green-400' : score >= 60 ? 'text-amber-400' : 'text-red-400')}>{score}%</span>
-          <span className="text-xs text-slate-500">{totalPassing}/{checks.length} passing</span>
-        </div>
-      </div>
-      <div className="divide-y divide-slate-800">
-        {checks.map((check) => {
-          const pass = check.failing.length === 0;
-          const expanded = expandedCheck === check.id;
-          return (
-            <div key={check.id}>
-              <button
-                onClick={() => setExpandedCheck(expanded ? null : check.id)}
-                className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-800/30 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  {pass ? <CheckCircle className="w-4 h-4 text-green-400 shrink-0" /> : <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />}
-                  <div>
-                    <span className="text-sm text-slate-200">{check.title}</span>
-                    <span className="text-xs text-slate-500 ml-2">
-                      {pass ? `${check.passing.length} pass` : `${check.failing.length} ${check.failing.length === 1 ? 'issue' : 'issues'}`}
-                    </span>
-                  </div>
-                </div>
-                <span className="text-xs text-slate-600">{expanded ? '▾' : '▸'}</span>
-              </button>
-
-              {expanded && (
-                <div className="px-4 pb-4 space-y-3">
-                  <p className="text-xs text-slate-400">{check.description}</p>
-
-                  {/* Why it matters */}
-                  <div className="bg-blue-950/20 border border-blue-900/50 rounded p-3">
-                    <div className="text-xs font-medium text-blue-300 mb-1">Why it matters</div>
-                    <p className="text-xs text-slate-400">{check.why}</p>
-                  </div>
-
-                  {/* Failing items */}
-                  {check.failing.length > 0 && (
-                    <div>
-                      <div className="text-xs text-amber-400 font-medium mb-1.5">
-                        {check.id === 'ha-control-plane' ? `Only ${check.failing.length} control plane node${check.failing.length > 1 ? 's' : ''}` :
-                         check.id === 'dedicated-workers' ? `Only ${check.failing.length} worker node${check.failing.length > 1 ? 's' : ''}` :
-                         check.id === 'machine-health-checks' || check.id === 'cluster-autoscaling' ? 'Not configured' :
-                         `Issues (${check.failing.length})`}
-                      </div>
-                      <div className="space-y-1 max-h-32 overflow-auto">
-                        {check.failing.slice(0, 10).map((item, idx) => {
-                          const name = item.metadata?.name || `item-${idx}`;
-                          const ns = item.metadata?.namespace;
-                          const isNode = check.id === 'ha-control-plane' || check.id === 'dedicated-workers' || check.id === 'node-pressure' || check.id === 'kubelet-version';
-                          const pressureType = item._pressureTypes;
-                          const kubeletVersion = item._kubeletVersion;
-
-                          return (
-                            <button
-                              key={item.metadata?.uid || idx}
-                              onClick={() => {
-                                if (isNode) {
-                                  go(`/r/v1~nodes/_/${name}`, name);
-                                } else if (check.id === 'machine-health-checks') {
-                                  go('/create/machine.openshift.io~v1beta1~machinehealthchecks', 'Create MachineHealthCheck');
-                                } else if (check.id === 'cluster-autoscaling') {
-                                  go('/create/autoscaling.openshift.io~v1~clusterautoscalers', 'Create ClusterAutoscaler');
-                                }
-                              }}
-                              className="flex items-center justify-between w-full py-1 px-2 rounded hover:bg-slate-800/50 text-left transition-colors"
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
-                                <span className="text-xs text-slate-300">{name}</span>
-                                {ns && <span className="text-xs text-slate-600">{ns}</span>}
-                                {pressureType && <span className="text-xs px-1.5 py-0.5 bg-red-900/50 text-red-300 rounded">{pressureType}</span>}
-                                {kubeletVersion && <span className="text-xs px-1.5 py-0.5 bg-yellow-900/50 text-yellow-300 rounded font-mono">{kubeletVersion}</span>}
-                              </div>
-                              <span className="text-xs text-blue-400">
-                                {check.id === 'machine-health-checks' || check.id === 'cluster-autoscaling' ? 'Create →' : 'View →'}
-                              </span>
-                            </button>
-                          );
-                        })}
-                        {check.failing.length > 10 && <div className="text-xs text-slate-600 px-2">+{check.failing.length - 10} more</div>}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Passing items */}
-                  {check.passing.length > 0 && (
-                    <div>
-                      <div className="text-xs text-green-400 font-medium mb-1">
-                        {check.id === 'ha-control-plane' ? `Control plane nodes (${check.passing.length})` :
-                         check.id === 'dedicated-workers' ? `Worker nodes (${check.passing.length})` :
-                         check.id === 'machine-health-checks' ? `Configured (${check.passing.length})` :
-                         check.id === 'cluster-autoscaling' ? 'Enabled' :
-                         `Passing (${check.passing.length})`}
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {check.passing.slice(0, 8).map((item, idx) => {
-                          const name = item.metadata?.name || item.name || `item-${idx}`;
-                          return (
-                            <span key={item.metadata?.uid || idx} className="text-xs px-1.5 py-0.5 bg-green-900/30 text-green-400 rounded">{name}</span>
-                          );
-                        })}
-                        {check.passing.length > 8 && <span className="text-xs text-slate-600">+{check.passing.length - 8} more</span>}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* YAML example */}
-                  <div>
-                    <div className="text-xs text-slate-500 font-medium mb-1">
-                      {check.id === 'machine-health-checks' || check.id === 'cluster-autoscaling' ? 'Configuration example:' : 'How to address:'}
-                    </div>
-                    <pre className="text-[11px] text-emerald-400 font-mono bg-slate-950 p-3 rounded overflow-x-auto whitespace-pre-wrap">{check.yamlExample}</pre>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </Card>
+    <HealthAuditPanel
+      title="Compute Health Audit"
+      checks={checks}
+      onNavigateItem={(check, item) => {
+        const name = item.metadata?.name || '';
+        const isNode = check.id === 'ha-control-plane' || check.id === 'dedicated-workers' || check.id === 'node-pressure' || check.id === 'kubelet-version';
+        if (isNode) go(`/r/v1~nodes/_/${name}`, name);
+        else if (check.id === 'machine-health-checks') go('/create/machine.openshift.io~v1beta1~machinehealthchecks', 'Create MachineHealthCheck');
+        else if (check.id === 'cluster-autoscaling') go('/create/autoscaling.openshift.io~v1~clusterautoscalers', 'Create ClusterAutoscaler');
+      }}
+      navigateLabel={(check) =>
+        check.id === 'machine-health-checks' || check.id === 'cluster-autoscaling' ? 'Create' : 'View'
+      }
+      renderItemBadges={(check, item) => (
+        <>
+          {item._pressureTypes && <span className="text-xs px-1.5 py-0.5 bg-red-900/50 text-red-300 rounded">{item._pressureTypes as string}</span>}
+          {item._kubeletVersion && <span className="text-xs px-1.5 py-0.5 bg-yellow-900/50 text-yellow-300 rounded font-mono">{item._kubeletVersion as string}</span>}
+        </>
+      )}
+    />
   );
 }

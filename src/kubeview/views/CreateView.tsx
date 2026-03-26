@@ -215,7 +215,7 @@ export default function CreateView({ gvrKey }: CreateViewProps) {
       <div className="flex flex-col h-full bg-slate-950">
         <div className="flex items-center justify-between px-4 py-2 border-b border-slate-700 shrink-0">
           <div className="flex items-center gap-3">
-            <button onClick={() => setEditMode(false)} className="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200"><ArrowLeft size={16} /></button>
+            <button onClick={() => setEditMode(false)} className="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200" aria-label="Back"><ArrowLeft size={16} /></button>
             <span className="text-sm font-medium text-slate-200">Create {kind}</span>
             <span className="text-xs text-slate-500">{gvrParts.length === 3 ? `${gvrParts[0]}/${gvrParts[1]}` : gvrParts[0]}</span>
           </div>
@@ -283,9 +283,9 @@ export default function CreateView({ gvrKey }: CreateViewProps) {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-slate-900 rounded-lg p-1">
+        <div className="flex gap-1 bg-slate-900 rounded-lg p-1" role="tablist" aria-label="Software tabs">
           {tabs.map((t) => (
-            <button key={t.id} onClick={() => setActiveTab(t.id)} className={cn('flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md transition-colors whitespace-nowrap', activeTab === t.id ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200')}>
+            <button key={t.id} role="tab" aria-selected={activeTab === t.id} onClick={() => setActiveTab(t.id)} className={cn('flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500', activeTab === t.id ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200')}>
               {t.icon}{t.label}
             </button>
           ))}

@@ -97,10 +97,12 @@ function WorkloadLogsView({ namespace, name, selector, kind }: {
       </div>
 
       {/* Pod selector tabs */}
-      <div className="flex gap-1 px-4 py-2 border-b border-slate-800 overflow-x-auto bg-slate-900/50">
+      <div className="flex gap-1 px-4 py-2 border-b border-slate-800 overflow-x-auto bg-slate-900/50" role="tablist" aria-label="Pod selector">
         <button
+          role="tab"
+          aria-selected={!selectedPod}
           onClick={() => setSelectedPod(null)}
-          className={cn('px-3 py-1 text-xs rounded whitespace-nowrap', !selectedPod ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200')}
+          className={cn('px-3 py-1 text-xs rounded whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500', !selectedPod ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200')}
         >
           All Pods
         </button>
@@ -111,8 +113,10 @@ function WorkloadLogsView({ namespace, name, selector, kind }: {
           return (
             <button
               key={pn}
+              role="tab"
+              aria-selected={selectedPod === pn}
               onClick={() => setSelectedPod(pn)}
-              className={cn('px-3 py-1 text-xs rounded whitespace-nowrap flex items-center gap-1.5',
+              className={cn('px-3 py-1 text-xs rounded whitespace-nowrap flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
                 selectedPod === pn ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'
               )}
             >

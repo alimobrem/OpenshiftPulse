@@ -58,16 +58,20 @@ export function ErrorsTab() {
   return (
     <div className="space-y-4">
       {/* Summary bar */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Error filters">
         <button
+          role="tab"
+          aria-selected={filter === 'all'}
           onClick={() => setFilter('all')}
-          className={cn('px-3 py-1.5 text-xs rounded-md transition-colors', filter === 'all' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200 bg-slate-800')}
+          className={cn('px-3 py-1.5 text-xs rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500', filter === 'all' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200 bg-slate-800')}
         >
           All ({errors.length})
         </button>
         <button
+          role="tab"
+          aria-selected={filter === 'unresolved'}
           onClick={() => setFilter('unresolved')}
-          className={cn('px-3 py-1.5 text-xs rounded-md transition-colors', filter === 'unresolved' ? 'bg-red-600 text-white' : 'text-slate-400 hover:text-slate-200 bg-slate-800')}
+          className={cn('px-3 py-1.5 text-xs rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500', filter === 'unresolved' ? 'bg-red-600 text-white' : 'text-slate-400 hover:text-slate-200 bg-slate-800')}
         >
           Unresolved ({unresolvedCount})
         </button>
@@ -76,8 +80,10 @@ export function ErrorsTab() {
           return (
             <button
               key={cat}
+              role="tab"
+              aria-selected={filter === cat}
               onClick={() => setFilter(cat as ErrorCategory)}
-              className={cn('px-3 py-1.5 text-xs rounded-md transition-colors', filter === cat ? 'bg-slate-600 text-white' : 'text-slate-400 hover:text-slate-200 bg-slate-800')}
+              className={cn('px-3 py-1.5 text-xs rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500', filter === cat ? 'bg-slate-600 text-white' : 'text-slate-400 hover:text-slate-200 bg-slate-800')}
             >
               {cfg.label} ({count})
             </button>

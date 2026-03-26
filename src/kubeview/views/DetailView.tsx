@@ -569,11 +569,11 @@ export default function DetailView({ gvrKey, namespace, name }: DetailViewProps)
 
 
         {/* Detail tabs */}
-        <div className="flex gap-1 bg-slate-900 rounded-lg p-1 w-fit">
+        <div className="flex gap-1 bg-slate-900 rounded-lg p-1 w-fit" role="tablist" aria-label="Detail tabs">
           {(['overview', 'conditions', 'events'] as const).map((tab) => {
             const conditions = (status.conditions || []) as Condition[];
             return (
-            <button key={tab} onClick={() => setDetailTab(tab)} className={cn('px-4 py-1.5 text-xs rounded-md transition-colors capitalize', detailTab === tab ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200')}>
+            <button key={tab} role="tab" aria-selected={detailTab === tab} onClick={() => setDetailTab(tab)} className={cn('px-4 py-1.5 text-xs rounded-md transition-colors capitalize focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500', detailTab === tab ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200')}>
               {tab === 'events' ? `Events (${sortedEvents.length})` : tab === 'conditions' ? `Conditions (${conditions.length})` : tab}
             </button>
             );
