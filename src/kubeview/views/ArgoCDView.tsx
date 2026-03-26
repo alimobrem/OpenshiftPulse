@@ -28,8 +28,8 @@ export default function ArgoCDView() {
   const [syncing, setSyncing] = React.useState<string | null>(null);
   const [confirmSync, setConfirmSync] = React.useState<{name: string, ns: string} | null>(null);
 
-  const outOfSyncCount = applications.filter(a => a.status?.sync?.status === 'OutOfSync').length;
-  const degradedCount = applications.filter(a => a.status?.health?.status === 'Degraded').length;
+  const outOfSyncCount = (applications || []).filter(a => a.status?.sync?.status === 'OutOfSync').length;
+  const degradedCount = (applications || []).filter(a => a.status?.health?.status === 'Degraded').length;
 
   const handleSync = (appName: string, appNs: string) => {
     setConfirmSync({ name: appName, ns: appNs });
@@ -56,8 +56,20 @@ export default function ArgoCDView() {
     }
   };
 
+  // Show loading while detecting
+  if (detecting) {
+    return (
+      <div className="h-full overflow-auto bg-slate-950 p-6 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 text-violet-400 animate-spin mx-auto mb-3" />
+          <p className="text-sm text-slate-400">Detecting ArgoCD...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Not available — show setup guide
-  if (!available && !detecting) {
+  if (!available) {
     return (
       <div className="h-full overflow-auto bg-slate-950 p-6">
         <div className="max-w-3xl mx-auto space-y-6">
@@ -205,17 +217,17 @@ export default function ArgoCDView() {
           <>
             {activeTab === 'applications' && (
               <ApplicationsTab
-                applications={applications}
+                applications={applications || []}
                 syncing={syncing}
                 onSync={handleSync}
                 go={go}
               />
             )}
             {activeTab === 'history' && (
-              <SyncHistoryTab applications={applications} go={go} />
+              <SyncHistoryTab applications={applications || []} go={go} />
             )}
             {activeTab === 'drift' && (
-              <DriftTab applications={applications} onSync={handleSync} syncing={syncing} go={go} />
+              <DriftTab applications={applications || []} onSync={handleSync} syncing={syncing} go={go} />
             )}
             {activeTab === 'projects' && (
               <ProjectsTab />

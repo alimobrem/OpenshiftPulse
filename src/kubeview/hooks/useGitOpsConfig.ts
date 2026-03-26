@@ -122,7 +122,15 @@ export function useGitOpsConfig(): UseGitOpsConfigResult {
       if (res.status === 404) return { success: false, error: 'Repository not found — check the URL' };
       return { success: false, error: `Unexpected response: ${res.status}` };
     } catch (err) {
-      return { success: false, error: err instanceof Error ? err.message : 'Connection failed' };
+      const msg = err instanceof Error ? err.message : 'Connection failed';
+      // CORS/CSP blocks direct browser requests to external APIs
+      if (msg.includes('fetch') || msg.includes('network') || msg.includes('Failed')) {
+        return {
+          success: false,
+          error: 'Cannot reach Git provider directly from the browser (blocked by Content Security Policy). Save your config and the Pulse Agent will validate the connection server-side.',
+        };
+      }
+      return { success: false, error: msg };
     }
   };
 
