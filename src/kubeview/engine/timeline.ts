@@ -5,15 +5,9 @@
 
 import type { Event, ReplicaSet, Deployment, ClusterVersion, ClusterOperator, Condition } from './types';
 import type { TimelineEntry, TimelineSeverity, CorrelationGroup } from './types/timeline';
+import type { PrometheusAlert } from './types/incident';
 
 // ── Alert types (from Prometheus API, not K8s resources) ──
-
-interface PrometheusAlert {
-  labels: Record<string, string>;
-  annotations: Record<string, string>;
-  state: 'firing' | 'pending' | 'inactive';
-  activeAt?: string;
-}
 
 interface AlertRule {
   name: string;

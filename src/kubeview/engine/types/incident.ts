@@ -72,6 +72,7 @@ export interface PrometheusAlert {
   annotations: Record<string, string>;
   state: 'firing' | 'pending' | 'inactive';
   activeAt?: string;
+  value?: string;
 }
 
 export interface FleetAlert {

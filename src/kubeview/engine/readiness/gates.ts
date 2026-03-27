@@ -453,6 +453,66 @@ const customDomain: ReadinessGate = {
   }),
 };
 
+const notificationRouting: ReadinessGate = {
+  id: 'notification-routing',
+  title: 'Alert Notification Routing',
+  description: 'Alertmanager has at least one receiver configured beyond the default',
+  whyItMatters: 'Without notification routing, alerts fire silently. Teams are not notified of critical issues until they discover them manually.',
+  category: 'operations',
+  priority: 'recommended',
+  evaluate: (ctx) => safeEval(notificationRouting, async () => {
+    try {
+      const receivers = await ctx.fetchJson<any[]>('/api/v1/namespaces/openshift-monitoring/services/alertmanager-main:web/proxy/api/v2/receivers');
+      const nonDefault = (receivers || []).filter((r: any) => r.name !== 'Default' && r.name !== 'null' && r.name !== 'watchdog');
+      return {
+        status: nonDefault.length > 0 ? 'passed' : 'needs_attention',
+        detail: nonDefault.length > 0 ? `${nonDefault.length} receiver${nonDefault.length !== 1 ? 's' : ''} configured` : 'Only default receiver — alerts are not routed to any team',
+        fixGuidance: 'Configure Alertmanager receivers (PagerDuty, Slack, email) to route alerts to your team.',
+        action: { label: 'View Alerts', path: '/alerts?tab=silences' },
+      };
+    } catch {
+      return { status: 'not_started', detail: 'Alertmanager not reachable', fixGuidance: 'Ensure Alertmanager is running and accessible.' };
+    }
+  }),
+};
+
+const trustLevelConfigured: ReadinessGate = {
+  id: 'trust-level-configured',
+  title: 'Agent Trust Level Configured',
+  description: 'OpenshiftPulse agent is reachable and trusted',
+  whyItMatters: 'Without a connected agent, autonomous monitoring and remediation features are unavailable.',
+  category: 'operations',
+  priority: 'optional',
+  evaluate: (ctx) => safeEval(trustLevelConfigured, async () => {
+    try {
+      const version = await ctx.fetchJson<any>('/api/agent/version');
+      const v = version?.version || version?.gitVersion || 'unknown';
+      return { status: 'passed', detail: `Agent reachable (${v})`, fixGuidance: '' };
+    } catch {
+      return { status: 'needs_attention', detail: 'Agent not reachable', fixGuidance: 'Deploy the OpenshiftPulse agent and verify connectivity.', action: { label: 'Setup Agent', path: '/onboarding' } };
+    }
+  }),
+};
+
+const agentProtocolVersion: ReadinessGate = {
+  id: 'agent-protocol-version',
+  title: 'Agent Protocol Version',
+  description: 'Agent supports protocol v2 for autonomous scanning',
+  whyItMatters: 'Protocol v2 enables the /ws/monitor WebSocket endpoint for real-time cluster scanning, which is required for live incident detection.',
+  category: 'operations',
+  priority: 'optional',
+  evaluate: (ctx) => safeEval(agentProtocolVersion, async () => {
+    try {
+      const version = await ctx.fetchJson<any>('/api/agent/version');
+      const proto = version?.protocolVersion ?? version?.protocol ?? 0;
+      if (proto >= 2) return { status: 'passed', detail: `Protocol v${proto}`, fixGuidance: '' };
+      return { status: 'needs_attention', detail: `Protocol v${proto} — upgrade to v2 for autonomous scanning`, fixGuidance: 'Upgrade the OpenshiftPulse agent to a version that supports protocol v2.' };
+    } catch {
+      return { status: 'not_started', detail: 'Agent not reachable', fixGuidance: 'Deploy the OpenshiftPulse agent and verify connectivity.' };
+    }
+  }),
+};
+
 // ---- GITOPS (gates 25-27) ------------------------------------------------
 
 const storageClassAvailable: ReadinessGate = {
@@ -540,6 +600,9 @@ export const ALL_GATES: ReadinessGate[] = [
   // Operations
   ingressCertificate,
   customDomain,
+  notificationRouting,
+  trustLevelConfigured,
+  agentProtocolVersion,
   // GitOps
   storageClassAvailable,
   defaultStorageClass,

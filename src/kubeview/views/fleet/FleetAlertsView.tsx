@@ -14,18 +14,7 @@ import { useFleetStore } from '../../store/fleetStore';
 import { useNavigateTab } from '../../hooks/useNavigateTab';
 import { formatDuration } from '../../engine/dateUtils';
 import { Card, CardHeader, CardBody } from '../../components/primitives/Card';
-
-interface FleetAlert {
-  clusterId: string;
-  clusterName: string;
-  alertName: string;
-  severity: string;
-  namespace: string;
-  state: string;
-  activeAt: string;
-  labels: Record<string, string>;
-  annotations: Record<string, string>;
-}
+import type { FleetAlert } from '../../engine/types/incident';
 
 export default function FleetAlertsView() {
   const go = useNavigateTab();

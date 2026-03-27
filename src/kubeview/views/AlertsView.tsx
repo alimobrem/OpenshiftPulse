@@ -14,14 +14,7 @@ import { MetricGrid } from '../components/primitives/MetricGrid';
 import { showErrorToast } from '../engine/errorToast';
 import { copyToClipboard } from '../engine/clipboard';
 import { EmptyState } from '../components/primitives/EmptyState';
-
-interface PrometheusAlert {
-  labels: Record<string, string>;
-  annotations: Record<string, string>;
-  state: 'firing' | 'pending' | 'inactive';
-  activeAt?: string;
-  value?: string;
-}
+import type { PrometheusAlert } from '../engine/types/incident';
 
 interface AlertGroup {
   name: string;

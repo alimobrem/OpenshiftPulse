@@ -4,10 +4,10 @@ import { cn } from '@/lib/utils';
 import { SectionHeader } from '../components/primitives/SectionHeader';
 import { ReadinessWizard } from '../components/onboarding/ReadinessWizard';
 import { ReadinessChecklist } from '../components/onboarding/ReadinessChecklist';
-import { buildStubReport } from '../components/onboarding/stubData';
-import type { OnboardingMode, ReadinessReport, CategoryView, GateStatus } from '../components/onboarding/types';
+import type { OnboardingMode, ReadinessReport, CategoryView, GateStatus, ReadinessCategory, CategorySummary } from '../components/onboarding/types';
 import { buildCategoryViews, computeScore } from '../components/onboarding/types';
-import { ALL_GATES } from '../engine/readiness/gates';
+import { ALL_GATES, evaluateAllGates } from '../engine/readiness/gates';
+import type { GateContext } from '../engine/readiness/types';
 
 const STORAGE_KEY = 'openshiftpulse:onboarding-completed';
 
@@ -34,12 +34,57 @@ export default function OnboardingView() {
   );
   const [report, setReport] = React.useState<ReadinessReport | null>(null);
 
-  // Simulate async evaluation
+  // Evaluate all readiness gates against the live cluster
   React.useEffect(() => {
-    const timer = setTimeout(() => {
-      setReport(buildStubReport());
-    }, 400);
-    return () => clearTimeout(timer);
+    let cancelled = false;
+    const ctx: GateContext = {
+      fetchJson: async <T = unknown,>(path: string): Promise<T> => {
+        const res = await fetch(`/api/kubernetes${path}`);
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+        return res.json() as Promise<T>;
+      },
+      isHyperShift: false,
+    };
+
+    evaluateAllGates(ctx).then((results) => {
+      if (cancelled) return;
+
+      // Build category summaries from real results
+      const allCategories: ReadinessCategory[] = [
+        'prerequisites', 'security', 'reliability', 'observability', 'operations', 'gitops',
+      ];
+      const categories = {} as Record<ReadinessCategory, CategorySummary>;
+      for (const catId of allCategories) {
+        const catGates = ALL_GATES.filter((g) => g.category === catId);
+        let passed = 0;
+        let failed = 0;
+        let needs_attention = 0;
+        let not_started = 0;
+        for (const g of catGates) {
+          const status = results[g.id]?.status ?? 'not_started';
+          switch (status) {
+            case 'passed': case 'waived': passed++; break;
+            case 'failed': failed++; break;
+            case 'needs_attention': needs_attention++; break;
+            default: not_started++; break;
+          }
+        }
+        const total = catGates.length;
+        categories[catId] = { passed, failed, needs_attention, not_started, total, score: total > 0 ? Math.round((passed / total) * 100) : 0 };
+      }
+
+      const score = computeScore(categories);
+      setReport({
+        score,
+        productionReady: score >= 80,
+        results,
+        waivers: {},
+        categories,
+        generatedAt: Date.now(),
+      });
+    });
+
+    return () => { cancelled = true; };
   }, []);
 
   const categoryViews: CategoryView[] = React.useMemo(() => {

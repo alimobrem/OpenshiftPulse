@@ -18,6 +18,7 @@ import {
   correlateEntries,
   filterByTimeRange,
 } from '../engine/timeline';
+import { useUIStore } from '../store/uiStore';
 
 export type TimeRange = '15m' | '1h' | '6h' | '24h' | '3d' | '7d';
 
@@ -48,7 +49,11 @@ export function useIncidentTimeline({ timeRange, namespace, categories }: UseInc
     queryKey: ['timeline', 'alerts'],
     queryFn: async () => {
       const res = await fetch('/api/prometheus/api/v1/rules');
-      if (!res.ok) return [];
+      if (!res.ok) {
+        useUIStore.getState().addDegradedReason('observability_unavailable');
+        return [];
+      }
+      useUIStore.getState().removeDegradedReason('observability_unavailable');
       const json = await res.json();
       return json.data?.groups || [];
     },
