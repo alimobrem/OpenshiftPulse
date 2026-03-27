@@ -188,6 +188,7 @@ describe('exportClusterToGit', () => {
     createBranch: vi.fn().mockResolvedValue(undefined),
     getFileContent: vi.fn().mockResolvedValue(null),
     createOrUpdateFile: vi.fn().mockResolvedValue(undefined),
+    commitMultipleFiles: vi.fn().mockResolvedValue(undefined),
     createPullRequest: vi.fn().mockResolvedValue({ url: 'https://github.com/org/repo/pull/1', number: 1 }),
   };
 
@@ -258,7 +259,7 @@ describe('exportClusterToGit', () => {
     mockK8sList.mockResolvedValueOnce([deployment]);
 
     const events = await collectEvents(baseOptions);
-    expect(mockProvider.createOrUpdateFile).toHaveBeenCalled();
+    expect(mockProvider.commitMultipleFiles).toHaveBeenCalled();
     expect(mockProvider.createPullRequest).toHaveBeenCalled();
 
     const completeEvent = events.find((e) => e.type === 'complete');
@@ -280,14 +281,10 @@ describe('exportClusterToGit', () => {
 
     await collectEvents(baseOptions);
     // Only the user deploy should be committed
-    expect(mockProvider.createOrUpdateFile).toHaveBeenCalledTimes(1);
-    expect(mockProvider.createOrUpdateFile).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.stringContaining('production'),
-      expect.any(String),
-      expect.any(String),
-      undefined,
-    );
+    expect(mockProvider.commitMultipleFiles).toHaveBeenCalledTimes(1);
+    const files = mockProvider.commitMultipleFiles.mock.calls[0][1];
+    expect(files.length).toBe(1);
+    expect(files[0].path).toContain('production');
   });
 
   it('yields error event if git provider creation fails', async () => {

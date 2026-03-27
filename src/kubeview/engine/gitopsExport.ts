@@ -152,9 +152,11 @@ export interface ExportOptions {
   branchName?: string;
 }
 
-/** Convert a resource to a simple YAML-like string (JSON with 2-space indent for commits) */
-function resourceToJson(resource: K8sResource): string {
-  return JSON.stringify(resource, null, 2);
+import { jsonToYaml } from './yamlUtils';
+
+/** Convert a resource to YAML for git commits */
+function resourceToYamlString(resource: K8sResource): string {
+  return jsonToYaml(resource);
 }
 
 /**
@@ -233,8 +235,8 @@ export async function* exportClusterToGit(
                 const sanitized = sanitizeResource(resource);
                 const nsDir = sanitized.metadata.namespace || '_cluster';
                 return {
-                  path: `${basePath}/${category.id}/${nsDir}/${resDef.kind}-${sanitized.metadata.name}.json`,
-                  content: resourceToJson(sanitized),
+                  path: `${basePath}/${category.id}/${nsDir}/${resDef.kind}-${sanitized.metadata.name}.yaml`,
+                  content: resourceToYamlString(sanitized),
                 };
               });
 
