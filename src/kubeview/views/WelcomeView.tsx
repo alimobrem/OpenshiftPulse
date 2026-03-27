@@ -112,13 +112,13 @@ export default function WelcomeView() {
               <div className="text-xs text-slate-500">Ready</div>
             </div>
             <button
-              onClick={() => go('/incidents', 'Incidents')}
+              onClick={() => go('/alerts', 'Alerts')}
               className="rounded-lg border border-slate-800 bg-slate-900/50 p-3 text-center hover:bg-slate-800/60 transition-colors"
             >
               <div className={cn('text-lg font-bold', topIssuesCount > 0 ? 'text-red-400' : 'text-emerald-400')}>
                 {topIssuesCount}
               </div>
-              <div className="text-xs text-slate-500">Issues</div>
+              <div className="text-xs text-slate-500">Alerts</div>
             </button>
             <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-3 text-center">
               <div className={cn('text-lg font-bold', isConnected ? 'text-emerald-400' : 'text-red-400')}>
@@ -147,7 +147,7 @@ export default function WelcomeView() {
         {/* ── Launchpad: Top Issues ── */}
         {launchpad && topIssuesCount > 0 && (
           <button
-            onClick={() => go('/incidents', 'Incidents')}
+            onClick={() => go('/alerts', 'Alerts')}
             className="group relative w-full flex items-center gap-4 p-4 rounded-xl border bg-gradient-to-br from-red-500/10 to-red-600/5 border-red-500/20 hover:border-red-500/40 transition-all text-left"
           >
             <span className="text-red-400" aria-hidden="true"><AlertTriangle className="w-5 h-5" /></span>

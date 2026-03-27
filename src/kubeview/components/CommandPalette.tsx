@@ -345,15 +345,16 @@ function getCommandItems(
       { type: 'nav', id: 'compute', title: 'Compute', subtitle: 'Nodes, machines, cluster capacity', icon: 'Server', path: '/compute' },
       { type: 'nav', id: 'storage', title: 'Storage', subtitle: 'PVs, PVCs, StorageClasses', icon: 'HardDrive', path: '/storage' },
       { type: 'nav', id: 'security', title: 'Security', subtitle: 'Security audit, SCCs, network policies, access', icon: 'ShieldCheck', path: '/security' },
-      { type: 'nav', id: 'access-control', title: 'Access Control', subtitle: 'RBAC roles, bindings, service accounts', icon: 'Shield', path: '/access-control' },
-      { type: 'nav', id: 'alerts', title: 'Alerts', subtitle: 'Prometheus alerts, rules, silences', icon: 'Bell', path: '/alerts' },
+      { type: 'nav', id: 'identity', title: 'Identity & Access', subtitle: 'Users, groups, service accounts, RBAC, impersonation', icon: 'Shield', path: '/identity' },
+      { type: 'nav', id: 'incidents', title: 'Incident Center', subtitle: 'Unified triage — findings, alerts, errors, auto-fix', icon: 'Bell', path: '/incidents' },
+      { type: 'nav', id: 'alerts', title: 'Alerts', subtitle: 'Prometheus alert rules, silences, firing alerts', icon: 'Bell', path: '/alerts' },
       { type: 'nav', id: 'builds', title: 'Builds', subtitle: 'BuildConfigs, Builds, ImageStreams', icon: 'Hammer', path: '/builds' },
       { type: 'nav', id: 'crds', title: 'Custom Resources', subtitle: 'CRDs, browse instances by API group', icon: 'Puzzle', path: '/crds' },
       { type: 'nav', id: 'software', title: 'Software', subtitle: 'Installed software, operators, deploy, Helm, templates', icon: 'Package', path: '/software' },
       { type: 'nav', id: 'gitops', title: 'GitOps', subtitle: 'ArgoCD applications, sync status, drift detection, auto-PR', icon: 'GitBranch', path: '/gitops' },
       { type: 'nav', id: 'fleet', title: 'Fleet', subtitle: 'Multi-cluster dashboard, health scores, cluster switching, comparison', icon: 'Globe', path: '/fleet' },
-      { type: 'nav', id: 'admin', title: 'Administration', subtitle: 'Operators, config, updates, snapshots, quotas, certificates, GitOps config, timeline', icon: 'Settings', path: '/admin' },
-      { type: 'nav', id: 'users', title: 'User Management', subtitle: 'Users, groups, service accounts, impersonation', icon: 'Users', path: '/users' },
+      { type: 'nav', id: 'admin', title: 'Administration', subtitle: 'Operators, config, updates, snapshots, quotas, certificates', icon: 'Settings', path: '/admin' },
+      { type: 'nav', id: 'onboarding', title: 'Production Readiness', subtitle: 'Readiness wizard — security, reliability, observability gates', icon: 'Shield', path: '/onboarding' },
     ];
 
     const matchingPages = builtinPages.filter((page) =>
