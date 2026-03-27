@@ -71,6 +71,7 @@ function buildApplicationYAML(opts: {
       repoURL: opts.repoURL,
       path: opts.path,
       targetRevision: opts.targetRevision,
+      directory: { recurse: true },
     },
     destination: {
       server: 'https://kubernetes.default.svc',
