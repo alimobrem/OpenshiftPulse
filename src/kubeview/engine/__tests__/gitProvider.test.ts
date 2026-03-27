@@ -102,6 +102,61 @@ describe('GitHubProvider', () => {
 
     await expect(provider.createPullRequest('Fix', 'Body', 'branch', 'main')).rejects.toThrow('401');
   });
+
+  it('commitMultipleFiles uses Git Trees API for atomic commit', async () => {
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ object: { sha: 'ref-sha-1' } }) }) // get ref
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ tree: { sha: 'base-tree-sha' } }) }) // get commit
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ sha: 'new-tree-sha' }) }) // create tree
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ sha: 'new-commit-sha' }) }) // create commit
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) }); // update ref
+
+    const files = [
+      { path: 'apps/deploy.yaml', content: 'replicas: 3' },
+      { path: 'apps/service.yaml', content: 'port: 8080' },
+    ];
+
+    await provider.commitMultipleFiles('pulse/fix', files, 'Update manifests');
+
+    expect(mockFetch).toHaveBeenCalledTimes(5);
+
+    // 1. Get ref
+    expect(mockFetch.mock.calls[0][0]).toContain('/git/ref/heads/pulse/fix');
+
+    // 2. Get commit to find base tree
+    expect(mockFetch.mock.calls[1][0]).toContain('/git/commits/ref-sha-1');
+
+    // 3. Create tree with all files
+    expect(mockFetch.mock.calls[2][0]).toContain('/git/trees');
+    const treeBody = JSON.parse(mockFetch.mock.calls[2][1].body);
+    expect(treeBody.base_tree).toBe('base-tree-sha');
+    expect(treeBody.tree).toHaveLength(2);
+    expect(treeBody.tree[0]).toEqual({ path: 'apps/deploy.yaml', mode: '100644', type: 'blob', content: 'replicas: 3' });
+    expect(treeBody.tree[1]).toEqual({ path: 'apps/service.yaml', mode: '100644', type: 'blob', content: 'port: 8080' });
+
+    // 4. Create commit
+    expect(mockFetch.mock.calls[3][0]).toContain('/git/commits');
+    const commitBody = JSON.parse(mockFetch.mock.calls[3][1].body);
+    expect(commitBody.message).toBe('Update manifests');
+    expect(commitBody.tree).toBe('new-tree-sha');
+    expect(commitBody.parents).toEqual(['ref-sha-1']);
+
+    // 5. Update ref
+    expect(mockFetch.mock.calls[4][0]).toContain('/git/refs/heads/pulse/fix');
+    const refBody = JSON.parse(mockFetch.mock.calls[4][1].body);
+    expect(refBody.sha).toBe('new-commit-sha');
+  });
+
+  it('commitMultipleFiles throws when tree creation fails', async () => {
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ object: { sha: 'ref-sha-1' } }) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ tree: { sha: 'base-tree-sha' } }) })
+      .mockResolvedValueOnce({ ok: false, status: 422 });
+
+    await expect(
+      provider.commitMultipleFiles('branch', [{ path: 'a.yaml', content: 'x' }], 'msg'),
+    ).rejects.toThrow('Failed to create tree: 422');
+  });
 });
 
 describe('GitLabProvider', () => {
@@ -140,5 +195,81 @@ describe('GitLabProvider', () => {
     await provider.createBranch('main', 'test');
 
     expect(mockFetch.mock.calls[0][1].headers['PRIVATE-TOKEN']).toBe('glpat-testtoken123');
+  });
+
+  it('commitMultipleFiles uses Commits API with actions array', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) });
+
+    const files = [
+      { path: 'apps/deploy.yaml', content: 'replicas: 3' },
+      { path: 'apps/service.yaml', content: 'port: 8080' },
+    ];
+
+    await provider.commitMultipleFiles('pulse/fix', files, 'Update manifests');
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(mockFetch.mock.calls[0][0]).toContain('/repository/commits');
+    expect(mockFetch.mock.calls[0][1].method).toBe('POST');
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.branch).toBe('pulse/fix');
+    expect(body.commit_message).toBe('Update manifests');
+    expect(body.actions).toHaveLength(2);
+    expect(body.actions[0]).toEqual({ action: 'create', file_path: 'apps/deploy.yaml', content: 'replicas: 3' });
+    expect(body.actions[1]).toEqual({ action: 'create', file_path: 'apps/service.yaml', content: 'port: 8080' });
+  });
+
+  it('commitMultipleFiles throws on failure', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 400 });
+
+    await expect(
+      provider.commitMultipleFiles('branch', [{ path: 'a.yaml', content: 'x' }], 'msg'),
+    ).rejects.toThrow('Failed to commit files: 400');
+  });
+});
+
+describe('BitbucketProvider', () => {
+  const bitbucketConfig: GitOpsConfig = {
+    provider: 'bitbucket',
+    repoUrl: 'https://bitbucket.org/myorg/gitops-repo',
+    baseBranch: 'main',
+    token: 'bb_testtoken123',
+  };
+
+  let provider: ReturnType<typeof createGitProvider>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    provider = createGitProvider(bitbucketConfig);
+  });
+
+  it('commitMultipleFiles uses FormData with multiple file entries', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true });
+
+    const files = [
+      { path: 'apps/deploy.yaml', content: 'replicas: 3' },
+      { path: 'apps/service.yaml', content: 'port: 8080' },
+    ];
+
+    await provider.commitMultipleFiles('pulse/fix', files, 'Update manifests');
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(mockFetch.mock.calls[0][0]).toContain('/src');
+    expect(mockFetch.mock.calls[0][1].method).toBe('POST');
+
+    const formData = mockFetch.mock.calls[0][1].body as FormData;
+    expect(formData.get('message')).toBe('Update manifests');
+    expect(formData.get('branch')).toBe('pulse/fix');
+    // FormData file entries are Blobs; verify both paths are present
+    expect(formData.has('apps/deploy.yaml')).toBe(true);
+    expect(formData.has('apps/service.yaml')).toBe(true);
+  });
+
+  it('commitMultipleFiles throws on failure', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 403 });
+
+    await expect(
+      provider.commitMultipleFiles('branch', [{ path: 'a.yaml', content: 'x' }], 'msg'),
+    ).rejects.toThrow('Failed to commit files: 403');
   });
 });
