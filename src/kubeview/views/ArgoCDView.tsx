@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { GitBranch, RefreshCw, Loader2, ArrowRight, Sparkles } from 'lucide-react';
+import { GitBranch, RefreshCw, Loader2, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useArgoCD, useArgoCDRefresh } from '../hooks/useArgoCD';
 import { useArgoCDStore } from '../store/argoCDStore';
@@ -138,12 +138,7 @@ export default function ArgoCDView() {
           subtitle={<>ArgoCD Applications, sync status, and drift detection{namespace && <span className="text-violet-400 ml-1">· {namespace}</span>}</>}
           actions={
             <div className="flex items-center gap-2">
-              {isConfigured && (
-                <Button size="sm" onClick={() => openWizard('select-resources')} className="bg-blue-600 hover:bg-blue-500">
-                  Export Cluster to Git
-                </Button>
-              )}
-              <Button size="sm" onClick={() => openWizard(isConfigured ? 'first-app' : 'operator')} className="bg-violet-600 hover:bg-violet-500">
+              <Button size="sm" onClick={() => openWizard()} className="bg-violet-600 hover:bg-violet-500">
                 <Sparkles className="w-3.5 h-3.5" />
                 {isConfigured ? 'Create Application' : 'Set Up GitOps'}
               </Button>
@@ -155,31 +150,18 @@ export default function ArgoCDView() {
           }
         />
 
-        {/* Continue setup banner (partially set up) */}
-        {(!isConfigured || applications.length === 0) && (
-          <div className="flex items-center justify-between bg-slate-800 border border-slate-700 rounded-lg p-4">
-            <div className="flex items-center gap-3">
-              <Sparkles className="w-5 h-5 text-violet-400" />
-              <div>
-                <p className="text-sm font-medium text-slate-200">
-                  {!isConfigured ? 'Continue GitOps Setup' : 'Create Your First Application'}
-                </p>
-                <p className="text-xs text-slate-400">
-                  {!isConfigured ? 'Configure your Git provider to enable auto-PR and drift tracking' : 'No ArgoCD applications yet — create one to start syncing'}
-                </p>
-              </div>
+        {/* Setup hint when not fully configured */}
+        {!isConfigured && (
+          <div className="flex items-center gap-3 bg-slate-800 border border-slate-700 rounded-lg p-4">
+            <Sparkles className="w-5 h-5 text-violet-400 shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-slate-200">Continue GitOps Setup</p>
+              <p className="text-xs text-slate-400">Configure your Git provider to enable auto-PR and drift tracking</p>
             </div>
-            <div className="flex items-center gap-2">
-              {isConfigured && (
-                <Button size="sm" onClick={() => openWizard('select-resources')} className="bg-blue-600 hover:bg-blue-500">
-                  Export Cluster to Git
-                </Button>
-              )}
-              <Button size="sm" onClick={() => openWizard(!isConfigured ? 'git-config' : 'first-app')} className="bg-violet-600 hover:bg-violet-500">
-                <Sparkles className="w-3.5 h-3.5" />
-                {!isConfigured ? 'Open Wizard' : 'Create Application'}
-              </Button>
-            </div>
+            <Button size="sm" onClick={() => openWizard()} className="bg-violet-600 hover:bg-violet-500">
+              <Sparkles className="w-3.5 h-3.5" />
+              Open Wizard
+            </Button>
           </div>
         )}
 
@@ -190,31 +172,6 @@ export default function ArgoCDView() {
           <StatCard label="Out of Sync" value={outOfSyncCount} variant={outOfSyncCount > 0 ? 'warning' : 'default'} highlight={outOfSyncCount > 0} />
           <StatCard label="Degraded" value={degradedCount} variant={degradedCount > 0 ? 'error' : 'default'} highlight={degradedCount > 0} />
         </MetricGrid>
-
-        {/* Git repo setup guidance when not configured */}
-        {!isConfigured && (
-          <Card className="p-5">
-            <div className="flex items-start gap-4">
-              <div className="w-8 h-8 rounded-full bg-violet-600/20 flex items-center justify-center shrink-0">
-                <GitBranch className="w-4 h-4 text-violet-400" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-sm font-semibold text-slate-100 mb-1">Connect your Git repository</h3>
-                <p className="text-xs text-slate-400 mb-3">
-                  Configure your Git provider to enable auto-PR when editing resources, catch-up PRs for urgent changes, and full drift tracking between Git and cluster state.
-                </p>
-                <div className="flex flex-wrap gap-4 text-xs text-slate-500 mb-3">
-                  <span><span className="text-emerald-400">1.</span> Create a Git repo for your K8s manifests</span>
-                  <span><span className="text-emerald-400">2.</span> Generate a personal access token</span>
-                  <span><span className="text-emerald-400">3.</span> Configure in Admin → GitOps</span>
-                </div>
-                <Button size="sm" onClick={() => go('/admin?tab=gitops', 'Admin')} className="bg-violet-600 hover:bg-violet-500">
-                  Configure Git Provider <ArrowRight className="w-3 h-3" />
-                </Button>
-              </div>
-            </div>
-          </Card>
-        )}
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as Tab)}>
