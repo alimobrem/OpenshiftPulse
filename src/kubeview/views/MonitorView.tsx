@@ -92,13 +92,22 @@ export default function MonitorView() {
   const [scanning, setScanning] = useState(false);
   const prevLastScan = useRef(lastScanTime);
 
-  // Detect scan completion — reset scanning state when lastScanTime updates
+  // Detect scan completion — show result toast when lastScanTime updates
   useEffect(() => {
     if (lastScanTime !== prevLastScan.current && scanning) {
       setScanning(false);
+      const count = findings.length;
+      useUIStore.getState().addToast({
+        type: count > 0 ? 'warning' : 'success',
+        title: 'Scan complete',
+        detail: count > 0
+          ? `Found ${count} issue${count !== 1 ? 's' : ''} — review findings below.`
+          : 'No issues found — cluster looks healthy.',
+        duration: 5000,
+      });
     }
     prevLastScan.current = lastScanTime;
-  }, [lastScanTime, scanning]);
+  }, [lastScanTime, scanning, findings.length]);
 
   const handleScanNow = () => {
     setScanning(true);
