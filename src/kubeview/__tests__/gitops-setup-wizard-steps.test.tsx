@@ -29,6 +29,7 @@ vi.mock('../store/gitopsSetupStore', () => ({
       selectedNamespaces: mockSelectedNamespaces,
       setExportSummary: mockSetExportSummary,
       exportSummary: mockExportSummary,
+      exportSelections: { clusterName: '', categoryIds: [], namespaces: [], exportMode: 'pr' },
       setStep: vi.fn(),
     };
     return selector(state);

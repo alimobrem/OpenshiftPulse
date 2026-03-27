@@ -28,11 +28,34 @@ export function SelectResourcesStep({ onComplete }: Props) {
     if (clusterName) return;
     (async () => {
       try {
+        // Try to derive a friendly name from the ingress domain (e.g. "my-cluster" from "apps.my-cluster.example.com")
+        const infra = await k8sGet<K8sResource>('/apis/config.openshift.io/v1/infrastructures/cluster');
+        const apiUrl = (infra.status as Record<string, unknown>)?.apiServerURL as string || '';
+        // Extract cluster name from API URL: https://api.CLUSTER_NAME.xxx.xxx
+        const match = apiUrl.match(/api\.([^.]+)/);
+        if (match) {
+          setClusterName(match[1]);
+          return;
+        }
+      } catch { /* fall through */ }
+      try {
+        // Fallback: use ingress domain
+        const ingress = await k8sGet<K8sResource>('/apis/config.openshift.io/v1/ingresses/cluster');
+        const domain = (ingress.spec as Record<string, unknown>)?.domain as string || '';
+        // Extract from "apps.CLUSTER_NAME.xxx" or "apps.rosa.CLUSTER_NAME.xxx"
+        const parts = domain.split('.');
+        const name = parts.find((p) => p !== 'apps' && p !== 'rosa' && p.length > 3);
+        if (name) {
+          setClusterName(name);
+          return;
+        }
+      } catch { /* fall through */ }
+      // Final fallback: truncated cluster ID
+      try {
         const cv = await k8sGet<K8sResource>('/apis/config.openshift.io/v1/clusterversions/version');
         const id = cv.spec?.clusterID as string;
-        if (id) setClusterName(id.slice(0, 8));
+        if (id) setClusterName(`cluster-${id.slice(0, 8)}`);
       } catch {
-        // Fall back to cluster version string
         if (clusterVersion) {
           setClusterName(`ocp-${clusterVersion.replace(/\./g, '-')}`);
         }

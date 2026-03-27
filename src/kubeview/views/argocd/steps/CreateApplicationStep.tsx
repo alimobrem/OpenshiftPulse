@@ -168,10 +168,11 @@ export function CreateApplicationStep({ onComplete }: Props) {
 
   const isAppOfApps = selectedCategories.length > 0;
 
-  const [name, setName] = useState('my-app');
-  const [clusterName, setClusterName] = useState('my-cluster');
+  const exportClusterName = useGitOpsSetupStore((s) => s.exportSelections.clusterName);
+  const [name, setName] = useState(exportClusterName ? `${exportClusterName}-app` : 'my-app');
+  const [clusterName, setClusterName] = useState(exportClusterName || 'my-cluster');
   const [repoURL, setRepoURL] = useState(config?.repoUrl || '');
-  const [path, setPath] = useState('manifests');
+  const [path, setPath] = useState(exportClusterName || 'manifests');
   const [targetRevision, setTargetRevision] = useState('HEAD');
   const [destNamespace, setDestNamespace] = useState('default');
   const [autoSync, setAutoSync] = useState(true);
