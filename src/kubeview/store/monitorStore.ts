@@ -164,6 +164,14 @@ export const useMonitorStore = create<MonitorState>()(
               break;
             }
 
+            case 'findings_snapshot': {
+              const activeIds = new Set(event.activeIds);
+              set((s) => ({
+                findings: s.findings.filter((f) => activeIds.has(f.id)),
+              }));
+              break;
+            }
+
             case 'monitor_status': {
               set({
                 activeWatches: event.activeWatches,

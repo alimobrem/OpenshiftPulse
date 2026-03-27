@@ -65,6 +65,7 @@ export type MonitorEvent =
   | ({ type: 'action_report' } & ActionReport)
   | ({ type: 'prediction' } & Prediction)
   | ({ type: 'monitor_status' } & MonitorStatus)
+  | { type: 'findings_snapshot'; activeIds: string[]; timestamp: number }
   | { type: 'connected' }
   | { type: 'disconnected' }
   | { type: 'error'; message: string };

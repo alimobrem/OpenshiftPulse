@@ -11,7 +11,7 @@ import type { AgentEvent } from './agentClient';
 import { useUIStore } from '../store/uiStore';
 import { useAgentStore } from '../store/agentStore';
 import { useMonitorStore } from '../store/monitorStore';
-import type { Finding } from './monitorClient';
+import type { Finding, ActionReport } from './monitorClient';
 
 const DEFAULT_INTERVAL = 300_000; // 5 minutes
 const PROMPT =
@@ -91,6 +91,47 @@ function subscribeToMonitorToasts() {
       }
     }
     prevFindings = findings;
+  });
+}
+
+// --- v2: Toast notifications for action reports ---
+
+let unsubscribeActionReports: (() => void) | null = null;
+
+function subscribeToActionReportToasts() {
+  const toastedActionIds = new Set(
+    useMonitorStore.getState().recentActions.map((a) => a.id),
+  );
+  let prevActions = useMonitorStore.getState().recentActions;
+
+  unsubscribeActionReports = useMonitorStore.subscribe((state) => {
+    const actions = state.recentActions;
+    if (actions === prevActions) return;
+
+    const prevIds = new Set(prevActions.map((a) => a.id));
+    for (const action of actions) {
+      if (!prevIds.has(action.id) && !toastedActionIds.has(action.id)) {
+        toastedActionIds.add(action.id);
+        const store = useUIStore.getState();
+        if (action.status === 'completed') {
+          const resource = action.findingId; // best available resource identifier
+          store.addToast({
+            type: 'success',
+            title: `Auto-fix: ${action.tool} completed on ${resource}`,
+            detail: action.reasoning ?? '',
+            duration: 10000,
+          });
+        } else if (action.status === 'failed') {
+          store.addToast({
+            type: 'error',
+            title: `Auto-fix failed: ${action.error ?? 'Unknown error'}`,
+            detail: `Tool: ${action.tool}`,
+            duration: 15000,
+          });
+        }
+      }
+    }
+    prevActions = actions;
   });
 }
 
@@ -194,6 +235,8 @@ export async function startAgentNotifications(intervalMs = DEFAULT_INTERVAL) {
     useMonitorStore.getState().connect();
     // Subscribe to findings for toast notifications
     subscribeToMonitorToasts();
+    // Subscribe to action reports for auto-fix toasts
+    subscribeToActionReportToasts();
   } else if (protocol === '1') {
     // Fall back to existing polling
     intervalId = setInterval(poll, intervalMs);
@@ -207,6 +250,10 @@ export function stopAgentNotifications() {
   if (unsubscribeMonitor) {
     unsubscribeMonitor();
     unsubscribeMonitor = null;
+  }
+  if (unsubscribeActionReports) {
+    unsubscribeActionReports();
+    unsubscribeActionReports = null;
   }
   useMonitorStore.getState().disconnect();
   // Also stop v1 polling

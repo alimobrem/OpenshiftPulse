@@ -696,6 +696,13 @@ export default function MonitorView() {
               </div>
             </div>
 
+            {/* Auto-fix note for trust levels 3 and 4 */}
+            {trustLevel >= 3 && (
+              <div className="px-4 py-3 bg-yellow-900/20 border border-yellow-800/50 rounded-lg text-xs text-yellow-300">
+                Note: Auto-fixes are executed automatically and recorded in Fix History. All actions can be rolled back.
+              </div>
+            )}
+
             {/* Auto-fix categories (visible at level 4) */}
             {trustLevel === 4 && (
               <div>
