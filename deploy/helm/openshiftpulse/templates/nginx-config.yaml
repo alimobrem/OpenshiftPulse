@@ -80,6 +80,7 @@ data:
         }
         {{- end }}
 
+        {{- if .Values.agent.enabled }}
         location /api/agent/ws/sre {
           proxy_pass http://{{ .Values.agent.serviceName }}:8080/ws/sre?token={{ .Values.agent.wsToken }};
           proxy_set_header Upgrade $http_upgrade;
@@ -96,10 +97,24 @@ data:
           proxy_read_timeout 3600s;
         }
 
+        location /api/agent/ws/monitor {
+          proxy_pass http://{{ .Values.agent.serviceName }}:8080/ws/monitor?token={{ .Values.agent.wsToken }};
+          proxy_set_header Upgrade $http_upgrade;
+          proxy_set_header Connection $connection_upgrade;
+          proxy_http_version 1.1;
+          proxy_read_timeout 3600s;
+        }
+
         location /api/agent/ {
           proxy_pass http://{{ .Values.agent.serviceName }}:8080/;
           proxy_read_timeout 60s;
         }
+        {{- else }}
+        location /api/agent/ {
+          return 503 '{"error":"Agent not deployed","detail":"Deploy with --agent-repo to enable AI features"}';
+          add_header Content-Type application/json;
+        }
+        {{- end }}
 
         location / { try_files $uri $uri/ /index.html; }
         location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff2?)$ {

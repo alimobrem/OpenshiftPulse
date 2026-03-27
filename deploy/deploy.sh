@@ -2,8 +2,9 @@
 # Deploy OpenShift Pulse (UI + Agent) to an OpenShift cluster.
 #
 # Usage:
-#   ./deploy/deploy.sh --agent-repo /path/to/pulse-agent
-#   ANTHROPIC_VERTEX_PROJECT_ID=proj CLOUD_ML_REGION=us-east5 ./deploy/deploy.sh --agent-repo ../open
+#   ./deploy/deploy.sh                                  # UI only (no agent)
+#   ./deploy/deploy.sh --agent-repo /path/to/pulse-agent # UI + Agent
+#   ANTHROPIC_API_KEY=sk-ant-... ./deploy/deploy.sh --agent-repo ../open
 #
 # Prerequisites: oc (logged in), helm, npm
 
@@ -14,6 +15,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 AGENT_REPO=""
+NO_AGENT=false
 NAMESPACE="openshiftpulse"
 WS_TOKEN="${PULSE_AGENT_WS_TOKEN:-$(openssl rand -hex 16 2>/dev/null || echo pulse-agent-internal-token)}"
 AGENT_RELEASE="pulse-agent"
@@ -22,14 +24,16 @@ GCP_KEY_FILE=""
 while [[ $# -gt 0 ]]; do
   case $1 in
     --agent-repo) AGENT_REPO="$2"; shift 2 ;;
+    --no-agent)   NO_AGENT=true; shift ;;
     --namespace)  NAMESPACE="$2"; shift 2 ;;
     --ws-token)   WS_TOKEN="$2"; shift 2 ;;
     --gcp-key)    GCP_KEY_FILE="$2"; shift 2 ;;
     --help|-h)
-      echo "Usage: $0 --agent-repo /path/to/pulse-agent [options]"
+      echo "Usage: $0 [--agent-repo /path/to/pulse-agent] [options]"
       echo ""
       echo "Options:"
-      echo "  --agent-repo PATH   Path to pulse-agent repo (required)"
+      echo "  --agent-repo PATH   Path to pulse-agent repo (deploys UI + Agent)"
+      echo "  --no-agent          Deploy UI only, skip agent"
       echo "  --namespace NS      Target namespace (default: openshiftpulse)"
       echo "  --gcp-key PATH      GCP service account JSON for Vertex AI"
       echo "  --ws-token TOKEN    WebSocket auth token (auto-generated if unset)"
@@ -114,19 +118,23 @@ info "Cluster: $CLUSTER_API"
 
 # Agent repo
 if [[ -z "$AGENT_REPO" ]]; then
-  error "--agent-repo is required. Usage: $0 --agent-repo /path/to/pulse-agent"
-  exit 1
+  NO_AGENT=true
+  warn "No --agent-repo provided — deploying UI only (use --agent-repo to include the agent)"
 fi
-if [[ ! -d "$AGENT_REPO" ]]; then
-  error "Agent repo not found: $AGENT_REPO"
-  exit 1
+if [[ "$NO_AGENT" == "false" ]]; then
+  if [[ ! -d "$AGENT_REPO" ]]; then
+    error "Agent repo not found: $AGENT_REPO"
+    exit 1
+  fi
+  if [[ ! -f "$AGENT_REPO/chart/Chart.yaml" ]]; then
+    error "Agent repo missing chart/Chart.yaml: $AGENT_REPO"
+    exit 1
+  fi
+  AGENT_REPO="$(cd "$AGENT_REPO" && pwd)"
+  info "Agent repo: $AGENT_REPO"
+else
+  info "Agent: skipped (UI-only deploy)"
 fi
-if [[ ! -f "$AGENT_REPO/chart/Chart.yaml" ]]; then
-  error "Agent repo missing chart/Chart.yaml: $AGENT_REPO"
-  exit 1
-fi
-AGENT_REPO="$(cd "$AGENT_REPO" && pwd)"
-info "Agent repo: $AGENT_REPO"
 
 # ─── Detect Cluster Configuration ───────────────────────────────────────────
 
@@ -164,7 +172,9 @@ fi
 AGENT_DEPLOY="${AGENT_RELEASE}-openshift-sre-agent"
 
 info "Namespace: $NAMESPACE"
-info "Agent deploy: $AGENT_DEPLOY"
+if [[ "$NO_AGENT" == "false" ]]; then
+  info "Agent deploy: $AGENT_DEPLOY"
+fi
 
 # ─── Deploy Pulse UI ────────────────────────────────────────────────────────
 
@@ -175,15 +185,19 @@ info "Build complete"
 
 step "Helm install/upgrade Pulse UI"
 HELM_CMD="upgrade --install"
+AGENT_ENABLED="false"
+[[ "$NO_AGENT" == "false" ]] && AGENT_ENABLED="true"
+
 helm $HELM_CMD openshiftpulse deploy/helm/openshiftpulse/ \
   -n "$NAMESPACE" --create-namespace \
   --set oauthProxy.image="$OAUTH_IMAGE" \
   --set route.clusterDomain="$CLUSTER_DOMAIN" \
+  --set agent.enabled="$AGENT_ENABLED" \
   --set agent.serviceName="$AGENT_DEPLOY" \
   --set agent.wsToken="$WS_TOKEN" \
   --set monitoring.prometheus.enabled="$MONITORING_ENABLED" \
   --set monitoring.alertmanager.enabled="$MONITORING_ENABLED" \
-  --wait --timeout 60s
+  --timeout 120s
 info "Helm release: openshiftpulse"
 
 # Fix OAuth redirect URI using actual route host
@@ -201,6 +215,7 @@ step "Building Pulse UI image"
 oc start-build openshiftpulse --from-dir=dist --follow -n "$NAMESPACE"
 info "UI image built"
 
+if [[ "$NO_AGENT" == "false" ]]; then
 # ─── Deploy Pulse Agent ─────────────────────────────────────────────────────
 
 step "Helm install/upgrade Agent"
@@ -355,31 +370,39 @@ else
     -n "$NAMESPACE"
 fi
 
+fi # end NO_AGENT check
+
 # ─── Restart & Verify ───────────────────────────────────────────────────────
 
 step "Restarting deployments"
 oc rollout restart "deployment/openshiftpulse" -n "$NAMESPACE"
-oc rollout restart "deployment/$AGENT_DEPLOY" -n "$NAMESPACE"
-
 wait_for_rollout "openshiftpulse" "$NAMESPACE" 120
-wait_for_rollout "$AGENT_DEPLOY" "$NAMESPACE" 120
 
-# Health check with retry
-info "Verifying agent health..."
-HEALTHY=false
-for i in 1 2 3 4 5; do
-  sleep 5
-  HEALTH=$(oc exec "deployment/$AGENT_DEPLOY" -n "$NAMESPACE" -- curl -sf http://localhost:8080/healthz 2>/dev/null || echo "")
-  if [[ "$HEALTH" == *"ok"* ]]; then
-    HEALTHY=true
-    break
-  fi
-done
+HEALTHY="n/a"
+AI_BACKEND="${AI_BACKEND:-none}"
+if [[ "$NO_AGENT" == "false" ]]; then
+  oc rollout restart "deployment/$AGENT_DEPLOY" -n "$NAMESPACE"
+  wait_for_rollout "$AGENT_DEPLOY" "$NAMESPACE" 120
+
+  # Health check with retry
+  info "Verifying agent health..."
+  HEALTHY=false
+  for i in 1 2 3 4 5; do
+    sleep 5
+    HEALTH=$(oc exec "deployment/$AGENT_DEPLOY" -n "$NAMESPACE" -- curl -sf http://localhost:8080/healthz 2>/dev/null || echo "")
+    if [[ "$HEALTH" == *"ok"* ]]; then
+      HEALTHY=true
+      break
+    fi
+  done
+fi
 
 echo ""
 echo "════════════════════════════════════════════"
 if [[ "$HEALTHY" == "true" ]]; then
-  info "Deploy complete!"
+  info "Deploy complete! (UI + Agent)"
+elif [[ "$NO_AGENT" == "true" ]]; then
+  info "Deploy complete! (UI only)"
 else
   warn "Agent health check did not pass — it may still be starting"
 fi
@@ -387,10 +410,14 @@ echo ""
 echo "  URL:       https://$ROUTE"
 echo "  Cluster:   $CLUSTER_API"
 echo "  NS:        $NAMESPACE"
-echo "  AI:        $AI_BACKEND"
-VERSION=$(oc exec "deployment/$AGENT_DEPLOY" -n "$NAMESPACE" -- curl -sf http://localhost:8080/version 2>/dev/null || echo "")
-if [[ -n "$VERSION" ]]; then
-  echo "  Agent:     $VERSION"
+if [[ "$NO_AGENT" == "false" ]]; then
+  echo "  AI:        $AI_BACKEND"
+  VERSION=$(oc exec "deployment/$AGENT_DEPLOY" -n "$NAMESPACE" -- curl -sf http://localhost:8080/version 2>/dev/null || echo "")
+  if [[ -n "$VERSION" ]]; then
+    echo "  Agent:     $VERSION"
+  fi
+else
+  echo "  Agent:     not deployed (use --agent-repo to include)"
 fi
 echo ""
 echo "  Run integration tests: ./deploy/integration-test.sh --namespace $NAMESPACE"
