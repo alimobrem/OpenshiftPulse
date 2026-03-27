@@ -138,9 +138,9 @@ export default function ArgoCDView() {
           subtitle={<>ArgoCD Applications, sync status, and drift detection{namespace && <span className="text-violet-400 ml-1">· {namespace}</span>}</>}
           actions={
             <div className="flex items-center gap-2">
-              <Button size="sm" onClick={() => openWizard()} className="bg-violet-600 hover:bg-violet-500">
+              <Button size="sm" onClick={() => openWizard(isConfigured ? 'select-resources' : undefined)} className="bg-violet-600 hover:bg-violet-500">
                 <Sparkles className="w-3.5 h-3.5" />
-                {isConfigured ? 'Create Application' : 'Set Up GitOps'}
+                {isConfigured ? 'Configure GitOps' : 'Set Up GitOps'}
               </Button>
               <Button variant="ghost" size="sm" onClick={() => refresh()} disabled={applicationsLoading}>
                 <RefreshCw className={cn('w-3.5 h-3.5', applicationsLoading && 'animate-spin')} />
@@ -160,7 +160,7 @@ export default function ArgoCDView() {
             </div>
             <Button size="sm" onClick={() => openWizard()} className="bg-violet-600 hover:bg-violet-500">
               <Sparkles className="w-3.5 h-3.5" />
-              Open Wizard
+              Continue Setup
             </Button>
           </div>
         )}
