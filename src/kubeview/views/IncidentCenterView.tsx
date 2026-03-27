@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card } from '../components/primitives/Card';
+import { fetchAgentEvalStatus } from '../engine/evalStatus';
 import { useMonitorStore } from '../store/monitorStore';
 import { useUIStore } from '../store/uiStore';
 import { useTrustStore, type TrustLevel } from '../store/trustStore';
@@ -80,6 +81,12 @@ export default function IncidentCenterView() {
     refetchInterval: 60000,
   });
 
+  const { data: evalStatus, isLoading: evalLoading } = useQuery({
+    queryKey: ['agent', 'eval-status'],
+    queryFn: () => fetchAgentEvalStatus().catch(() => null),
+    refetchInterval: 60000,
+  });
+
   const [scanning, setScanning] = useState(false);
   const prevLastScan = useRef(lastScanTime);
 
@@ -119,6 +126,22 @@ export default function IncidentCenterView() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-800 bg-slate-900 text-xs text-slate-400">
+              <span className="text-slate-300">Quality Gate</span>
+              <span className="text-slate-600">·</span>
+              <span className={cn(
+                evalLoading
+                  ? 'text-slate-300'
+                  : evalStatus?.quality_gate_passed
+                    ? 'text-green-300'
+                    : evalStatus
+                      ? 'text-amber-300'
+                      : 'text-slate-300',
+              )}
+              >
+                {evalLoading ? 'Checking' : evalStatus ? (evalStatus.quality_gate_passed ? 'PASS' : 'FAIL') : 'Unavailable'}
+              </span>
+            </div>
             {agentInfo && (
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-800 bg-slate-900 text-xs text-slate-400">
                 <Cpu className="w-3.5 h-3.5 text-violet-400" />
