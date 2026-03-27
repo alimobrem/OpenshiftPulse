@@ -73,6 +73,7 @@ export default function MonitorView() {
   const loadFixHistory = useMonitorStore((s) => s.loadFixHistory);
   const storeAutoFixCategories = useMonitorStore((s) => s.autoFixCategories);
   const setStoreAutoFixCategories = useMonitorStore((s) => s.setAutoFixCategories);
+  const triggerScan = useMonitorStore((s) => s.triggerScan);
 
   // Trust store
   const trustLevel = useTrustStore((s) => s.trustLevel);
@@ -587,7 +588,11 @@ export default function MonitorView() {
             )}
 
             {/* Scan Now button */}
-            <button className="px-4 py-2 text-sm bg-violet-600 hover:bg-violet-700 text-white rounded-lg flex items-center gap-2 transition-colors">
+            <button
+              onClick={triggerScan}
+              disabled={!connected}
+              className="px-4 py-2 text-sm bg-violet-600 hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg flex items-center gap-2 transition-colors"
+            >
               <Play className="w-4 h-4" />
               Scan Now
             </button>

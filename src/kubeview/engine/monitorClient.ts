@@ -226,6 +226,15 @@ export class MonitorClient {
     this._connected = false;
   }
 
+  /** Trigger an immediate cluster scan. */
+  triggerScan() {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      this.emit({ type: 'error', message: 'Not connected to monitor' });
+      return;
+    }
+    this.ws.send(JSON.stringify({ type: 'trigger_scan' }));
+  }
+
   /** Approve a proposed action. */
   approveAction(actionId: string) {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
