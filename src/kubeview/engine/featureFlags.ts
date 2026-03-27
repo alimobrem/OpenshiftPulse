@@ -22,10 +22,10 @@ const ALL_FLAGS: readonly FeatureFlag[] = [
 
 function loadFlags(): Record<FeatureFlag, boolean> {
   const defaults: Record<FeatureFlag, boolean> = {
-    incidentCenter: false,
-    identityView: false,
-    welcomeLaunchpad: false,
-    onboarding: false,
+    incidentCenter: true,
+    identityView: true,
+    welcomeLaunchpad: true,
+    onboarding: true,
   };
 
   try {
