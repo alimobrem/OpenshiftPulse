@@ -135,7 +135,7 @@ export function sanitizeResource(resource: K8sResource): K8sResource {
 export type ExportEvent =
   | { type: 'start'; totalCategories: number }
   | { type: 'category-start'; categoryId: string; label: string }
-  | { type: 'category-fetched'; categoryId: string; resourceCount: number }
+  | { type: 'category-fetched'; categoryId: string; resourceCount: number; warnings?: string[] }
   | { type: 'category-committed'; categoryId: string }
   | { type: 'category-error'; categoryId: string; error: string }
   | { type: 'complete'; totalResources: number; prUrl?: string }
@@ -215,6 +215,7 @@ export async function* exportClusterToGit(
     try {
       // Collect all files for the entire category first
       const allCategoryFiles: { path: string; content: string }[] = [];
+      const fetchWarnings: string[] = [];
 
       for (const resDef of category.resources) {
         const fetchNamespaces = resDef.namespaced ? effectiveNamespaces : ['_cluster_'];
@@ -240,12 +241,19 @@ export async function* exportClusterToGit(
               });
             }
           } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            fetchWarnings.push(`${resDef.kind} in ${ns}: ${msg}`);
             console.warn(`[gitops-export] Failed to fetch ${resDef.kind} in ${ns}:`, err);
           }
         }
       }
 
-      yield { type: 'category-fetched', categoryId: category.id, resourceCount: allCategoryFiles.length };
+      yield {
+        type: 'category-fetched',
+        categoryId: category.id,
+        resourceCount: allCategoryFiles.length,
+        warnings: fetchWarnings.length > 0 ? fetchWarnings : undefined,
+      };
 
       // Commit all files for this category in chunks (single sequential chain)
       if (allCategoryFiles.length > 0) {

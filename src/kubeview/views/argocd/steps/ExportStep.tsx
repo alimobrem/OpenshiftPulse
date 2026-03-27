@@ -27,6 +27,7 @@ interface CategoryProgress {
   status: CategoryStatus;
   fileCount: number;
   error?: string;
+  warnings?: string[];
 }
 
 export function ExportStep({ onComplete }: Props) {
@@ -69,7 +70,7 @@ export function ExportStep({ onComplete }: Props) {
       case 'category-fetched':
         setCategoryProgress((prev) => ({
           ...prev,
-          [event.categoryId]: { status: 'running', fileCount: event.resourceCount },
+          [event.categoryId]: { status: 'running', fileCount: event.resourceCount, warnings: event.warnings },
         }));
         break;
       case 'category-committed':
@@ -203,8 +204,15 @@ export function ExportStep({ onComplete }: Props) {
                 </span>
                 <span className="text-xs text-slate-500">
                   {progress.status === 'done' && progress.fileCount > 0 && `${progress.fileCount} files`}
-                  {progress.status === 'done' && progress.fileCount === 0 && 'no resources found'}
+                  {progress.status === 'done' && progress.fileCount === 0 && (
+                    progress.warnings?.length
+                      ? `0 files (${progress.warnings.length} error${progress.warnings.length > 1 ? 's' : ''})`
+                      : 'no resources found'
+                  )}
                   {progress.status === 'error' && progress.error}
+                  {progress.warnings && progress.warnings.length > 0 && progress.fileCount > 0 && (
+                    <span className="text-yellow-400 ml-1">({progress.warnings.length} warning{progress.warnings.length > 1 ? 's' : ''})</span>
+                  )}
                 </span>
               </div>
             );
@@ -277,15 +285,20 @@ export function ExportStep({ onComplete }: Props) {
           </div>
 
           {prUrl && (
-            <a
-              href={prUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300"
-            >
-              <ExternalLink className="w-4 h-4" />
-              View Pull Request
-            </a>
+            <div className="space-y-2">
+              <a
+                href={prUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300"
+              >
+                <ExternalLink className="w-4 h-4" />
+                View Pull Request
+              </a>
+              <p className="text-xs text-slate-400">
+                Merge this PR on GitHub to make resources available to ArgoCD.
+              </p>
+            </div>
           )}
 
           <button
