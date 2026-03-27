@@ -107,6 +107,7 @@ data:
 
         location /api/agent/ {
           proxy_pass http://{{ .Values.agent.serviceName }}:8080/;
+          proxy_set_header Authorization "Bearer {{ .Values.agent.wsToken }}";
           proxy_read_timeout 60s;
         }
         {{- else }}
