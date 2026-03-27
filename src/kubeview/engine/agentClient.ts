@@ -32,6 +32,7 @@ export interface ResourceContext {
 export interface ConfirmRequest {
   tool: string;
   input: Record<string, unknown>;
+  nonce: string;
 }
 
 export type AgentEvent =
@@ -39,7 +40,7 @@ export type AgentEvent =
   | { type: 'thinking_delta'; thinking: string }
   | { type: 'tool_use'; tool: string }
   | { type: 'component'; spec: ComponentSpec; tool: string }
-  | { type: 'confirm_request'; tool: string; input: Record<string, unknown> }
+  | { type: 'confirm_request'; tool: string; input: Record<string, unknown>; nonce: string }
   | { type: 'done'; full_response: string }
   | { type: 'error'; message: string }
   | { type: 'cleared' }
@@ -184,10 +185,12 @@ export class AgentClient {
     this.ws.send(JSON.stringify(payload));
   }
 
-  /** Respond to a confirmation request. */
-  confirm(approved: boolean) {
+  /** Respond to a confirmation request. Nonce must match the confirm_request. */
+  confirm(approved: boolean, nonce?: string) {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
-    this.ws.send(JSON.stringify({ type: 'confirm_response', approved }));
+    const msg: Record<string, unknown> = { type: 'confirm_response', approved };
+    if (nonce) msg.nonce = nonce;
+    this.ws.send(JSON.stringify(msg));
   }
 
   /** Clear conversation history on the server. */

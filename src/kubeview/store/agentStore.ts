@@ -188,7 +188,7 @@ export const useAgentStore = create<AgentState>()(
               set((s) => ({ streamingComponents: [...s.streamingComponents, event.spec] }));
               break;
             case 'confirm_request':
-              set({ pendingConfirm: { tool: event.tool, input: event.input } });
+              set({ pendingConfirm: { tool: event.tool, input: event.input, nonce: event.nonce } });
               break;
             case 'done': {
               // Flush any remaining deltas then reset accumulators
@@ -280,8 +280,9 @@ export const useAgentStore = create<AgentState>()(
       },
 
       confirmAction: (approved) => {
+        const nonce = get().pendingConfirm?.nonce;
         set({ pendingConfirm: null });
-        if (client) client.confirm(approved);
+        if (client) client.confirm(approved, nonce);
       },
 
       cancelQuery: () => {
