@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Shield, ShieldCheck, ShieldAlert, Clock, Activity, Settings, Search,
   ChevronDown, ChevronRight, RotateCcw, Play, CheckCircle, AlertTriangle,
@@ -85,6 +85,27 @@ export default function MonitorView() {
   const storeAutoFixCategories = useMonitorStore((s) => s.autoFixCategories);
   const setStoreAutoFixCategories = useMonitorStore((s) => s.setAutoFixCategories);
   const triggerScan = useMonitorStore((s) => s.triggerScan);
+  const lastScanTime = useMonitorStore((s) => s.lastScanTime);
+  const nextScanTime = useMonitorStore((s) => s.nextScanTime);
+  const activeWatches = useMonitorStore((s) => s.activeWatches);
+
+  const [scanning, setScanning] = useState(false);
+  const prevLastScan = useRef(lastScanTime);
+
+  // Detect scan completion — reset scanning state when lastScanTime updates
+  useEffect(() => {
+    if (lastScanTime !== prevLastScan.current && scanning) {
+      setScanning(false);
+    }
+    prevLastScan.current = lastScanTime;
+  }, [lastScanTime, scanning]);
+
+  const handleScanNow = () => {
+    setScanning(true);
+    triggerScan();
+    // Auto-reset after 30s in case monitor_status never arrives
+    setTimeout(() => setScanning(false), 30_000);
+  };
 
   // Trust store
   const trustLevel = useTrustStore((s) => s.trustLevel);
@@ -298,6 +319,19 @@ export default function MonitorView() {
                 </div>
                 <div className="text-2xl font-bold text-slate-100">{infoCount}</div>
               </div>
+            </div>
+
+            {/* Scan status */}
+            <div className="flex items-center gap-4 text-xs text-slate-400 px-1">
+              {lastScanTime > 0 && (
+                <span>Last scan: {formatRelativeTime(lastScanTime)}</span>
+              )}
+              {nextScanTime > 0 && nextScanTime > Date.now() && (
+                <span>Next scan: {formatRelativeTime(nextScanTime).replace(' ago', '')}</span>
+              )}
+              {activeWatches.length > 0 && (
+                <span>{activeWatches.length} watchers active</span>
+              )}
             </div>
 
             {/* Active findings */}
@@ -671,12 +705,21 @@ export default function MonitorView() {
 
             {/* Scan Now button */}
             <button
-              onClick={triggerScan}
-              disabled={!connected}
+              onClick={handleScanNow}
+              disabled={!connected || scanning}
               className="px-4 py-2 text-sm bg-violet-600 hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg flex items-center gap-2 transition-colors"
             >
-              <Play className="w-4 h-4" />
-              Scan Now
+              {scanning ? (
+                <>
+                  <Activity className="w-4 h-4 animate-pulse" />
+                  Scanning...
+                </>
+              ) : (
+                <>
+                  <Play className="w-4 h-4" />
+                  Scan Now
+                </>
+              )}
             </button>
           </div>
         )}
