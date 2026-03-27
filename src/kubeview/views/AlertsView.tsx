@@ -110,11 +110,11 @@ export default function AlertsView() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch alerts from Prometheus
-  const { data: alertGroups = [] } = useQuery<AlertGroup[]>({
+  const { data: alertGroups = [], error: alertsError, refetch: refetchAlerts } = useQuery<AlertGroup[]>({
     queryKey: ['alerts', 'rules'],
     queryFn: async () => {
       const res = await fetch('/api/prometheus/api/v1/rules');
-      if (!res.ok) return [];
+      if (!res.ok) throw new Error(`Prometheus returned ${res.status} ${res.statusText}`);
       const json = await res.json();
       return json.data?.groups || [];
     },
@@ -122,15 +122,17 @@ export default function AlertsView() {
   });
 
   // Fetch silences from Alertmanager
-  const { data: silences = [] } = useQuery<Silence[]>({
+  const { data: silences = [], error: silencesError, refetch: refetchSilences } = useQuery<Silence[]>({
     queryKey: ['alerts', 'silences'],
     queryFn: async () => {
       const res = await fetch('/api/alertmanager/api/v2/silences');
-      if (!res.ok) return [];
+      if (!res.ok) throw new Error(`Alertmanager returned ${res.status} ${res.statusText}`);
       return res.json();
     },
     refetchInterval: 60000,
   });
+
+  const backendUnavailable = !!(alertsError || silencesError);
 
   // Active silences (needed before allAlerts for silenced check)
   const activeSilences = useMemo(() => {
@@ -383,7 +385,12 @@ export default function AlertsView() {
             </h1>
             <p className="text-sm text-slate-400 mt-1">Prometheus alerts, rules, and silences</p>
           </div>
-          {allAlerts.length === 0 ? (
+          {backendUnavailable ? (
+            <div className="flex items-center gap-2 px-4 py-2 bg-red-900/30 border border-red-800 rounded-lg">
+              <XCircle className="w-5 h-5 text-red-400" />
+              <span className="text-sm font-medium text-red-300">Backend unavailable</span>
+            </div>
+          ) : allAlerts.length === 0 ? (
             <div className="flex items-center gap-2 px-4 py-2 bg-green-900/30 border border-green-800 rounded-lg">
               <CheckCircle className="w-5 h-5 text-green-400" />
               <span className="text-sm font-medium text-green-300">No alerts firing</span>
@@ -497,7 +504,14 @@ export default function AlertsView() {
         {/* Firing alerts */}
         {activeTab === 'firing' && (
           <div className="space-y-2">
-            {filteredAlerts.length === 0 ? (
+            {backendUnavailable ? (
+              <EmptyState
+                icon={<XCircle className="w-8 h-8 text-red-400" />}
+                title="Unable to reach alerting backend"
+                description="Check that Prometheus and Alertmanager are configured and accessible."
+                action={{ label: 'Retry', onClick: () => { refetchAlerts(); refetchSilences(); } }}
+              />
+            ) : filteredAlerts.length === 0 ? (
               <EmptyState
                 icon={<Bell className="w-8 h-8" />}
                 title={severityFilter !== 'all' ? `No ${severityFilter} alerts` : 'No alerts firing'}

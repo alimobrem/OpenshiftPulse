@@ -11,7 +11,7 @@ import { useMonitorStore } from '../store/monitorStore';
 import { useUIStore } from '../store/uiStore';
 import { useAgentStore } from '../store/agentStore';
 import { useTrustStore, TRUST_LABELS, type TrustLevel } from '../store/trustStore';
-import type { ActionRecord } from '../engine/fixHistory';
+import { requestRollback, type ActionRecord } from '../engine/fixHistory';
 
 type MonitorTab = 'status' | 'history' | 'config';
 
@@ -148,6 +148,7 @@ export default function MonitorView() {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [expandedAction, setExpandedAction] = useState<string | null>(null);
   const [historyPage, setHistoryPage] = useState(0);
+  const [rollingBackId, setRollingBackId] = useState<string | null>(null);
   const PAGE_SIZE = 20;
 
   // Load fix history when history tab is opened
@@ -565,9 +566,23 @@ export default function MonitorView() {
                             </div>
                           )}
                           {action.rollbackAvailable && action.status === 'completed' && (
-                            <button className="px-3 py-1.5 text-xs bg-red-600 hover:bg-red-700 text-white rounded flex items-center gap-1.5 transition-colors">
-                              <RotateCcw className="w-3.5 h-3.5" />
-                              Rollback
+                            <button
+                              disabled={rollingBackId === action.id}
+                              onClick={async () => {
+                                setRollingBackId(action.id);
+                                try {
+                                  await requestRollback(action.id);
+                                  loadFixHistory();
+                                } catch (err) {
+                                  console.error('Rollback failed:', err);
+                                } finally {
+                                  setRollingBackId(null);
+                                }
+                              }}
+                              className="px-3 py-1.5 text-xs bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded flex items-center gap-1.5 transition-colors"
+                            >
+                              <RotateCcw className={cn('w-3.5 h-3.5', rollingBackId === action.id && 'animate-spin')} />
+                              {rollingBackId === action.id ? 'Rolling back...' : 'Rollback'}
                             </button>
                           )}
                         </div>

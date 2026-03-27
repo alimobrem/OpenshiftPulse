@@ -95,6 +95,25 @@ describe('MonitorClient', () => {
     expect(finding.severity).toBe('critical');
   });
 
+  it('triggerScan sends trigger_scan message', async () => {
+    client.connect();
+    await vi.advanceTimersByTimeAsync(10);
+    client.triggerScan();
+    const ws = (client as any).ws as MockWebSocket;
+    const parsed = JSON.parse(ws.sent[1]);
+    expect(parsed).toEqual({ type: 'trigger_scan' });
+  });
+
+  it('triggerScan emits error when not connected', () => {
+    const events: any[] = [];
+    client.on((e) => events.push(e));
+    client.triggerScan();
+    expect(events).toContainEqual({
+      type: 'error',
+      message: 'Not connected to monitor',
+    });
+  });
+
   it('emits disconnected on close', async () => {
     const events: string[] = [];
     client.on((e) => events.push(e.type));

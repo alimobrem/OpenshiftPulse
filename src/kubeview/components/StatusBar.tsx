@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Bot, Shield } from 'lucide-react';
 import { useUIStore } from '../store/uiStore';
 import { useFleetStore } from '../store/fleetStore';
@@ -35,6 +35,7 @@ export function StatusBar({ onToggleNotifications, notificationCenterOpen }: Sta
   const monitorFindings = useMonitorStore((s) => s.findings);
   const monitorUnreadCount = useMonitorStore((s) => s.unreadCount);
   const monitorCriticalCount = monitorFindings.filter((f) => f.severity === 'critical').length;
+  const navigate = useNavigate();
 
   const [relativeTime, setRelativeTime] = useState(formatRelativeTime(lastSyncTime));
 
@@ -91,6 +92,15 @@ export function StatusBar({ onToggleNotifications, notificationCenterOpen }: Sta
 
       {/* Right */}
       <div className="flex items-center gap-3">
+        <button
+          onClick={() => navigate('/monitor')}
+          className="flex items-center gap-1 px-1.5 py-0.5 rounded transition-colors text-slate-500 hover:text-slate-300"
+          title="Monitor"
+          aria-label="Open Monitor"
+        >
+          <span className={cn('inline-block h-1.5 w-1.5 rounded-full', monitorConnected ? 'bg-emerald-500' : 'bg-red-500')} />
+          <span className="text-[11px]">Monitor</span>
+        </button>
         <button
           onClick={onToggleNotifications}
           className={cn(

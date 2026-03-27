@@ -105,7 +105,7 @@ export default function WelcomeView() {
         </MetricGrid>
 
         {/* ── Start Here ── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <ActionCard
             icon={<Shield className="w-5 h-5" />}
             accentClass="from-emerald-500/20 to-emerald-600/5 border-emerald-500/20"
@@ -114,6 +114,15 @@ export default function WelcomeView() {
             description="Production readiness checks across workloads, networking, storage, and compute"
             onClick={() => go('/admin?tab=readiness', 'Admin')}
             path="/pulse"
+          />
+          <ActionCard
+            icon={<Monitor className="w-5 h-5" />}
+            accentClass="from-cyan-500/20 to-cyan-600/5 border-cyan-500/20"
+            iconColor="text-cyan-400"
+            title="Monitor"
+            description="SRE command center — real-time findings, predictions, and automated fixes"
+            onClick={() => go('/monitor', 'Monitor')}
+            path="/monitor"
           />
           <ActionCard
             icon={<Search className="w-5 h-5" />}
@@ -147,6 +156,7 @@ export default function WelcomeView() {
             <ViewTile icon={<Puzzle className="w-4 h-4 text-violet-400" />}   title="CRDs"           onClick={() => go('/crds', 'CRDs')} />
             <ViewTile icon={<GitBranch className="w-4 h-4 text-violet-400" />} title="GitOps"        onClick={() => go('/gitops', 'GitOps')} />
             <ViewTile icon={<Globe className="w-4 h-4 text-blue-400" />} title="Fleet"          onClick={() => go('/fleet', 'Fleet')} />
+            <ViewTile icon={<Monitor className="w-4 h-4 text-cyan-400" />}    title="Monitor"        onClick={() => go('/monitor', 'Monitor')} path="/monitor" />
             <ViewTile icon={<Settings className="w-4 h-4 text-slate-400" />}  title="Administration" onClick={() => go('/admin', 'Administration')} />
             <ViewTile icon={<Package className="w-4 h-4 text-blue-400" />}    title="Software"       onClick={() => go('/create/v1~pods', 'Software')} />
             <ViewTile icon={<Clock className="w-4 h-4 text-blue-400" />}      title="Timeline"       onClick={() => go('/admin?tab=timeline', 'Timeline')} />

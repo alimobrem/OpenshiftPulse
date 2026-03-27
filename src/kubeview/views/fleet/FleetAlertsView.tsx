@@ -33,6 +33,7 @@ export default function FleetAlertsView() {
 
   const [loading, setLoading] = useState(true);
   const [alerts, setAlerts] = useState<FleetAlert[]>([]);
+  const [fetchError, setFetchError] = useState(false);
   const [severityFilter, setSeverityFilter] = useState<string>('all');
   const [clusterFilter, setClusterFilter] = useState<string>('all');
   const [searchInput, setSearchInput] = useState('');
@@ -86,10 +87,15 @@ export default function FleetAlertsView() {
       );
 
       const allAlerts: FleetAlert[] = [];
+      let anySucceeded = false;
       for (const r of results) {
-        if (r.status === 'fulfilled') allAlerts.push(...r.value);
+        if (r.status === 'fulfilled') {
+          anySucceeded = true;
+          allAlerts.push(...r.value);
+        }
       }
       setAlerts(allAlerts);
+      setFetchError(!anySucceeded && results.length > 0);
     } finally {
       setLoading(false);
     }
@@ -180,9 +186,25 @@ export default function FleetAlertsView() {
     return (
       <div className="h-full flex items-center justify-center bg-slate-950">
         <div className="text-center space-y-2">
-          <Bell className="w-10 h-10 text-slate-700 mx-auto" />
-          <p className="text-slate-400 text-sm">No firing alerts across the fleet</p>
-          <p className="text-slate-600 text-xs">All clusters are quiet. Check back later or verify cluster connectivity.</p>
+          {fetchError ? (
+            <>
+              <XCircle className="w-10 h-10 text-red-400 mx-auto" />
+              <p className="text-red-300 text-sm">Unable to reach alerting backend</p>
+              <p className="text-slate-500 text-xs">Check that Prometheus/Alertmanager is configured and accessible on your clusters.</p>
+              <button
+                onClick={fetchAlerts}
+                className="mt-2 px-4 py-2 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+              >
+                Retry
+              </button>
+            </>
+          ) : (
+            <>
+              <Bell className="w-10 h-10 text-slate-700 mx-auto" />
+              <p className="text-slate-400 text-sm">No firing alerts across the fleet</p>
+              <p className="text-slate-600 text-xs">All clusters are quiet. Check back later or verify cluster connectivity.</p>
+            </>
+          )}
         </div>
       </div>
     );
