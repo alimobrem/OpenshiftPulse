@@ -18,7 +18,7 @@ import {
   type ActionRecord,
   type FixHistoryFilters,
 } from '../engine/fixHistory';
-import { useTrustStore, TRUST_LABELS } from './trustStore';
+import { useTrustStore } from './trustStore';
 
 const MAX_FINDINGS = 200;
 const MAX_PREDICTIONS = 50;
@@ -191,7 +191,7 @@ export const useMonitorStore = create<MonitorState>()(
         const state = get();
         const { trustLevel } = useTrustStore.getState();
         client.connect(
-          TRUST_LABELS[trustLevel].toLowerCase(),
+          String(trustLevel),
           state.autoFixCategories,
         );
       },
