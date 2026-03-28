@@ -67,7 +67,7 @@ export function PreviewPanel({ resource, gvrKey, onClose }: PreviewPanelProps) {
             onClick={handleOpenDetail}
             className="w-full px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors"
           >
-            Open Detail Page &rarr;
+            Open Detail View &rarr;
           </button>
         </div>
       </div>

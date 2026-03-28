@@ -152,7 +152,7 @@ export function TabBar() {
   }
 
   return (
-    <div className="flex h-9 items-center gap-0.5 border-b border-slate-700 bg-slate-800 px-2 overflow-x-auto hide-scrollbar">
+    <div role="tablist" aria-label="Open tabs" className="flex h-9 items-center gap-0.5 border-b border-slate-700 bg-slate-800 px-2 overflow-x-auto hide-scrollbar">
       {tabs.map((tab, tabIndex) => {
         const Icon = getIcon(tab.icon);
         const isActive = tab.id === activeTabId;
@@ -162,6 +162,7 @@ export function TabBar() {
           <div
             key={tab.id}
             role="tab"
+            aria-selected={isActive}
             draggable={!tab.pinned}
             onDragStart={() => setDraggedIdx(tabIndex)}
             onDragOver={(e) => { e.preventDefault(); setDragOverIdx(tabIndex); }}

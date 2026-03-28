@@ -95,6 +95,7 @@ export function ConfirmDialog({
         ref={dialogRef}
         className="w-full max-w-md rounded-lg bg-slate-800 p-6 shadow-xl"
         role="dialog"
+        aria-modal="true"
         aria-labelledby="dialog-title"
         aria-describedby="dialog-description"
       >

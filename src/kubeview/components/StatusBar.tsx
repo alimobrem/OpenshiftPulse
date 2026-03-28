@@ -107,9 +107,9 @@ export function StatusBar() {
               ? monitorCriticalCount > 0 ? 'text-red-500' : monitorFindings.length > 0 ? 'text-amber-500' : 'text-emerald-500'
               : 'text-slate-500',
           )} />
-          <span className="text-[11px]">Incidents</span>
+          <span className="text-xs">Incidents</span>
           {monitorFindings.length > 0 && (
-            <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
+            <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-xs font-bold text-white">
               {monitorFindings.length}
             </span>
           )}
@@ -120,7 +120,7 @@ export function StatusBar() {
             title={Array.from(degradedReasons).map((r) => DEGRADED_MESSAGES[r].title).join(', ')}
           >
             <AlertTriangle className="h-3 w-3" />
-            <span className="text-[11px]">Degraded</span>
+            <span className="text-xs">Degraded</span>
           </span>
         )}
         <button

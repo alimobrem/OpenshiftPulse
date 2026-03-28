@@ -337,7 +337,7 @@ function getCommandItems(
     }
 
     // Built-in pages
-    const builtinPages: CommandItem[] = [
+    const builtinViews: CommandItem[] = [
       { type: 'nav', id: 'welcome', title: 'Welcome', subtitle: 'Getting started guide', icon: 'Home', path: '/welcome' },
       { type: 'nav', id: 'pulse', title: 'Cluster Pulse', subtitle: 'Health overview', icon: 'Activity', path: '/pulse' },
       { type: 'nav', id: 'workloads', title: 'Workloads', subtitle: 'Deployments, StatefulSets, DaemonSets, Jobs, Pods', icon: 'Package', path: '/workloads' },
@@ -357,7 +357,7 @@ function getCommandItems(
       { type: 'nav', id: 'onboarding', title: 'Production Readiness', subtitle: 'Readiness wizard — security, reliability, observability gates', icon: 'Shield', path: '/onboarding' },
     ];
 
-    const matchingPages = builtinPages.filter((page) =>
+    const matchingPages = builtinViews.filter((page) =>
       !cleanQuery || page.title.toLowerCase().includes(cleanQuery) || page.subtitle!.toLowerCase().includes(cleanQuery)
     );
     items.push(...matchingPages);
@@ -524,7 +524,7 @@ function renderGroups(
     const group = item.type === 'recent' ? 'FAVORITES' :
                   item.type === 'resource' ? 'RESOURCES' :
                   item.type === 'action' ? 'ACTIONS' :
-                  item.type === 'ai' ? 'PULSE AI' : 'PAGES';
+                  item.type === 'ai' ? 'PULSE AI' : 'VIEWS';
 
     if (!grouped.has(group)) {
       grouped.set(group, []);

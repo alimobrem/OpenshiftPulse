@@ -255,6 +255,8 @@ function IncidentCard({
   onSilence?: () => void;
 }) {
   const [silencing, setSilencing] = useState(false);
+  const [confirmSilence, setConfirmSilence] = useState(false);
+  const [confirmDismiss, setConfirmDismiss] = useState(false);
 
   return (
     <Card>
@@ -310,10 +312,7 @@ function IncidentCard({
           </button>
           {onSilence && (
             <button
-              onClick={async () => {
-                setSilencing(true);
-                try { await onSilence(); } finally { setSilencing(false); }
-              }}
+              onClick={() => setConfirmSilence(true)}
               disabled={silencing}
               className="px-2.5 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 rounded flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="Silence this alert for 2 hours"
@@ -324,7 +323,7 @@ function IncidentCard({
           )}
           {onDismiss && (
             <button
-              onClick={onDismiss}
+              onClick={() => setConfirmDismiss(true)}
               className="px-2.5 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 rounded flex items-center gap-1.5 transition-colors"
             >
               <X className="w-3.5 h-3.5" />
@@ -333,6 +332,38 @@ function IncidentCard({
           )}
         </div>
       </div>
+
+      {/* Silence Confirmation Dialog */}
+      <ConfirmDialog
+        open={confirmSilence}
+        onClose={() => setConfirmSilence(false)}
+        title="Silence Alert"
+        description={`Silence alert ${incident.title} for 2 hours?`}
+        confirmLabel="Silence"
+        variant="warning"
+        loading={silencing}
+        onConfirm={async () => {
+          if (onSilence) {
+            setSilencing(true);
+            try { await onSilence(); } finally { setSilencing(false); }
+          }
+          setConfirmSilence(false);
+        }}
+      />
+
+      {/* Dismiss Confirmation Dialog */}
+      <ConfirmDialog
+        open={confirmDismiss}
+        onClose={() => setConfirmDismiss(false)}
+        title="Dismiss Finding"
+        description="Dismiss this finding? It won't appear again until the next scan."
+        confirmLabel="Dismiss"
+        variant="warning"
+        onConfirm={() => {
+          onDismiss?.();
+          setConfirmDismiss(false);
+        }}
+      />
     </Card>
   );
 }
