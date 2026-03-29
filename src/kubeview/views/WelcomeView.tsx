@@ -60,11 +60,11 @@ export default function WelcomeView() {
   });
   const topIssuesCount = firingAlerts.length;
 
-  const { data: briefing } = useQuery<BriefingResponse>({
+  const { data: briefing, isLoading: briefingLoading, isError: briefingError } = useQuery<BriefingResponse>({
     queryKey: ['briefing'],
     queryFn: () => fetchBriefing(12),
     staleTime: 5 * 60_000,
-    retry: false,
+    retry: 1,
   });
 
   return (
@@ -107,8 +107,28 @@ export default function WelcomeView() {
         </div>
 
         {/* ── Briefing Card ── */}
-        {briefing && (
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-6 py-4">
+        {briefingLoading && (
+          <div className="rounded-xl border border-slate-800 bg-slate-900 px-6 py-4 animate-pulse">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-5 h-5 rounded bg-slate-700" />
+              <div className="h-5 w-32 rounded bg-slate-700" />
+            </div>
+            <div className="h-4 w-64 rounded bg-slate-700" />
+          </div>
+        )}
+        {briefingError && (
+          <div className="rounded-xl border border-slate-800 bg-slate-900 px-6 py-4">
+            <div className="flex items-center gap-3">
+              <HeartPulse className="w-5 h-5 text-slate-500" />
+              <span className="text-sm text-slate-500">Unable to load briefing</span>
+              <button onClick={() => queryClient.invalidateQueries({ queryKey: ['briefing'] })} className="text-xs text-blue-400 hover:text-blue-300">
+                <RefreshCw className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+        {briefing && !briefingLoading && (
+          <div className="rounded-xl border border-slate-800 bg-slate-900 px-6 py-4">
             <div className="flex items-center gap-3 mb-2">
               <HeartPulse className="w-5 h-5 text-blue-400" />
               <h2 className="text-lg font-semibold text-slate-100">{briefing.greeting}</h2>

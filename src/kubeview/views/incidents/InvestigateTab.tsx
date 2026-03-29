@@ -41,10 +41,14 @@ function InvestigationCard({ report }: { report: InvestigationReport }) {
         </span>
         <span>{report.category}</span>
         {report.confidence != null && report.confidence > 0 && (
-          <span className={cn(
-            'font-mono',
-            report.confidence >= 0.8 ? 'text-green-400' : report.confidence >= 0.5 ? 'text-amber-400' : 'text-red-400',
-          )}>
+          <span
+            className={cn(
+              'font-mono',
+              report.confidence >= 0.8 ? 'text-green-400' : report.confidence >= 0.5 ? 'text-amber-400' : 'text-red-400',
+            )}
+            title={`Agent confidence in this diagnosis: ${Math.round(report.confidence * 100)}%`}
+            aria-label={`Agent confidence: ${Math.round(report.confidence * 100)}%`}
+          >
             {Math.round(report.confidence * 100)}% confidence
           </span>
         )}

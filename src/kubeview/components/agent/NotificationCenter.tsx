@@ -106,7 +106,7 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-semibold text-slate-100">Notifications</h2>
             {unreadCount > 0 && (
-              <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white">
+              <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1.5 text-xs font-bold text-white">
                 {unreadCount}
               </span>
             )}
@@ -223,13 +223,13 @@ export function NotificationCenter({ open, onClose }: NotificationCenterProps) {
                       <div className="mt-1.5 flex items-center gap-2">
                         <button
                           onClick={() => approveAction(a.id)}
-                          className="px-2 py-0.5 text-[10px] rounded bg-emerald-700 text-white hover:bg-emerald-600 transition-colors"
+                          className="px-2 py-0.5 text-xs rounded bg-emerald-700 text-white hover:bg-emerald-600 transition-colors"
                         >
                           Approve
                         </button>
                         <button
                           onClick={() => rejectAction(a.id)}
-                          className="px-2 py-0.5 text-[10px] rounded bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors"
+                          className="px-2 py-0.5 text-xs rounded bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors"
                         >
                           Reject
                         </button>

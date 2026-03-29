@@ -940,7 +940,7 @@ export function ReportTab({ nodes, allPods, deployments, pvcs, operators, go }: 
                   <button key={i} onClick={() => go(ev.path, ev.name)}
                     className="w-full flex items-center gap-2 text-xs text-left hover:bg-slate-800/50 px-2 py-1.5 rounded transition-colors group">
                     <span className="text-slate-500 w-10 shrink-0 text-right font-mono">{ev.ago}</span>
-                    <span className={cn('px-1 py-0.5 rounded text-[10px] font-medium shrink-0',
+                    <span className={cn('px-1 py-0.5 rounded text-xs font-medium shrink-0',
                       ev.reason === 'Killing' || ev.reason === 'Unhealthy' || ev.reason === 'BackOff' ? 'bg-red-900/40 text-red-300' :
                       ev.reason === 'Pulled' || ev.reason === 'Created' || ev.reason === 'Started' || ev.reason === 'Scheduled' ? 'bg-green-900/40 text-green-300' :
                       'bg-slate-800 text-slate-400'

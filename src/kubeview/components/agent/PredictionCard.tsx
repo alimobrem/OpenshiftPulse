@@ -131,7 +131,7 @@ export function PredictionCard({ prediction, onPrevent, compact }: PredictionCar
                 onClick={() => onPrevent(prediction)}
                 className={cn(
                   'flex items-center gap-1 rounded bg-blue-700 text-white transition-colors hover:bg-blue-600',
-                  compact ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs',
+                  compact ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-xs',
                 )}
               >
                 Prevent Now

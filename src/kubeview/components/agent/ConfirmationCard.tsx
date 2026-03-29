@@ -236,7 +236,7 @@ export function ConfirmationCard({ confirm, onConfirm }: ConfirmationCardProps) 
               aria-label="Approve operation (Y)"
             >
               <CheckCircle className="h-3.5 w-3.5" aria-hidden="true" />
-              Approve <kbd className="ml-1 text-[10px] opacity-60 bg-green-900 px-1 rounded">Y</kbd>
+              Approve <kbd className="ml-1 text-xs opacity-60 bg-green-900 px-1 rounded">Y</kbd>
             </button>
             {!showSimulation && (
               <button
@@ -254,7 +254,7 @@ export function ConfirmationCard({ confirm, onConfirm }: ConfirmationCardProps) 
               aria-label="Deny operation (N)"
             >
               <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
-              Deny <kbd className="ml-1 text-[10px] opacity-60 bg-red-900 px-1 rounded">N</kbd>
+              Deny <kbd className="ml-1 text-xs opacity-60 bg-red-900 px-1 rounded">N</kbd>
             </button>
           </div>
           )}

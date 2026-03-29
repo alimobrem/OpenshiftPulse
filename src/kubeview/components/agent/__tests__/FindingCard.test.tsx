@@ -88,12 +88,15 @@ describe('FindingCard', () => {
     expect(onInvestigate).toHaveBeenCalledWith(baseFinding);
   });
 
-  it('shows Dismiss button and calls onDismiss', () => {
+  it('shows Dismiss button and calls onDismiss after confirmation', () => {
     const onDismiss = vi.fn();
     render(<FindingCard finding={baseFinding} onDismiss={onDismiss} />);
     const btn = screen.getByText('Dismiss');
     expect(btn).toBeTruthy();
     fireEvent.click(btn);
+    // ConfirmDialog opens — find and click the confirm button (second "Dismiss" in DOM)
+    const dismissButtons = screen.getAllByText('Dismiss');
+    fireEvent.click(dismissButtons[dismissButtons.length - 1]);
     expect(onDismiss).toHaveBeenCalledWith('f-1');
   });
 
@@ -103,6 +106,9 @@ describe('FindingCard', () => {
     const btn = screen.getByText('Auto-Fix');
     expect(btn).toBeTruthy();
     fireEvent.click(btn);
+    // ConfirmDialog opens — click the confirm button
+    const confirmBtn = screen.getByText('Apply Fix');
+    fireEvent.click(confirmBtn);
     expect(onAutoFix).toHaveBeenCalledWith('f-1');
   });
 

@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { AlertTriangle, Info, Search, X, Wrench, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ConfirmDialog } from '../feedback/ConfirmDialog';
 import type { Finding } from '../../engine/monitorClient';
 
 export type { Finding };
@@ -42,6 +44,8 @@ export function FindingCard({ finding, onInvestigate, onDismiss, onAutoFix, comp
   const badge = SEVERITY_BADGE[finding.severity];
   const Icon = SEVERITY_ICON[finding.severity];
   const isNoisy = (finding.noiseScore ?? 0) >= 0.5;
+  const [confirmDismiss, setConfirmDismiss] = useState(false);
+  const [confirmAutoFix, setConfirmAutoFix] = useState(false);
   const maxResources = 3;
   const visibleResources = finding.resources.slice(0, maxResources);
   const remaining = finding.resources.length - maxResources;
@@ -61,15 +65,19 @@ export function FindingCard({ finding, onInvestigate, onDismiss, onAutoFix, comp
         <Icon className={cn('shrink-0', badge.text, compact ? 'h-3.5 w-3.5 mt-0.5' : 'h-4 w-4 mt-0.5')} aria-hidden="true" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className={cn('inline-flex items-center rounded px-1.5 py-0.5 font-medium', badge.bg, badge.text, compact ? 'text-[10px]' : 'text-xs')}>
+            <span className={cn('inline-flex items-center rounded px-1.5 py-0.5 font-medium', badge.bg, badge.text, compact ? 'text-xs' : 'text-xs')}>
               {badge.label}
             </span>
             <span className="text-xs text-slate-500">{finding.category}</span>
             {finding.confidence != null && (
-              <span className={cn(
-                'text-xs font-mono',
-                finding.confidence >= 0.85 ? 'text-slate-400' : finding.confidence >= 0.7 ? 'text-amber-400' : 'text-slate-500',
-              )}>
+              <span
+                className={cn(
+                  'text-xs font-mono',
+                  finding.confidence >= 0.8 ? 'text-slate-400' : finding.confidence >= 0.5 ? 'text-amber-400' : 'text-red-400',
+                )}
+                title={`Agent confidence: ${Math.round(finding.confidence * 100)}%`}
+                aria-label={`Agent confidence: ${Math.round(finding.confidence * 100)}%`}
+              >
                 {Math.round(finding.confidence * 100)}%
               </span>
             )}
@@ -113,7 +121,7 @@ export function FindingCard({ finding, onInvestigate, onDismiss, onAutoFix, comp
                 onClick={() => onInvestigate(finding)}
                 className={cn(
                   'flex items-center gap-1 rounded bg-slate-700 text-slate-200 transition-colors hover:bg-slate-600',
-                  compact ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs',
+                  compact ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-xs',
                 )}
               >
                 <Search className={cn(compact ? 'h-2.5 w-2.5' : 'h-3 w-3')} aria-hidden="true" />
@@ -122,10 +130,10 @@ export function FindingCard({ finding, onInvestigate, onDismiss, onAutoFix, comp
             )}
             {onDismiss && (
               <button
-                onClick={() => onDismiss(finding.id)}
+                onClick={() => setConfirmDismiss(true)}
                 className={cn(
                   'flex items-center gap-1 rounded bg-slate-700 text-slate-400 transition-colors hover:bg-slate-600 hover:text-slate-200',
-                  compact ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs',
+                  compact ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-xs',
                 )}
               >
                 <X className={cn(compact ? 'h-2.5 w-2.5' : 'h-3 w-3')} aria-hidden="true" />
@@ -134,10 +142,10 @@ export function FindingCard({ finding, onInvestigate, onDismiss, onAutoFix, comp
             )}
             {finding.autoFixable && onAutoFix && (
               <button
-                onClick={() => onAutoFix(finding.id)}
+                onClick={() => setConfirmAutoFix(true)}
                 className={cn(
                   'flex items-center gap-1 rounded bg-emerald-700 text-white transition-colors hover:bg-emerald-600',
-                  compact ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs',
+                  compact ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-xs',
                 )}
               >
                 <Wrench className={cn(compact ? 'h-2.5 w-2.5' : 'h-3 w-3')} aria-hidden="true" />
@@ -147,6 +155,29 @@ export function FindingCard({ finding, onInvestigate, onDismiss, onAutoFix, comp
           </div>
         </div>
       </div>
+
+      {onDismiss && (
+        <ConfirmDialog
+          open={confirmDismiss}
+          onClose={() => setConfirmDismiss(false)}
+          onConfirm={() => { onDismiss(finding.id); setConfirmDismiss(false); }}
+          title="Dismiss Finding"
+          description={`Dismiss "${finding.title}"? It will be hidden until it reappears on the next scan.`}
+          confirmLabel="Dismiss"
+          variant="warning"
+        />
+      )}
+      {onAutoFix && (
+        <ConfirmDialog
+          open={confirmAutoFix}
+          onClose={() => setConfirmAutoFix(false)}
+          onConfirm={() => { onAutoFix(finding.id); setConfirmAutoFix(false); }}
+          title="Auto-Fix Finding"
+          description={`Apply automatic fix for "${finding.title}"? This will modify live cluster resources (${finding.resources.map(r => `${r.kind}/${r.name}`).join(', ')}).`}
+          confirmLabel="Apply Fix"
+          variant="warning"
+        />
+      )}
     </div>
   );
 }

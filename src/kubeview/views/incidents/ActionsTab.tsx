@@ -121,10 +121,14 @@ function ActionCardHeader({ action, statusOverride }: { action: ActionReport; st
         {status}
       </span>
       {action.confidence != null && (
-        <span className={cn(
-          'text-xs font-mono',
-          action.confidence >= 0.8 ? 'text-green-400' : action.confidence >= 0.5 ? 'text-amber-400' : 'text-red-400',
-        )}>
+        <span
+          className={cn(
+            'text-xs font-mono',
+            action.confidence >= 0.8 ? 'text-green-400' : action.confidence >= 0.5 ? 'text-amber-400' : 'text-red-400',
+          )}
+          title={`Agent confidence this fix will resolve the issue: ${Math.round(action.confidence * 100)}%`}
+          aria-label={`Agent confidence: ${Math.round(action.confidence * 100)}%`}
+        >
           {Math.round(action.confidence * 100)}%
         </span>
       )}

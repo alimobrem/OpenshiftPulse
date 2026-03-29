@@ -150,7 +150,7 @@ export const MessageBubble = memo(function MessageBubble({ message, mode }: { me
           <RichContent content={message.content} components={message.components} />
         )}
         <div className="flex items-center justify-between mt-1.5 pt-1 border-t border-slate-700/50">
-          <span className="text-[10px] text-slate-500 flex items-center gap-1">
+          <span className="text-xs text-slate-500 flex items-center gap-1">
             <Clock className="h-2.5 w-2.5" aria-hidden="true" />
             {timeStr}
           </span>
