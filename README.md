@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://github.com/alimobrem/OpenshiftPulse/releases/tag/v5.13.0"><img src="https://img.shields.io/badge/release-v5.13.0-2563eb?style=for-the-badge" alt="Version"></a>
-  <img src="https://img.shields.io/badge/tests-1888%20passed-10b981?style=for-the-badge" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-1884%20passed-10b981?style=for-the-badge" alt="Tests">
   <img src="https://img.shields.io/badge/health%20checks-77-f59e0b?style=for-the-badge" alt="Health Checks">
   <img src="https://img.shields.io/badge/CVEs-0-10b981?style=for-the-badge" alt="CVEs">
   <img src="https://img.shields.io/badge/license-MIT-6366f1?style=for-the-badge" alt="License">
@@ -242,6 +242,21 @@ oc rollout restart deployment/openshiftpulse -n openshiftpulse
 npm run build && oc start-build openshiftpulse --from-dir=dist --follow -n openshiftpulse && oc rollout restart deployment/openshiftpulse -n openshiftpulse
 ```
 
+### CI/CD
+
+| Workflow | Trigger | What it does |
+|----------|---------|-------------|
+| `ci.yml` | PR, push to main | Type check + lint + test + build + npm audit |
+| `build-push.yml` | `v*` tag push, manual | Builds image, pushes to `quay.io/amobrem/openshiftpulse` |
+
+**To release:**
+```bash
+git tag v5.14.0 && git push origin v5.14.0
+# GitHub Actions builds and pushes to Quay.io
+```
+
+**Required GitHub Secrets:** `QUAY_USERNAME`, `QUAY_PASSWORD` (robot account `amobrem+cibot`)
+
 ### Uninstall
 
 ```bash
@@ -332,7 +347,7 @@ Browser --> OAuth Proxy (8443/TLS) --> nginx (8080) --> K8s API / Prometheus / A
 ---
 
 <p align="center">
-  <strong>1888 tests</strong> &bull; <strong>77 health checks</strong> &bull; <strong>~1s builds</strong> &bull; <strong>0 CVEs</strong> &bull; <strong>15 views</strong> &bull; <strong>68 AI tools</strong> &bull; <strong>500+ operators</strong>
+  <strong>1884 tests</strong> &bull; <strong>77 health checks</strong> &bull; <strong>~1s builds</strong> &bull; <strong>0 CVEs</strong> &bull; <strong>15 views</strong> &bull; <strong>68 AI tools</strong> &bull; <strong>500+ operators</strong>
 </p>
 
 <p align="center">
