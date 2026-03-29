@@ -34,6 +34,9 @@ const CLUSTER_ADMIN_THRESHOLD = 3;
 export default function SecurityView() {
   const go = useNavigateTab();
   const isHyperShift = useClusterStore((s) => s.isHyperShift);
+  const apiGroups = useClusterStore((s) => s.apiGroups);
+  const hasExternalSecrets = apiGroups.some((g) => g.name === 'external-secrets.io');
+  const hasSealedSecrets = apiGroups.some((g) => g.name === 'bitnami.com');
 
   // Data
   const { data: oauthConfig } = useQuery({
@@ -71,13 +74,13 @@ export default function SecurityView() {
     queryKey: ['security', 'externalsecrets'],
     queryFn: () => k8sList<K8sResource>('/apis/external-secrets.io/v1beta1/externalsecrets').catch(() => []),
     staleTime: 120000,
-    retry: false,
+    enabled: hasExternalSecrets,
   });
   const { data: sealedSecrets = [] } = useQuery<K8sResource[]>({
     queryKey: ['security', 'sealedsecrets'],
     queryFn: () => k8sList<K8sResource>('/apis/bitnami.com/v1alpha1/sealedsecrets').catch(() => []),
     staleTime: 120000,
-    retry: false,
+    enabled: hasSealedSecrets,
   });
 
   // StackRox / ACS detection
