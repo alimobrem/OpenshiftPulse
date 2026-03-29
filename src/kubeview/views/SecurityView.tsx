@@ -1,9 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { lazy, Suspense, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Shield, ShieldAlert, ShieldCheck, ShieldOff, Lock, Key, Users,
   CheckCircle, XCircle, AlertTriangle, ArrowRight, ChevronDown, ChevronRight,
-  Globe, Server, Eye, FileText, Network,
+  Globe, Server, Eye, FileText, Network, Bot,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { k8sGet, k8sList } from '../engine/query';
@@ -15,6 +15,9 @@ import type { ClusterRoleBinding, Namespace, Subject } from '../engine/types';
 import { useClusterStore } from '../store/clusterStore';
 import { MetricGrid } from '../components/primitives/MetricGrid';
 import { Card } from '../components/primitives/Card';
+import { ErrorBoundary } from '../components/ErrorBoundary';
+
+const InlineAgent = lazy(() => import('../components/agent/InlineAgent').then(m => ({ default: m.InlineAgent })));
 
 interface AuditCheck {
   id: string;
@@ -68,11 +71,13 @@ export default function SecurityView() {
     queryKey: ['security', 'externalsecrets'],
     queryFn: () => k8sList<K8sResource>('/apis/external-secrets.io/v1beta1/externalsecrets').catch(() => []),
     staleTime: 120000,
+    retry: false,
   });
   const { data: sealedSecrets = [] } = useQuery<K8sResource[]>({
     queryKey: ['security', 'sealedsecrets'],
     queryFn: () => k8sList<K8sResource>('/apis/bitnami.com/v1alpha1/sealedsecrets').catch(() => []),
     staleTime: 120000,
+    retry: false,
   });
 
   // StackRox / ACS detection
@@ -268,6 +273,29 @@ export default function SecurityView() {
           </h1>
           <p className="text-sm text-slate-400 mt-1">Security posture, audit checks, access control, and policy overview</p>
         </div>
+
+        {/* AI Security Scanner */}
+        <ErrorBoundary>
+          <Suspense fallback={
+            <div className="rounded-lg border border-slate-800 bg-slate-900 p-4 animate-pulse">
+              <div className="flex items-center gap-2">
+                <Bot className="w-4 h-4 text-slate-600" />
+                <div className="h-4 w-40 bg-slate-800 rounded" />
+              </div>
+            </div>
+          }>
+            <InlineAgent
+              context={{ kind: 'Cluster', name: 'security-audit' }}
+              quickPrompts={[
+                'Run a full security audit of my cluster',
+                'Scan all pods for security context issues',
+                'Check RBAC for overly permissive roles',
+                'Which namespaces are missing network policies?',
+                'Find secrets older than 90 days that need rotation',
+              ]}
+            />
+          </Suspense>
+        </ErrorBoundary>
 
         {crbLoading && clusterRoleBindings.length === 0 && (
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
