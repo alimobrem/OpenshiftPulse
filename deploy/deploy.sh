@@ -235,10 +235,18 @@ if [[ "$NO_AGENT" == "false" ]]; then
 
 step "Helm install/upgrade Agent"
 cd "$AGENT_REPO"
+HELM_AGENT_ARGS="--set rbac.allowWriteOperations=true --set rbac.allowSecretAccess=true"
+if [[ -n "${ANTHROPIC_VERTEX_PROJECT_ID:-}" ]]; then
+  HELM_AGENT_ARGS="$HELM_AGENT_ARGS --set vertexAI.projectId=${ANTHROPIC_VERTEX_PROJECT_ID} --set vertexAI.region=${CLOUD_ML_REGION:-us-east5}"
+elif [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
+  # Create API key secret and reference it
+  oc delete secret anthropic-api-key -n "$NAMESPACE" 2>/dev/null || true
+  oc create secret generic anthropic-api-key --from-literal=api-key="${ANTHROPIC_API_KEY}" -n "$NAMESPACE"
+  HELM_AGENT_ARGS="$HELM_AGENT_ARGS --set anthropicApiKey.existingSecret=anthropic-api-key"
+fi
 helm upgrade --install "$AGENT_RELEASE" chart/ \
   -n "$NAMESPACE" \
-  --set rbac.allowWriteOperations=true \
-  --set rbac.allowSecretAccess=true \
+  $HELM_AGENT_ARGS \
   --timeout 120s
 info "Helm release: $AGENT_RELEASE"
 
