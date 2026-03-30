@@ -8,6 +8,7 @@ import type { OnboardingMode, ReadinessReport, CategoryView, GateStatus, Readine
 import { buildCategoryViews, computeScore } from '../components/onboarding/types';
 import { ALL_GATES, evaluateAllGates } from '../engine/readiness/gates';
 import type { GateContext } from '../engine/readiness/types';
+import { useClusterStore } from '../store/clusterStore';
 
 const STORAGE_KEY = 'openshiftpulse:onboarding-completed';
 
@@ -34,18 +35,21 @@ export default function OnboardingView() {
   );
   const [report, setReport] = React.useState<ReadinessReport | null>(null);
   const [evalError, setEvalError] = React.useState<Error | null>(null);
+  const isHyperShift = useClusterStore((s) => s.isHyperShift);
+
+  const makeGateContext = React.useCallback((): GateContext => ({
+    fetchJson: async <T = unknown,>(path: string): Promise<T> => {
+      const res = await fetch(`/api/kubernetes${path}`);
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      return res.json() as Promise<T>;
+    },
+    isHyperShift,
+  }), [isHyperShift]);
 
   // Evaluate all readiness gates against the live cluster
   React.useEffect(() => {
     let cancelled = false;
-    const ctx: GateContext = {
-      fetchJson: async <T = unknown,>(path: string): Promise<T> => {
-        const res = await fetch(`/api/kubernetes${path}`);
-        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-        return res.json() as Promise<T>;
-      },
-      isHyperShift: false,
-    };
+    const ctx = makeGateContext();
 
     evaluateAllGates(ctx).then((results) => {
       if (cancelled) return;
@@ -150,16 +154,7 @@ export default function OnboardingView() {
     const gate = ALL_GATES.find((g) => g.id === gateId);
     if (!gate) return;
 
-    const ctx: GateContext = {
-      fetchJson: async <T = unknown,>(path: string): Promise<T> => {
-        const res = await fetch(`/api/kubernetes${path}`);
-        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-        return res.json() as Promise<T>;
-      },
-      isHyperShift: false,
-    };
-
-    gate.evaluate(ctx).then((result) => {
+    gate.evaluate(makeGateContext()).then((result) => {
       setReport((prev) => {
         if (!prev) return prev;
         const results = { ...prev.results, [gateId]: result };
