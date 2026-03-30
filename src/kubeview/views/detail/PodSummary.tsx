@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { formatRelativeTime } from '../../engine/formatters';
 import {
   CheckCircle, XCircle, AlertCircle, Clock, Globe,
   Server, Shield, Cpu, MemoryStick, Image,
@@ -19,15 +20,7 @@ interface PodSummaryProps {
 
 function formatAge(timestamp: string | undefined): string {
   if (!timestamp) return '—';
-  const diff = Date.now() - new Date(timestamp).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d`;
-  return `${Math.floor(days / 30)}mo`;
+  return formatRelativeTime(new Date(timestamp).getTime());
 }
 
 function ProbeTag({ label, probe }: { label: string; probe: Probe | undefined }) {

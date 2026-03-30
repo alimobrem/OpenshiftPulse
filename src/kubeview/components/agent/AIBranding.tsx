@@ -76,7 +76,9 @@ export function AIBadge({ className }: { className?: string }) {
 }
 
 /** Shimmer skeleton loader with AI accent */
-export function AIShimmer({ lines = 3, className }: { lines?: number; className?: string }) {
+// Unused — kept for future use
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function AIShimmer({ lines = 3, className }: { lines?: number; className?: string }) {
   return (
     <div className={cn('space-y-2 animate-pulse', className)} role="status" aria-label="Loading AI content">
       {Array.from({ length: lines }).map((_, i) => (

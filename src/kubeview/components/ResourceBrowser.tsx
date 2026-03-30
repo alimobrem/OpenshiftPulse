@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, ChevronRight, ChevronDown, Star, Activity, Package, Globe, Server, HardDrive, Clock, Shield, Bell, Settings } from 'lucide-react';
+import { Search, ChevronRight, ChevronDown, Star, Activity, Package, Globe, Server, HardDrive, Clock, Shield, Bell, Settings, LayoutDashboard } from 'lucide-react';
 import { useUIStore } from '../store/uiStore';
 import { useClusterStore } from '../store/clusterStore';
+import { useCustomViewStore } from '../store/customViewStore';
 import { getResourceIcon } from '../engine/iconRegistry';
 
 interface GroupedResources {
@@ -191,6 +192,30 @@ export function ResourceBrowser() {
             </button>
           ))}
         </div>
+
+        {/* Custom dashboards */}
+        {useCustomViewStore.getState().views.length > 0 && (
+          <div className="border-b border-slate-700 p-3">
+            <div className="mb-2 flex items-center gap-2 px-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+              <LayoutDashboard className="h-3 w-3" />
+              Your Dashboards
+            </div>
+            {useCustomViewStore.getState().views.map((v) => (
+              <button
+                key={v.id}
+                onClick={() => {
+                  addTab({ title: v.title, icon: 'LayoutDashboard', path: `/custom/${v.id}`, pinned: false, closable: true });
+                  navigate(`/custom/${v.id}`);
+                  closeBrowser();
+                }}
+                className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-slate-300 transition-colors hover:bg-slate-700"
+              >
+                <LayoutDashboard className="h-4 w-4 text-violet-400" />
+                {v.title}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Resource groups */}
         <div className="flex-1 overflow-auto p-3">
