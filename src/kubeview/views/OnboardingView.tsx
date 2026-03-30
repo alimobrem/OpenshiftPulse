@@ -136,6 +136,7 @@ export default function OnboardingView() {
   }, []);
 
   const handleReVerify = React.useCallback((gateId: string) => {
+    // Set status to checking
     setReport((prev) => {
       if (!prev) return prev;
       const results = { ...prev.results };
@@ -144,22 +145,61 @@ export default function OnboardingView() {
       }
       return { ...prev, results };
     });
-    // Simulate re-check completing after a moment
-    setTimeout(() => {
+
+    // Actually re-evaluate the gate
+    const gate = ALL_GATES.find((g) => g.id === gateId);
+    if (!gate) return;
+
+    const ctx: GateContext = {
+      fetchJson: async <T = unknown,>(path: string): Promise<T> => {
+        const res = await fetch(`/api/kubernetes${path}`);
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+        return res.json() as Promise<T>;
+      },
+      isHyperShift: false,
+    };
+
+    gate.evaluate(ctx).then((result) => {
+      setReport((prev) => {
+        if (!prev) return prev;
+        const results = { ...prev.results, [gateId]: result };
+
+        // Recompute category summaries
+        const allCategories: ReadinessCategory[] = [
+          'prerequisites', 'security', 'reliability', 'observability', 'operations', 'gitops',
+        ];
+        const categories = {} as Record<ReadinessCategory, CategorySummary>;
+        for (const catId of allCategories) {
+          const catGates = ALL_GATES.filter((g) => g.category === catId);
+          let passed = 0, failed = 0, needs_attention = 0, not_started = 0;
+          for (const g of catGates) {
+            const r = results[g.id];
+            if (!r) { not_started++; continue; }
+            if (r.status === 'passed') passed++;
+            else if (r.status === 'failed') failed++;
+            else if (r.status === 'needs_attention') needs_attention++;
+            else not_started++;
+          }
+          const summary = prev.categories[catId as keyof typeof prev.categories] || {};
+          categories[catId as keyof typeof categories] = {
+            ...summary,
+            passed,
+            failed,
+            needs_attention,
+            not_started,
+            score: catGates.length > 0 ? Math.round((passed / catGates.length) * 100) : 0,
+          };
+        }
+        return { ...prev, results, categories, score: computeScore(categories) };
+      });
+    }).catch(() => {
       setReport((prev) => {
         if (!prev) return prev;
         const results = { ...prev.results };
-        if (results[gateId]?.status === 'checking') {
-          results[gateId] = {
-            ...results[gateId],
-            status: 'not_started' as GateStatus,
-            detail: 'Re-verification pending real engine',
-            evaluatedAt: Date.now(),
-          };
-        }
+        results[gateId] = { ...results[gateId], status: 'failed' as GateStatus, detail: 'Evaluation failed — check cluster connectivity' };
         return { ...prev, results };
       });
-    }, 1500);
+    });
   }, []);
 
   const switchToChecklist = React.useCallback(() => {
