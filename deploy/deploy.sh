@@ -13,6 +13,7 @@
 # Prerequisites: oc (logged in), helm, npm, podman (logged in to quay.io)
 
 set -euo pipefail
+trap 'rm -f /tmp/pulse-ui-build.log /tmp/pulse-ui-push.log' EXIT
 
 # ─── Configuration ───────────────────────────────────────────────────────────
 
@@ -101,17 +102,19 @@ wait_for_route() {
   echo ""
 }
 
-# Compute git-based image tag: short SHA + dirty suffix
 git_tag() {
-  local dir="$1"
   local sha
-  sha=$(git -C "$dir" rev-parse --short=8 HEAD 2>/dev/null || echo "unknown")
-  if ! git -C "$dir" diff --quiet HEAD 2>/dev/null; then
-    echo "${sha}-dirty"
-  else
-    echo "$sha"
-  fi
+  sha=$(git -C "$1" rev-parse --short=8 HEAD 2>/dev/null || echo "unknown")
+  git -C "$1" diff --quiet HEAD 2>/dev/null && echo "$sha" || echo "${sha}-dirty"
 }
+
+ensure_secret() {
+  local name="$1" ns="$2"; shift 2
+  oc delete secret "$name" -n "$ns" 2>/dev/null || true
+  oc create secret generic "$name" "$@" -n "$ns"
+  info "Secret $name: created"
+}
+
 
 # ─── Uninstall Mode ─────────────────────────────────────────────────────────
 
@@ -283,27 +286,21 @@ fi
 if [[ "$SKIP_BUILD" == "false" ]]; then
   step "Building & pushing images"
 
-  # Build UI: npm first (must complete before podman), then podman
   cd "$PROJECT_DIR"
   npm run build --silent
   info "UI built (dist/)"
 
   if [[ "$NO_AGENT" == "false" ]]; then
-    # Build UI and Agent images in parallel
     info "Building UI and Agent images in parallel..."
-
-    # UI image build in background
     podman build --platform linux/amd64 -t "${UI_IMAGE}:${UI_TAG}" "$PROJECT_DIR" &>/tmp/pulse-ui-build.log &
     UI_BUILD_PID=$!
 
-    # Agent image build in foreground (shows progress)
     cd "$AGENT_REPO"
     AGENT_DOCKERFILE="Dockerfile"
     [[ -f "Dockerfile.full" ]] && AGENT_DOCKERFILE="Dockerfile.full"
     podman build --platform linux/amd64 -t "${AGENT_IMAGE}:${AGENT_TAG}" -f "$AGENT_DOCKERFILE" .
     info "Agent image built"
 
-    # Wait for UI build
     if wait $UI_BUILD_PID; then
       info "UI image built"
     else
@@ -312,7 +309,6 @@ if [[ "$SKIP_BUILD" == "false" ]]; then
       exit 1
     fi
 
-    # Push both (also tag as latest for convenience)
     info "Pushing images..."
     podman tag "${UI_IMAGE}:${UI_TAG}" "${UI_IMAGE}:latest"
     podman tag "${AGENT_IMAGE}:${AGENT_TAG}" "${AGENT_IMAGE}:latest"
@@ -333,7 +329,6 @@ if [[ "$SKIP_BUILD" == "false" ]]; then
       exit 1
     fi
   else
-    # UI only — sequential
     podman build --platform linux/amd64 -t "${UI_IMAGE}:${UI_TAG}" .
     podman tag "${UI_IMAGE}:${UI_TAG}" "${UI_IMAGE}:latest"
     podman push "${UI_IMAGE}:${UI_TAG}"
@@ -352,17 +347,8 @@ if [[ "$NO_AGENT" == "false" ]]; then
   step "Deploying Agent via Helm (creates WS token)"
   cd "$AGENT_REPO"
 
-  # Create secrets BEFORE Helm install
-  if [[ -n "$GCP_KEY" ]]; then
-    oc delete secret gcp-sa-key -n "$NAMESPACE" 2>/dev/null || true
-    oc create secret generic gcp-sa-key --from-file=key.json="$GCP_KEY" -n "$NAMESPACE"
-    info "GCP secret: created"
-  fi
-  if [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
-    oc delete secret anthropic-api-key -n "$NAMESPACE" 2>/dev/null || true
-    oc create secret generic anthropic-api-key --from-literal=api-key="${ANTHROPIC_API_KEY}" -n "$NAMESPACE"
-    info "Anthropic API key secret: created"
-  fi
+  [[ -n "$GCP_KEY" ]] && ensure_secret gcp-sa-key "$NAMESPACE" --from-file=key.json="$GCP_KEY"
+  [[ -n "${ANTHROPIC_API_KEY:-}" ]] && ensure_secret anthropic-api-key "$NAMESPACE" --from-literal=api-key="${ANTHROPIC_API_KEY}"
 
   HELM_AGENT_ARGS="--set rbac.allowWriteOperations=true --set rbac.allowSecretAccess=true"
   HELM_AGENT_ARGS="$HELM_AGENT_ARGS --set image.repository=$AGENT_IMAGE"
@@ -387,7 +373,6 @@ if [[ "$NO_AGENT" == "false" ]]; then
     --timeout 120s
   info "Helm release: $AGENT_RELEASE"
 
-  # Read the token the agent chart generated
   WS_TOKEN_SECRET="${AGENT_RELEASE}-openshift-sre-agent-ws-token"
   step "Reading WS token from agent secret"
   for i in $(seq 1 5); do
@@ -418,7 +403,6 @@ cd "$PROJECT_DIR"
 AGENT_ENABLED="false"
 [[ "$NO_AGENT" == "false" ]] && AGENT_ENABLED="true"
 
-# Label namespace for Helm ownership (prevents conflict if namespace was pre-created)
 oc label namespace "$NAMESPACE" app.kubernetes.io/managed-by=Helm --overwrite 2>/dev/null || true
 oc annotate namespace "$NAMESPACE" meta.helm.sh/release-name=openshiftpulse meta.helm.sh/release-namespace="$NAMESPACE" --overwrite 2>/dev/null || true
 
@@ -501,14 +485,6 @@ if [[ "$NO_AGENT" == "false" ]]; then
     fi
   fi
 fi
-
-# ─── Phase 7: Cleanup ───────────────────────────────────────────────────────
-
-# Clean up old build pods if any remain from previous S2I deploys
-oc delete pod -n "$NAMESPACE" -l openshift.io/build.name --field-selector=status.phase!=Running 2>/dev/null || true
-# Clean up orphaned S2I BuildConfigs/ImageStreams from previous deploys
-oc delete bc -n "$NAMESPACE" --all 2>/dev/null || true
-oc delete is openshiftpulse pulse-agent pulse-agent-deps -n "$NAMESPACE" 2>/dev/null || true
 
 # ─── Summary ─────────────────────────────────────────────────────────────────
 
