@@ -3,9 +3,7 @@
 replicas: 2
 
 image:
-  # For internal registry builds (default), leave as-is.
-  # For external images, set the full image ref.
-  repository: image-registry.openshift-image-registry.svc:5000/openshiftpulse/openshiftpulse
+  repository: quay.io/amobrem/openshiftpulse
   tag: latest
   pullPolicy: Always
 

@@ -150,16 +150,13 @@ Platform: Admin (9 tabs), Onboarding (readiness wizard/checklist)
 
 ### Deploy to OpenShift
 ```bash
-# UI only (quick)
-npm run build && oc start-build openshiftpulse --from-dir=dist --follow -n openshiftpulse && oc rollout restart deployment/openshiftpulse -n openshiftpulse
+# UI only (quick) — build locally, push to Quay, deploy via Helm
+npm run build && podman build -t quay.io/amobrem/openshiftpulse:latest . && podman push quay.io/amobrem/openshiftpulse:latest && helm upgrade --install openshiftpulse deploy/helm/openshiftpulse/ -n openshiftpulse --set image.repository=quay.io/amobrem/openshiftpulse --set image.tag=latest && oc rollout restart deployment/openshiftpulse -n openshiftpulse
 
-# Full verified deploy
-npm run verify && npm run build && oc start-build openshiftpulse --from-dir=dist --follow -n openshiftpulse && oc rollout restart deployment/openshiftpulse -n openshiftpulse
-
-# Full stack (UI + Agent)
+# Full stack (UI + Agent) — uses deploy.sh with Quay images
 ./deploy/deploy.sh --agent-repo ../pulse-agent
 
 # Agent only (quick)
 cd ../pulse-agent && ./deploy/quick-deploy.sh openshiftpulse
 ```
-Helm chart in `deploy/helm/openshiftpulse/`. OAuth proxy, 2 replicas, PDB, topology spread. WS token auto-synced from agent secret on re-deploys. Clean up old build pods if quota issues: `oc delete pod -n openshiftpulse -l openshift.io/build.name --field-selector=status.phase!=Running`
+Helm chart in `deploy/helm/openshiftpulse/`. OAuth proxy, 2 replicas, PDB, topology spread. WS token auto-synced from agent secret on re-deploys. Container images go to `quay.io/amobrem/openshiftpulse` (UI) and `quay.io/amobrem/pulse-agent` (agent) — never use S2I builds on the cluster.
