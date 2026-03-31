@@ -5,7 +5,7 @@ import {
   CheckCircle, XCircle, GitBranch, Clock, ChevronDown,
   Github, HeartPulse, Search, AlertCircle, RefreshCw,
   FileCode, History, GitGraph, ScrollText, Camera,
-  Diff, Monitor, Terminal, Rocket, AlertTriangle,
+  Diff, Monitor, Terminal, Rocket, AlertTriangle, GitPullRequest,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -338,6 +338,7 @@ export default function WelcomeView() {
             <ViewTile icon={<Hammer className="w-4 h-4 text-amber-500" />}    title="Builds"       onClick={() => go('/builds', 'Builds')} path="/builds" />
             <ViewTile icon={<Puzzle className="w-4 h-4 text-violet-400" />}   title="CRDs"         onClick={() => go('/crds', 'CRDs')} />
             <ViewTile icon={<History className="w-4 h-4 text-violet-400" />}  title="Memory"       onClick={() => go('/memory', "What I've Learned")} />
+            <ViewTile icon={<GitPullRequest className="w-4 h-4 text-violet-400" />} title="Reviews" onClick={() => go('/reviews', 'Reviews')} />
           </div>
         </section>
 

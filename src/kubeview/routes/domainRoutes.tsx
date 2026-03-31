@@ -25,6 +25,7 @@ const DriftDetectorView = lazy(() => import('../views/fleet/DriftDetectorView').
 const DynamicView = lazy(() => import('../views/DynamicView').then(m => ({ default: m.DynamicView })));
 const IncidentCenterView = lazy(() => import('../views/IncidentCenterView'));
 const OnboardingView = lazy(() => import('../views/OnboardingView'));
+const ReviewQueueView = lazy(() => import('../views/ReviewQueueView'));
 
 function CatchFallback() {
   return (
@@ -87,6 +88,7 @@ export function domainRoutes() {
       <Route path="dynamic/:id" element={<Lazy><DynamicViewRoute /></Lazy>} />
       <Route path="incidents" element={<Lazy>{isFeatureEnabled('incidentCenter') ? <IncidentCenterView /> : <CatchFallback />}</Lazy>} />
       <Route path="onboarding" element={<Lazy>{isFeatureEnabled('onboarding') ? <OnboardingView /> : <CatchFallback />}</Lazy>} />
+      <Route path="reviews" element={<Lazy>{isFeatureEnabled('reviewQueue') ? <ReviewQueueView /> : <CatchFallback />}</Lazy>} />
     </>
   );
 }

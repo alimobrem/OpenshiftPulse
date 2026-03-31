@@ -58,6 +58,7 @@ describe('featureFlags', () => {
         identityView: true,
         welcomeLaunchpad: true,
         onboarding: true,
+        reviewQueue: true,
       });
     });
 
@@ -70,6 +71,7 @@ describe('featureFlags', () => {
         identityView: true,
         welcomeLaunchpad: true,
         onboarding: true,
+        reviewQueue: true,
       });
     });
 
