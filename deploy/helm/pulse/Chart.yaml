@@ -1,0 +1,22 @@
+apiVersion: v2
+name: pulse
+description: "OpenShift Pulse — unified deploy of UI + AI SRE Agent"
+version: 1.0.0
+appVersion: "5.16.2"
+type: application
+keywords:
+  - openshift
+  - pulse
+  - sre
+  - ai-agent
+
+dependencies:
+  - name: openshiftpulse
+    version: "4.6.0"
+    repository: "file://../openshiftpulse"
+
+  - name: openshift-sre-agent
+    version: "1.9.3"
+    repository: "file://../../../../pulse-agent/chart"
+    alias: agent
+    condition: agent.enabled

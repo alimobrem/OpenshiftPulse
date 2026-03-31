@@ -22,7 +22,7 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 AGENT_REPO=""
 NO_AGENT=false
 NAMESPACE="openshiftpulse"
-AGENT_RELEASE="pulse-agent"
+RELEASE="pulse"
 UI_IMAGE="quay.io/amobrem/openshiftpulse"
 AGENT_IMAGE="quay.io/amobrem/pulse-agent"
 UI_TAG=""
@@ -123,15 +123,15 @@ if [[ "$UNINSTALL" == "true" ]]; then
 
   oc whoami &>/dev/null || { error "Not logged in to OpenShift. Run 'oc login' first."; exit 1; }
 
-  info "Removing Helm releases..."
-  helm uninstall "$AGENT_RELEASE" -n "$NAMESPACE" 2>/dev/null && info "Removed: $AGENT_RELEASE" || info "Not found: $AGENT_RELEASE"
-  helm uninstall openshiftpulse -n "$NAMESPACE" 2>/dev/null && info "Removed: openshiftpulse" || info "Not found: openshiftpulse"
+  info "Removing Helm release..."
+  helm uninstall "$RELEASE" -n "$NAMESPACE" 2>/dev/null && info "Removed: $RELEASE" || info "Not found: $RELEASE"
+  # Also try legacy separate releases
+  helm uninstall pulse-agent -n "$NAMESPACE" 2>/dev/null || true
+  helm uninstall openshiftpulse -n "$NAMESPACE" 2>/dev/null || true
 
   info "Removing cluster-scoped resources..."
-  oc delete clusterrole openshiftpulse-reader 2>/dev/null || true
-  oc delete clusterrolebinding openshiftpulse-reader 2>/dev/null || true
-  oc delete clusterrole "${AGENT_RELEASE}-openshift-sre-agent" 2>/dev/null || true
-  oc delete clusterrolebinding "${AGENT_RELEASE}-openshift-sre-agent" 2>/dev/null || true
+  oc delete clusterrole openshiftpulse-reader "${RELEASE}-openshift-sre-agent" 2>/dev/null || true
+  oc delete clusterrolebinding openshiftpulse-reader "${RELEASE}-openshift-sre-agent" 2>/dev/null || true
   oc delete oauthclient openshiftpulse 2>/dev/null || true
 
   info "Removing namespace..."
@@ -242,9 +242,6 @@ if oc get service thanos-querier -n openshift-monitoring -o name &>/dev/null; th
   MONITORING_ENABLED="true"
 fi
 
-# Agent deployment name
-AGENT_DEPLOY="${AGENT_RELEASE}-openshift-sre-agent"
-
 info "Namespace: $NAMESPACE"
 
 # ─── Dry Run Mode ───────────────────────────────────────────────────────────
@@ -269,13 +266,12 @@ if [[ "$DRY_RUN" == "true" ]]; then
   echo "  Monitoring:    $MONITORING_ENABLED"
   echo "  Apps domain:   $CLUSTER_DOMAIN"
   echo ""
+  echo "  Helm release: $RELEASE (umbrella chart)"
+  echo ""
   echo "  Deploy order:"
-  echo "    1. Build UI image (npm build + podman)"
-  [[ "$NO_AGENT" == "false" ]] && echo "    2. Build Agent image (podman) — parallel with UI"
-  [[ "$NO_AGENT" == "false" ]] && echo "    3. Helm install Agent (creates WS token)"
-  [[ "$NO_AGENT" == "false" ]] && echo "    4. Read WS token from agent secret"
-  echo "    5. Helm install UI (with agent token)"
-  echo "    6. Restart + health check + token sync verify"
+  echo "    1. Build images (npm + podman, parallel)"
+  echo "    2. Single helm upgrade --install (umbrella chart)"
+  echo "    3. Health check"
   echo ""
   info "Dry run complete — no changes made"
   exit 0
@@ -339,91 +335,82 @@ else
   info "Skipping image builds (--skip-build)"
 fi
 
-# ─── Phase 3: Deploy Agent FIRST (it generates the WS token) ────────────────
+# ─── Phase 3: Helm Deploy (single umbrella install) ─────────────────────────
 
-WS_TOKEN=""
-
-if [[ "$NO_AGENT" == "false" ]]; then
-  step "Deploying Agent via Helm (creates WS token)"
-  cd "$AGENT_REPO"
-
-  [[ -n "$GCP_KEY" ]] && ensure_secret gcp-sa-key "$NAMESPACE" --from-file=key.json="$GCP_KEY"
-  [[ -n "${ANTHROPIC_API_KEY:-}" ]] && ensure_secret anthropic-api-key "$NAMESPACE" --from-literal=api-key="${ANTHROPIC_API_KEY}"
-
-  HELM_AGENT_ARGS="--set rbac.allowWriteOperations=true --set rbac.allowSecretAccess=true"
-  HELM_AGENT_ARGS="$HELM_AGENT_ARGS --set image.repository=$AGENT_IMAGE"
-  HELM_AGENT_ARGS="$HELM_AGENT_ARGS --set image.tag=$AGENT_TAG"
-  HELM_AGENT_ARGS="$HELM_AGENT_ARGS --set image.internalRegistry=false"
-
-  if [[ -n "${ANTHROPIC_VERTEX_PROJECT_ID:-}" ]]; then
-    HELM_AGENT_ARGS="$HELM_AGENT_ARGS --set vertexAI.projectId=${ANTHROPIC_VERTEX_PROJECT_ID}"
-    HELM_AGENT_ARGS="$HELM_AGENT_ARGS --set vertexAI.region=${CLOUD_ML_REGION:-us-east5}"
-    HELM_AGENT_ARGS="$HELM_AGENT_ARGS --set vertexAI.existingSecret=gcp-sa-key"
-    AI_BACKEND="vertex"
-    info "AI backend: Vertex AI (project: ${ANTHROPIC_VERTEX_PROJECT_ID})"
-  elif [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
-    HELM_AGENT_ARGS="$HELM_AGENT_ARGS --set anthropicApiKey.existingSecret=anthropic-api-key"
-    AI_BACKEND="anthropic"
-    info "AI backend: Anthropic API (direct)"
-  fi
-
-  helm upgrade --install "$AGENT_RELEASE" chart/ \
-    -n "$NAMESPACE" \
-    $HELM_AGENT_ARGS \
-    --timeout 120s
-  info "Helm release: $AGENT_RELEASE"
-
-  WS_TOKEN_SECRET="${AGENT_RELEASE}-openshift-sre-agent-ws-token"
-  step "Reading WS token from agent secret"
-  for i in $(seq 1 5); do
-    EXISTING_TOKEN=$(oc get secret "$WS_TOKEN_SECRET" -n "$NAMESPACE" -o jsonpath='{.data.token}' 2>/dev/null || echo "")
-    if [[ -n "$EXISTING_TOKEN" ]]; then
-      WS_TOKEN=$(echo "$EXISTING_TOKEN" | base64 -d 2>/dev/null || echo "$EXISTING_TOKEN")
-      info "WS token: read from agent secret ($WS_TOKEN_SECRET)"
-      break
-    fi
-    sleep 2
-  done
-  if [[ -z "$WS_TOKEN" ]]; then
-    if [[ -n "$_WS_TOKEN_OVERRIDE" ]]; then
-      WS_TOKEN="$_WS_TOKEN_OVERRIDE"
-      info "WS token: from environment/flag override"
-    else
-      WS_TOKEN=$(openssl rand -hex 16)
-      warn "WS token: auto-generated (could not read agent secret)"
-    fi
-  fi
-fi
-
-# ─── Phase 4: Deploy UI (with agent's token) ────────────────────────────────
-
-step "Deploying Pulse UI via Helm"
+step "Deploying via umbrella chart"
 cd "$PROJECT_DIR"
 
-AGENT_ENABLED="false"
-[[ "$NO_AGENT" == "false" ]] && AGENT_ENABLED="true"
+AGENT_DEPLOY="${RELEASE}-openshift-sre-agent"
+WS_SECRET="${RELEASE}-ws-token"
 
-oc label namespace "$NAMESPACE" app.kubernetes.io/managed-by=Helm --overwrite 2>/dev/null || true
-oc annotate namespace "$NAMESPACE" meta.helm.sh/release-name=openshiftpulse meta.helm.sh/release-namespace="$NAMESPACE" --overwrite 2>/dev/null || true
-
-HELM_UI_ARGS=""
-HELM_UI_ARGS="$HELM_UI_ARGS --set image.repository=$UI_IMAGE"
-HELM_UI_ARGS="$HELM_UI_ARGS --set image.tag=$UI_TAG"
-HELM_UI_ARGS="$HELM_UI_ARGS --set oauthProxy.image=$OAUTH_IMAGE"
-HELM_UI_ARGS="$HELM_UI_ARGS --set route.clusterDomain=$CLUSTER_DOMAIN"
-HELM_UI_ARGS="$HELM_UI_ARGS --set agent.enabled=$AGENT_ENABLED"
-HELM_UI_ARGS="$HELM_UI_ARGS --set agent.serviceName=$AGENT_DEPLOY"
-HELM_UI_ARGS="$HELM_UI_ARGS --set monitoring.prometheus.enabled=$MONITORING_ENABLED"
-HELM_UI_ARGS="$HELM_UI_ARGS --set monitoring.alertmanager.enabled=$MONITORING_ENABLED"
-if [[ -n "$WS_TOKEN" ]]; then
-  HELM_UI_ARGS="$HELM_UI_ARGS --set agent.wsToken=$WS_TOKEN"
+# Create AI backend secrets before Helm install
+if [[ "$NO_AGENT" == "false" ]]; then
+  [[ -n "$GCP_KEY" ]] && ensure_secret gcp-sa-key "$NAMESPACE" --from-file=key.json="$GCP_KEY"
+  [[ -n "${ANTHROPIC_API_KEY:-}" ]] && ensure_secret anthropic-api-key "$NAMESPACE" --from-literal=api-key="${ANTHROPIC_API_KEY}"
 fi
 
-helm upgrade --install openshiftpulse deploy/helm/openshiftpulse/ \
+# Resolve WS token: read existing or generate new (fallback for fresh installs)
+WS_TOKEN=""
+if [[ -n "$_WS_TOKEN_OVERRIDE" ]]; then
+  WS_TOKEN="$_WS_TOKEN_OVERRIDE"
+elif EXISTING=$(oc get secret "$WS_SECRET" -n "$NAMESPACE" -o jsonpath='{.data.token}' 2>/dev/null) && [[ -n "$EXISTING" ]]; then
+  WS_TOKEN=$(echo "$EXISTING" | base64 -d 2>/dev/null || echo "$EXISTING")
+  info "WS token: read from existing secret"
+else
+  WS_TOKEN=$(openssl rand -hex 16)
+  info "WS token: generated (fresh install)"
+fi
+
+# Label namespace for Helm ownership
+oc label namespace "$NAMESPACE" app.kubernetes.io/managed-by=Helm --overwrite 2>/dev/null || true
+oc annotate namespace "$NAMESPACE" meta.helm.sh/release-name="$RELEASE" meta.helm.sh/release-namespace="$NAMESPACE" --overwrite 2>/dev/null || true
+
+# Build Helm dependencies
+helm dependency build deploy/helm/pulse/ 2>/dev/null
+
+# Build args
+HELM_ARGS=""
+# UI subchart
+HELM_ARGS="$HELM_ARGS --set openshiftpulse.image.repository=$UI_IMAGE"
+HELM_ARGS="$HELM_ARGS --set openshiftpulse.image.tag=$UI_TAG"
+HELM_ARGS="$HELM_ARGS --set openshiftpulse.oauthProxy.image=$OAUTH_IMAGE"
+HELM_ARGS="$HELM_ARGS --set openshiftpulse.route.clusterDomain=$CLUSTER_DOMAIN"
+HELM_ARGS="$HELM_ARGS --set openshiftpulse.monitoring.prometheus.enabled=$MONITORING_ENABLED"
+HELM_ARGS="$HELM_ARGS --set openshiftpulse.monitoring.alertmanager.enabled=$MONITORING_ENABLED"
+
+if [[ "$NO_AGENT" == "false" ]]; then
+  # Wire UI → agent
+  HELM_ARGS="$HELM_ARGS --set openshiftpulse.agent.enabled=true"
+  HELM_ARGS="$HELM_ARGS --set openshiftpulse.agent.serviceName=$AGENT_DEPLOY"
+  HELM_ARGS="$HELM_ARGS --set openshiftpulse.agent.wsToken=$WS_TOKEN"
+  HELM_ARGS="$HELM_ARGS --set openshiftpulse.agent.wsTokenSecret=$WS_SECRET"
+  # Agent subchart
+  HELM_ARGS="$HELM_ARGS --set agent.enabled=true"
+  HELM_ARGS="$HELM_ARGS --set agent.image.repository=$AGENT_IMAGE"
+  HELM_ARGS="$HELM_ARGS --set agent.image.tag=$AGENT_TAG"
+  HELM_ARGS="$HELM_ARGS --set agent.rbac.allowWriteOperations=true"
+  HELM_ARGS="$HELM_ARGS --set agent.rbac.allowSecretAccess=true"
+  HELM_ARGS="$HELM_ARGS --set agent.wsAuth.existingSecret=$WS_SECRET"
+
+  if [[ -n "${ANTHROPIC_VERTEX_PROJECT_ID:-}" ]]; then
+    HELM_ARGS="$HELM_ARGS --set agent.vertexAI.projectId=${ANTHROPIC_VERTEX_PROJECT_ID}"
+    HELM_ARGS="$HELM_ARGS --set agent.vertexAI.region=${CLOUD_ML_REGION:-us-east5}"
+    HELM_ARGS="$HELM_ARGS --set agent.vertexAI.existingSecret=gcp-sa-key"
+    AI_BACKEND="vertex"
+  elif [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
+    HELM_ARGS="$HELM_ARGS --set agent.anthropicApiKey.existingSecret=anthropic-api-key"
+    AI_BACKEND="anthropic"
+  fi
+else
+  HELM_ARGS="$HELM_ARGS --set openshiftpulse.agent.enabled=false"
+  HELM_ARGS="$HELM_ARGS --set agent.enabled=false"
+fi
+
+helm upgrade --install "$RELEASE" deploy/helm/pulse/ \
   -n "$NAMESPACE" --create-namespace \
-  $HELM_UI_ARGS \
-  --timeout 120s
-info "Helm release: openshiftpulse"
+  $HELM_ARGS \
+  --timeout 180s
+info "Helm release: $RELEASE (umbrella)"
 
 # Fix OAuth redirect URI
 ROUTE=$(wait_for_route "openshiftpulse" "$NAMESPACE")
@@ -435,18 +422,7 @@ else
   warn "Route not ready — OAuth redirect URI may need manual fix"
 fi
 
-# ─── Phase 5: Restart & Verify ───────────────────────────────────────────────
-
-step "Restarting deployments"
-oc rollout restart "deployment/openshiftpulse" -n "$NAMESPACE"
-wait_for_rollout "openshiftpulse" "$NAMESPACE" 120
-
-if [[ "$NO_AGENT" == "false" ]]; then
-  oc rollout restart "deployment/$AGENT_DEPLOY" -n "$NAMESPACE"
-  wait_for_rollout "$AGENT_DEPLOY" "$NAMESPACE" 120
-fi
-
-# ─── Phase 6: Health & Token Verification ────────────────────────────────────
+# ─── Phase 4: Health Check ──────────────────────────────────────────────────
 
 HEALTHY="n/a"
 AI_BACKEND="${AI_BACKEND:-none}"
@@ -467,23 +443,6 @@ if [[ "$NO_AGENT" == "false" ]]; then
     fi
     [[ $i -eq 12 ]] && warn "Agent health check failed after 120s"
   done
-
-  # Verify WS token sync
-  step "Verifying WS token sync"
-  WS_TOKEN_AGENT=$(oc exec "deployment/$AGENT_DEPLOY" -n "$NAMESPACE" -- env 2>/dev/null | grep PULSE_AGENT_WS_TOKEN | cut -d= -f2 || echo "")
-  WS_TOKEN_NGINX=$(oc get configmap openshiftpulse-nginx -n "$NAMESPACE" -o jsonpath='{.data.nginx\.conf}' 2>/dev/null | grep -o 'token=[a-zA-Z0-9]*' | head -1 | cut -d= -f2 || echo "")
-  if [[ -n "$WS_TOKEN_AGENT" && -n "$WS_TOKEN_NGINX" ]]; then
-    if [[ "$WS_TOKEN_AGENT" == "$WS_TOKEN_NGINX" ]]; then
-      info "WS token: synced ✓"
-    else
-      warn "WS token mismatch — auto-fixing..."
-      oc get configmap openshiftpulse-nginx -n "$NAMESPACE" -o json | \
-        sed "s/$WS_TOKEN_NGINX/$WS_TOKEN_AGENT/g" | oc replace -f -
-      oc rollout restart deployment/openshiftpulse -n "$NAMESPACE"
-      wait_for_rollout "openshiftpulse" "$NAMESPACE" 60
-      info "WS token: patched and restarted UI ✓"
-    fi
-  fi
 fi
 
 # ─── Summary ─────────────────────────────────────────────────────────────────
