@@ -281,8 +281,8 @@ export default function WorkloadsView() {
           <MetricCard
             title="Pod Start Rate"
             query={nsFilter
-              ? `sum(rate(kube_pod_start_time{namespace="${safeNs}"}[1h])) * 3600`
-              : 'sum(rate(kube_pod_start_time[1h])) * 3600'}
+              ? `sum(changes(kube_pod_start_time{namespace="${safeNs}"}[1h]))`
+              : 'sum(changes(kube_pod_start_time[1h]))'}
             unit=" /hr"
             color={CHART_COLORS.cyan}
           />
