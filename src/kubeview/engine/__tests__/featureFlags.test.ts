@@ -59,6 +59,7 @@ describe('featureFlags', () => {
         welcomeLaunchpad: true,
         onboarding: true,
         reviewQueue: true,
+        enhancedPulse: true,
       });
     });
 
@@ -72,6 +73,7 @@ describe('featureFlags', () => {
         welcomeLaunchpad: true,
         onboarding: true,
         reviewQueue: true,
+        enhancedPulse: true,
       });
     });
 

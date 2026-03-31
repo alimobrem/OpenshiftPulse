@@ -10,7 +10,8 @@ export type FeatureFlag =
   | 'identityView'
   | 'welcomeLaunchpad'
   | 'onboarding'
-  | 'reviewQueue';
+  | 'reviewQueue'
+  | 'enhancedPulse';
 
 const STORAGE_KEY = 'openshiftpulse-feature-flags';
 
@@ -20,6 +21,7 @@ const ALL_FLAGS: readonly FeatureFlag[] = [
   'welcomeLaunchpad',
   'onboarding',
   'reviewQueue',
+  'enhancedPulse',
 ] as const;
 
 function loadFlags(): Record<FeatureFlag, boolean> {
@@ -29,6 +31,7 @@ function loadFlags(): Record<FeatureFlag, boolean> {
     welcomeLaunchpad: true,
     onboarding: true,
     reviewQueue: true,
+    enhancedPulse: true,
   };
 
   try {

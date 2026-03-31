@@ -5,10 +5,14 @@ import { useUIStore } from '../store/uiStore';
 import { useFleetStore } from '../store/fleetStore';
 import { useNavigateTab } from '../hooks/useNavigateTab';
 import { useK8sListWatch } from '../hooks/useK8sListWatch';
+import { isFeatureEnabled } from '../engine/featureFlags';
 import { ReportTab } from './pulse/ReportTab';
 import { FleetReportTab } from './pulse/FleetReportTab';
 import { AIOnboarding } from '../components/agent/AIOnboarding';
 import { SectionHeader } from '../components/primitives/SectionHeader';
+import { MorningSummaryCard } from './pulse/MorningSummaryCard';
+import { OvernightActivityFeed } from './pulse/OvernightActivityFeed';
+import { InsightsRail } from './pulse/InsightsRail';
 
 const TopologyMap = lazy(() => import('../components/topology/TopologyMap'));
 
@@ -16,6 +20,7 @@ export default function PulseView() {
   const go = useNavigateTab();
   const selectedNamespace = useUIStore((s) => s.selectedNamespace);
   const fleetMode = useFleetStore((s) => s.fleetMode);
+  const enhanced = isFeatureEnabled('enhancedPulse');
 
   const nsFilter = selectedNamespace !== '*' ? selectedNamespace : undefined;
   const { data: nodes = [], isLoading: nodesLoading } = useK8sListWatch({ apiPath: '/api/v1/nodes' });
@@ -27,6 +32,51 @@ export default function PulseView() {
 
   const isLoading = nodesLoading || podsLoading || deploysLoading || pvcsLoading || opsLoading;
 
+  const mainContent = (
+    <>
+      {enhanced && <MorningSummaryCard className="mb-2" />}
+
+      <AIOnboarding compact className="mb-2" />
+
+      <Suspense fallback={
+        <div className="h-[420px] bg-slate-900 rounded-lg border border-slate-800 animate-pulse" />
+      }>
+        <TopologyMap
+          nodes={nodes as K8sResource[]}
+          pods={pods as K8sResource[]}
+          operators={operators as K8sResource[]}
+          events={events as K8sResource[]}
+          go={go}
+        />
+      </Suspense>
+
+      {enhanced && <OvernightActivityFeed />}
+
+      {fleetMode === 'multi' ? (
+        <FleetReportTab />
+      ) : isLoading ? (
+        <div className="space-y-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-slate-900 rounded-lg border border-slate-800 p-6 animate-pulse">
+              <div className="h-4 bg-slate-800 rounded w-1/3 mb-3" />
+              <div className="h-3 bg-slate-800 rounded w-2/3 mb-2" />
+              <div className="h-3 bg-slate-800 rounded w-1/2" />
+            </div>
+          ))}
+        </div>
+      ) : (
+      <ReportTab
+        nodes={nodes as K8sResource[]}
+        allPods={pods as K8sResource[]}
+        deployments={deployments as K8sResource[]}
+        pvcs={pvcs as K8sResource[]}
+        operators={operators as K8sResource[]}
+        go={go}
+      />
+      )}
+    </>
+  );
+
   return (
     <div className="h-full overflow-auto bg-slate-950 p-6">
       <div className="max-w-5xl mx-auto space-y-6">
@@ -36,41 +86,13 @@ export default function PulseView() {
           subtitle={<>Daily briefing — control plane, capacity, workload health, and next steps{selectedNamespace !== '*' && <span className="text-blue-400 ml-1">· {selectedNamespace}</span>}</>}
         />
 
-        <AIOnboarding compact className="mb-2" />
-
-        <Suspense fallback={
-          <div className="h-[420px] bg-slate-900 rounded-lg border border-slate-800 animate-pulse" />
-        }>
-          <TopologyMap
-            nodes={nodes as K8sResource[]}
-            pods={pods as K8sResource[]}
-            operators={operators as K8sResource[]}
-            events={events as K8sResource[]}
-            go={go}
-          />
-        </Suspense>
-
-        {fleetMode === 'multi' ? (
-          <FleetReportTab />
-        ) : isLoading ? (
-          <div className="space-y-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="bg-slate-900 rounded-lg border border-slate-800 p-6 animate-pulse">
-                <div className="h-4 bg-slate-800 rounded w-1/3 mb-3" />
-                <div className="h-3 bg-slate-800 rounded w-2/3 mb-2" />
-                <div className="h-3 bg-slate-800 rounded w-1/2" />
-              </div>
-            ))}
+        {enhanced ? (
+          <div className="flex gap-6">
+            <div className="flex-1 min-w-0 space-y-6">{mainContent}</div>
+            <InsightsRail className="w-72 shrink-0" onNavigate={go} />
           </div>
         ) : (
-        <ReportTab
-          nodes={nodes as K8sResource[]}
-          allPods={pods as K8sResource[]}
-          deployments={deployments as K8sResource[]}
-          pvcs={pvcs as K8sResource[]}
-          operators={operators as K8sResource[]}
-          go={go}
-        />
+          <div className="space-y-6">{mainContent}</div>
         )}
       </div>
     </div>

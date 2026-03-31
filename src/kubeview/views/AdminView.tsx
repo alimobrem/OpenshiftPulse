@@ -565,6 +565,7 @@ const FLAG_LABELS: Record<FeatureFlag, { label: string; description: string }> =
   welcomeLaunchpad: { label: 'Welcome Launchpad', description: 'Enhanced welcome page with cluster state, onboarding CTA, and top issues' },
   onboarding: { label: 'Onboarding Wizard', description: 'Guided cluster onboarding at /onboarding' },
   reviewQueue: { label: 'Review Queue', description: 'AI-proposed infrastructure changes at /reviews' },
+  enhancedPulse: { label: 'Enhanced Pulse', description: 'AI morning briefing and insights on Pulse page' },
 };
 
 function FeatureFlagsSection() {
