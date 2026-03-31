@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/alimobrem/OpenshiftPulse/releases/tag/v5.16.1"><img src="https://img.shields.io/badge/release-v5.16.1-2563eb?style=for-the-badge" alt="Version"></a>
+  <a href="https://github.com/alimobrem/OpenshiftPulse/releases/tag/v5.16.2"><img src="https://img.shields.io/badge/release-v5.16.2-2563eb?style=for-the-badge" alt="Version"></a>
   <img src="https://img.shields.io/badge/tests-1882%20passed-10b981?style=for-the-badge" alt="Tests">
   <img src="https://img.shields.io/badge/health%20checks-77-f59e0b?style=for-the-badge" alt="Health Checks">
   <img src="https://img.shields.io/badge/CVEs-0-10b981?style=for-the-badge" alt="CVEs">
@@ -185,67 +185,40 @@ npm run dev    # http://localhost:9000
 ```bash
 # Option A: Vertex AI (GCP)
 ANTHROPIC_VERTEX_PROJECT_ID=your-project CLOUD_ML_REGION=us-east5 \
-  ./deploy/deploy.sh --agent-repo /path/to/pulse-agent --gcp-key ~/sa-key.json
+  ./deploy/deploy.sh --agent-repo ../pulse-agent --gcp-key ~/sa-key.json
 
 # Option B: Anthropic API (no GCP needed)
-ANTHROPIC_API_KEY=sk-ant-... ./deploy/deploy.sh --agent-repo /path/to/pulse-agent
+ANTHROPIC_API_KEY=sk-ant-... ./deploy/deploy.sh --agent-repo ../pulse-agent
 
 # Verify
 ./deploy/integration-test.sh
 ```
 
-Auto-detects cluster domain, OAuth proxy image, monitoring stack. Prerequisite checks for `oc`, `helm`, `npm`. Fails early with clear fix instructions if credentials are missing.
+**How it works**: Builds images locally with Podman, pushes to Quay.io (`quay.io/amobrem/openshiftpulse` + `quay.io/amobrem/pulse-agent`), deploys via Helm. Never uses S2I or on-cluster builds. Auto-detects cluster domain, OAuth proxy image, monitoring stack.
 
-**WS token auto-sync**: On every deploy (initial or re-deploy), `deploy.sh` automatically reads the WS token from the agent's Kubernetes Secret and injects it into the UI's nginx proxy configuration. This ensures the UI and agent always share the same authentication token — no manual token management or coordination needed.
+**WS token auto-sync**: Generates a single WS token and passes it to both Helm installs. On re-deploys, reads the existing token from the agent's Kubernetes Secret. Verifies sync post-deploy and auto-fixes mismatches.
+
+**Prerequisites**: `oc` (logged in), `helm`, `npm`, `podman` (logged in to `quay.io`).
 
 ### Helm (UI only)
 
 ```bash
 npm run build
-podman build -t quay.io/amobrem/openshiftpulse:latest . && podman push quay.io/amobrem/openshiftpulse:latest
+podman build --platform linux/amd64 -t quay.io/amobrem/openshiftpulse:latest .
+podman push quay.io/amobrem/openshiftpulse:latest
 helm install openshiftpulse deploy/helm/openshiftpulse/ -n openshiftpulse --create-namespace
 ```
 
 Auto-generates OAuth secrets. See [`values.yaml`](deploy/helm/openshiftpulse/values.yaml) for customization.
 
-<details>
-<summary><strong>Manual setup (without Helm)</strong></summary>
-
-```bash
-oc login --server=https://api.your-cluster.example.com:6443
-
-CLIENT_SECRET=$(openssl rand -base64 32 | tr -d '\n')
-COOKIE_SECRET=$(openssl rand -hex 16)
-
-oc create namespace openshiftpulse
-oc create secret generic openshiftpulse-oauth-secrets \
-  --from-literal=client-secret="$CLIENT_SECRET" \
-  --from-literal=cookie-secret="$COOKIE_SECRET" \
-  -n openshiftpulse
-
-helm template openshiftpulse deploy/helm/openshiftpulse/ \
-  -n openshiftpulse \
-  --set oauthProxy.clientSecret="$CLIENT_SECRET" \
-  --set oauthProxy.cookieSecret="$COOKIE_SECRET" \
-  | oc apply -f -
-oc patch oauthclient openshiftpulse -p "{\"secret\":\"$CLIENT_SECRET\"}"
-oc new-build --binary --name=openshiftpulse --to=openshiftpulse:latest -n openshiftpulse
-
-npm run build
-oc start-build openshiftpulse --from-dir=dist --follow -n openshiftpulse
-
-ROUTE=$(oc get route openshiftpulse -n openshiftpulse -o jsonpath='{.spec.host}')
-oc patch oauthclient openshiftpulse --type merge \
-  -p "{\"redirectURIs\":[\"https://${ROUTE}/oauth/callback\"]}"
-oc rollout restart deployment/openshiftpulse -n openshiftpulse
-```
-
-</details>
-
 ### Quick Redeploy
 
 ```bash
-npm run build && podman build -t quay.io/amobrem/openshiftpulse:latest . && podman push quay.io/amobrem/openshiftpulse:latest && oc rollout restart deployment/openshiftpulse -n openshiftpulse
+# UI only
+npm run build && podman build --platform linux/amd64 -t quay.io/amobrem/openshiftpulse:latest . && podman push quay.io/amobrem/openshiftpulse:latest && oc rollout restart deployment/openshiftpulse -n openshiftpulse
+
+# Agent only (from pulse-agent repo)
+podman build --platform linux/amd64 -t quay.io/amobrem/pulse-agent:latest -f Dockerfile.full . && podman push quay.io/amobrem/pulse-agent:latest && oc rollout restart deployment/pulse-agent-openshift-sre-agent -n openshiftpulse
 ```
 
 ### CI/CD
