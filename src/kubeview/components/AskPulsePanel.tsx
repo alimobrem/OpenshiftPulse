@@ -4,7 +4,7 @@ import { getResourceIcon } from '../engine/iconRegistry';
 import { useNavigateTab } from '../hooks/useNavigateTab';
 import { useUIStore } from '../store/uiStore';
 import { saveQuery } from '../engine/mockData/askPulseMocks';
-import type { AskPulseResponse } from '../engine/mockData/askPulseMocks';
+import type { AskPulseResponse } from '../engine/types/askPulse';
 
 interface AskPulsePanelProps {
   query: string;

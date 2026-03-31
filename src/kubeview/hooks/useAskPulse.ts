@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import {
-  detectNaturalLanguage,
-  type AskPulseResponse,
-} from '../engine/mockData/askPulseMocks';
+import { detectNaturalLanguage } from '../engine/mockData/askPulseMocks';
+import type { AskPulseResponse } from '../engine/types/askPulse';
 import { AgentClient, type AgentEvent } from '../engine/agentClient';
 import { useAgentStore } from '../store/agentStore';
 import { useUIStore } from '../store/uiStore';

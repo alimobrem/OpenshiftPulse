@@ -38,6 +38,8 @@ export default function PulseView() {
   const pendingReviews = useMonitorStore((s) => s.pendingActions.length);
   const { counts: incidentCounts } = useIncidentFeed({ limit: 0 });
 
+  const findings = useMonitorStore((s) => s.findings);
+
   const { data: briefing } = useQuery<BriefingResponse>({
     queryKey: ['briefing'],
     queryFn: () => fetchBriefing(12),
@@ -120,6 +122,21 @@ export default function PulseView() {
                       </span>
                     )}
                   </div>
+                )}
+                {(incidentCounts.total > 0 || findings.length > 0) && (
+                  <p className="mt-2 text-xs text-slate-400">
+                    Currently:{' '}
+                    {incidentCounts.total > 0 && (
+                      <span className={incidentCounts.critical > 0 ? 'text-red-400' : 'text-amber-400'}>
+                        {incidentCounts.total} active incident{incidentCounts.total !== 1 ? 's' : ''}
+                        {incidentCounts.critical > 0 && ` (${incidentCounts.critical} critical)`}
+                      </span>
+                    )}
+                    {incidentCounts.total > 0 && findings.length > 0 && ', '}
+                    {findings.length > 0 && (
+                      <span className="text-violet-400">{findings.length} finding{findings.length !== 1 ? 's' : ''}</span>
+                    )}
+                  </p>
                 )}
               </div>
               <span className="text-[10px] text-slate-600 shrink-0">last {briefing.hours}h</span>

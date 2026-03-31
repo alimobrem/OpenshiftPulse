@@ -17,6 +17,7 @@ import { useNavigateTab } from '../hooks/useNavigateTab';
 import { useK8sListWatch } from '../hooks/useK8sListWatch';
 import { usePrefetchOnHover } from '../hooks/usePrefetchOnHover';
 import { useMonitorStore } from '../store/monitorStore';
+import { useIncidentFeed } from '../hooks/useIncidentFeed';
 import { isFeatureEnabled } from '../engine/featureFlags';
 import type { K8sResource } from '../engine/renderers';
 import type { Node, Condition } from '../engine/types';
@@ -229,6 +230,8 @@ function BriefingCard({ briefing, isLoading, isError, onRetry, onNavigate }: {
   briefing?: BriefingResponse; isLoading: boolean; isError: boolean;
   onRetry: () => void; onNavigate: (path: string, title: string) => void;
 }) {
+  const { counts: incidentCounts } = useIncidentFeed({ limit: 0 });
+  const findingsCount = useMonitorStore((s) => s.findings.length);
   if (isLoading) {
     return (
       <div className="rounded-lg border border-violet-500/20 bg-slate-900 p-4 animate-pulse">
@@ -277,6 +280,27 @@ function BriefingCard({ briefing, isLoading, isError, onRetry, onNavigate }: {
               </button>
             )}
           </div>
+        )}
+        {(incidentCounts.total > 0 || findingsCount > 0) && (
+          <button
+            onClick={() => onNavigate('/incidents', 'Incidents')}
+            className="mt-3 flex items-center gap-2 text-xs text-slate-400 hover:text-slate-200 transition-colors"
+          >
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+            <span>
+              Right now:{' '}
+              {incidentCounts.total > 0 && (
+                <span className={incidentCounts.critical > 0 ? 'text-red-400' : 'text-amber-400'}>
+                  {incidentCounts.total} active incident{incidentCounts.total !== 1 ? 's' : ''}
+                  {incidentCounts.critical > 0 && ` (${incidentCounts.critical} critical)`}
+                </span>
+              )}
+              {incidentCounts.total > 0 && findingsCount > 0 && ', '}
+              {findingsCount > 0 && (
+                <span className="text-violet-400">{findingsCount} finding{findingsCount !== 1 ? 's' : ''}</span>
+              )}
+            </span>
+          </button>
         )}
       </div>
     </div>
