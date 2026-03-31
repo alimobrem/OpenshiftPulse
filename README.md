@@ -10,8 +10,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/alimobrem/OpenshiftPulse/releases/tag/v5.14.1"><img src="https://img.shields.io/badge/release-v5.14.1-2563eb?style=for-the-badge" alt="Version"></a>
-  <img src="https://img.shields.io/badge/tests-1884%20passed-10b981?style=for-the-badge" alt="Tests">
+  <a href="https://github.com/alimobrem/OpenshiftPulse/releases/tag/v5.16.0"><img src="https://img.shields.io/badge/release-v5.16.0-2563eb?style=for-the-badge" alt="Version"></a>
+  <img src="https://img.shields.io/badge/tests-1885%20passed-10b981?style=for-the-badge" alt="Tests">
   <img src="https://img.shields.io/badge/health%20checks-77-f59e0b?style=for-the-badge" alt="Health Checks">
   <img src="https://img.shields.io/badge/CVEs-0-10b981?style=for-the-badge" alt="CVEs">
   <img src="https://img.shields.io/badge/license-MIT-6366f1?style=for-the-badge" alt="License">
@@ -86,9 +86,12 @@ npm run dev    # http://localhost:9000
 
 | Category | What You Get |
 |----------|-------------|
-| **AI Agent** | Claude-powered SRE diagnostics and security scanning. 68 tools, 10 runbooks, dynamic UI rendering (tables, charts, cards), dashboard generation, prompt caching, dynamic tool selection, cluster context injection. [pulse-agent](https://github.com/alimobrem/pulse-agent) |
+| **AI Agent** | Claude-powered SRE diagnostics and security scanning. 112 tools, 10 runbooks, dynamic UI rendering (tables, charts, cards), dashboard generation, prompt caching, dynamic tool selection, cluster context injection. [pulse-agent](https://github.com/alimobrem/pulse-agent) |
 | **Predictive AI** | Live cluster-aware smart prompts: AI suggestions reflect actual issues (crash-looping pods, degraded operators, pending PVCs) not generic templates. Integrated into Command Palette (`?` mode), dock agent panel, and empty states. |
 | **Native AI Layer** | Unified intelligence layer across all surfaces: smart prompts adapt to cluster state, AI query mode in Command Palette (`?`), violet-branded AI surfaces, auto-expanding InlineAgent for unhealthy resources, "Ask AI" buttons on PulseView attention items, first-run onboarding, dock notification dot for background insights |
+| **Ask Pulse** | Natural language queries in Cmd+K — type a question, get AI-powered answers with action buttons. Dedicated WebSocket, falls back gracefully when agent is offline. |
+| **Review Queue** | GitHub-PR-style view of AI-proposed infrastructure changes with YAML diffs, risk badges, and approve/reject actions. Wired to live monitor data. |
+| **Enhanced Pulse** | AI morning briefing card, overnight agent activity feed, incident-driven insights rail, cost trend sparkline. All backed by real cluster data. |
 | **Ambient AI** | AI insights on every resource detail view, inline "Ask about this" agent, natural language table filters, dock agent panel, proactive background notifications, fleet-wide AI analysis |
 | **Error Intelligence** | Structured PulseError classification (7 categories), actionable suggestions on every error toast, "Ask AI" button for agent-assisted diagnosis, Admin > Errors tab for ops visibility, error tracking store with persistence |
 | **Multi-Cluster Fleet** | Fleet dashboard with health scores, cluster switcher (`Cmd+Shift+C`), cross-cluster search, compliance matrix, certificate heat map, RBAC comparison, config drift detection. Auto-detects ACM/MCE managed clusters. |
@@ -111,7 +114,9 @@ npm run dev    # http://localhost:9000
 
 | Feature | Details |
 |---------|---------|
-| **AI Agent** | Chat with Claude-powered SRE/Security agent. "Ask Agent" from any resource. Streaming, tool execution indicators, confirmation gates. |
+| **AI Agent** | Chat with Claude-powered SRE/Security agent (v1.9.3, 112 tools). "Ask Agent" from any resource. Streaming, tool execution indicators, confirmation gates. |
+| **Ask Pulse** | Natural language queries in Cmd+K: type a question in the Command Palette, get AI-powered answers with action buttons. "Open in Agent" for full conversations. |
+| **Review Queue** | PR-style review of AI-proposed changes: YAML diffs, risk badges, business impact, approve/reject. Live data from monitor WebSocket. |
 | **Native AI UX** | Unified violet-branded intelligence layer: `?` in Command Palette sends to agent, smart prompts adapt to cluster state, "Ask AI" on PulseView attention items, auto-expand InlineAgent for unhealthy resources, AI empty state suggestions, first-run onboarding card, dock agent notification dot. |
 | **Ambient AI** | AmbientInsight cards on pod/workload detail views. InlineAgent scoped conversations on every resource. NL table filters via AI-branded button. Agent dock panel accessible from any view. Background proactive notifications every 5 min. |
 | **Rich Confirmations** | Visual confirmation cards with risk badges (LOW/MEDIUM/HIGH), impact preview, rollback info, keyboard shortcuts (Y/N/Esc). |
@@ -133,12 +138,13 @@ npm run dev    # http://localhost:9000
 | **Smart Diagnosis** | 10 error patterns from pod logs with specific fix suggestions |
 | **Auto-Generated Tables** | Sortable, searchable, j/k navigation, CSV/JSON export |
 
-### Views (15)
+### Views (17)
 
 | View | Highlights |
 |------|-----------|
 | **Welcome** | Quick nav, cluster status with error recovery, all capabilities clickable, keyboard shortcuts |
-| **Pulse** | Daily briefing with 4-zone risk assessment. "Cluster Zen" calm state when healthy. Fleet mode: cluster health table, risk scores, AI analysis |
+| **Pulse** | AI morning briefing, overnight agent activity feed, incident insights rail, cost trends. "Cluster Zen" calm state when healthy. Fleet mode: cluster health table, risk scores, AI analysis |
+| **Reviews** | AI-proposed infrastructure changes with YAML diffs, risk badges, approve/reject |
 | **Workloads** | Metrics + 6-check health audit, deployments sorted unhealthy-first |
 | **Compute** | Node metrics, CPU/memory bars, HyperShift-aware |
 | **Storage** | PVC health, capacity audit, CSI drivers |
@@ -164,7 +170,7 @@ npm run dev    # http://localhost:9000
 | **State** | Zustand + TanStack Query | Client + server state separation |
 | **Real-time** | WebSocket watches | Instant updates, 60s polling fallback |
 | **Styling** | Tailwind CSS 3.4 + Radix UI | Utility-first, headless components, CVA variants |
-| **Testing** | Vitest + jsdom | 1888 tests in ~4s |
+| **Testing** | Vitest + jsdom | 1885 tests in ~7s |
 | **Charts** | Pure SVG sparklines | Zero chart library dependency |
 | **Security** | Red Hat UBI images | 0 CVEs, all images from Red Hat registries |
 
@@ -196,8 +202,8 @@ Auto-detects cluster domain, OAuth proxy image, monitoring stack. Prerequisite c
 
 ```bash
 npm run build
+podman build -t quay.io/amobrem/openshiftpulse:latest . && podman push quay.io/amobrem/openshiftpulse:latest
 helm install openshiftpulse deploy/helm/openshiftpulse/ -n openshiftpulse --create-namespace
-oc start-build openshiftpulse --from-dir=dist --follow -n openshiftpulse
 ```
 
 Auto-generates OAuth secrets. See [`values.yaml`](deploy/helm/openshiftpulse/values.yaml) for customization.
@@ -239,7 +245,7 @@ oc rollout restart deployment/openshiftpulse -n openshiftpulse
 ### Quick Redeploy
 
 ```bash
-npm run build && oc start-build openshiftpulse --from-dir=dist --follow -n openshiftpulse && oc rollout restart deployment/openshiftpulse -n openshiftpulse
+npm run build && podman build -t quay.io/amobrem/openshiftpulse:latest . && podman push quay.io/amobrem/openshiftpulse:latest && oc rollout restart deployment/openshiftpulse -n openshiftpulse
 ```
 
 ### CI/CD
@@ -347,7 +353,7 @@ Browser --> OAuth Proxy (8443/TLS) --> nginx (8080) --> K8s API / Prometheus / A
 ---
 
 <p align="center">
-  <strong>1884 tests</strong> &bull; <strong>77 health checks</strong> &bull; <strong>~1s builds</strong> &bull; <strong>0 CVEs</strong> &bull; <strong>15 views</strong> &bull; <strong>68 AI tools</strong> &bull; <strong>500+ operators</strong>
+  <strong>1885 tests</strong> &bull; <strong>77 health checks</strong> &bull; <strong>~1s builds</strong> &bull; <strong>0 CVEs</strong> &bull; <strong>17 views</strong> &bull; <strong>112 AI tools</strong> &bull; <strong>500+ operators</strong>
 </p>
 
 <p align="center">
