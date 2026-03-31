@@ -186,23 +186,7 @@ AGENT_DEPLOY="${AGENT_RELEASE}-openshift-sre-agent"
 
 info "Namespace: $NAMESPACE"
 
-# ─── Resolve WS Token (single source of truth) ──────────────────────────────
-
-step "Resolving WS token"
-
-WS_TOKEN_SECRET="${AGENT_RELEASE}-openshift-sre-agent-ws-token"
-if [[ -n "$_WS_TOKEN_OVERRIDE" ]]; then
-  WS_TOKEN="$_WS_TOKEN_OVERRIDE"
-  info "WS token: from environment/flag"
-elif EXISTING_TOKEN=$(oc get secret "$WS_TOKEN_SECRET" -n "$NAMESPACE" -o jsonpath='{.data.token}' 2>/dev/null) && [[ -n "$EXISTING_TOKEN" ]]; then
-  WS_TOKEN=$(echo "$EXISTING_TOKEN" | base64 -d 2>/dev/null || echo "$EXISTING_TOKEN")
-  info "WS token: read from existing secret ($WS_TOKEN_SECRET)"
-else
-  WS_TOKEN=$(openssl rand -hex 16)
-  info "WS token: auto-generated (new install)"
-fi
-
-# ─── Phase 2: Build & Push Images ────────────────────────────────────────────
+# ─── Phase 2: Build & Push Images (parallel-ready) ──────────────────────────
 
 step "Building & pushing UI image"
 
@@ -227,40 +211,15 @@ if [[ "$NO_AGENT" == "false" ]]; then
   info "Pushed ${AGENT_IMAGE}:${AGENT_TAG}"
 fi
 
-# ─── Phase 3: Helm Deploy ────────────────────────────────────────────────────
+# ─── Phase 3: Deploy Agent FIRST (it generates the WS token) ────────────────
+# The agent Helm chart auto-generates a WS token secret on first install.
+# We deploy the agent first, then read its token for the UI Helm install.
+# This eliminates token mismatch issues.
 
-step "Deploying Pulse UI via Helm"
-cd "$PROJECT_DIR"
-
-AGENT_ENABLED="false"
-[[ "$NO_AGENT" == "false" ]] && AGENT_ENABLED="true"
-
-helm upgrade --install openshiftpulse deploy/helm/openshiftpulse/ \
-  -n "$NAMESPACE" --create-namespace \
-  --set image.repository="$UI_IMAGE" \
-  --set image.tag="$UI_TAG" \
-  --set oauthProxy.image="$OAUTH_IMAGE" \
-  --set route.clusterDomain="$CLUSTER_DOMAIN" \
-  --set agent.enabled="$AGENT_ENABLED" \
-  --set agent.serviceName="$AGENT_DEPLOY" \
-  --set agent.wsToken="$WS_TOKEN" \
-  --set monitoring.prometheus.enabled="$MONITORING_ENABLED" \
-  --set monitoring.alertmanager.enabled="$MONITORING_ENABLED" \
-  --timeout 120s
-info "Helm release: openshiftpulse"
-
-# Fix OAuth redirect URI
-ROUTE=$(wait_for_route "openshiftpulse" "$NAMESPACE")
-if [[ -n "$ROUTE" ]]; then
-  oc patch oauthclient openshiftpulse --type merge \
-    -p "{\"redirectURIs\":[\"https://${ROUTE}/oauth/callback\"]}" 2>/dev/null || true
-  info "OAuth redirect: https://$ROUTE/oauth/callback"
-else
-  warn "Route not ready — OAuth redirect URI may need manual fix"
-fi
+WS_TOKEN=""
 
 if [[ "$NO_AGENT" == "false" ]]; then
-  step "Deploying Agent via Helm"
+  step "Deploying Agent via Helm (creates WS token)"
   cd "$AGENT_REPO"
 
   # Create secrets BEFORE Helm install
@@ -297,9 +256,74 @@ if [[ "$NO_AGENT" == "false" ]]; then
     $HELM_AGENT_ARGS \
     --timeout 120s
   info "Helm release: $AGENT_RELEASE"
+
+  # Read the token the agent chart generated
+  WS_TOKEN_SECRET="${AGENT_RELEASE}-openshift-sre-agent-ws-token"
+  step "Reading WS token from agent secret"
+  # Wait briefly for the secret to be created
+  for i in $(seq 1 5); do
+    EXISTING_TOKEN=$(oc get secret "$WS_TOKEN_SECRET" -n "$NAMESPACE" -o jsonpath='{.data.token}' 2>/dev/null || echo "")
+    if [[ -n "$EXISTING_TOKEN" ]]; then
+      WS_TOKEN=$(echo "$EXISTING_TOKEN" | base64 -d 2>/dev/null || echo "$EXISTING_TOKEN")
+      info "WS token: read from agent secret ($WS_TOKEN_SECRET)"
+      break
+    fi
+    sleep 2
+  done
+  if [[ -z "$WS_TOKEN" ]]; then
+    # Fallback: use override or generate
+    if [[ -n "$_WS_TOKEN_OVERRIDE" ]]; then
+      WS_TOKEN="$_WS_TOKEN_OVERRIDE"
+      info "WS token: from environment/flag override"
+    else
+      WS_TOKEN=$(openssl rand -hex 16)
+      warn "WS token: auto-generated (could not read agent secret)"
+    fi
+  fi
 fi
 
-# ─── Phase 4: Restart & Verify ───────────────────────────────────────────────
+# ─── Phase 4: Deploy UI (with agent's token) ────────────────────────────────
+
+step "Deploying Pulse UI via Helm"
+cd "$PROJECT_DIR"
+
+AGENT_ENABLED="false"
+[[ "$NO_AGENT" == "false" ]] && AGENT_ENABLED="true"
+
+# Label namespace for Helm ownership (prevents conflict if namespace was pre-created)
+oc label namespace "$NAMESPACE" app.kubernetes.io/managed-by=Helm --overwrite 2>/dev/null || true
+oc annotate namespace "$NAMESPACE" meta.helm.sh/release-name=openshiftpulse meta.helm.sh/release-namespace="$NAMESPACE" --overwrite 2>/dev/null || true
+
+HELM_UI_ARGS=""
+HELM_UI_ARGS="$HELM_UI_ARGS --set image.repository=$UI_IMAGE"
+HELM_UI_ARGS="$HELM_UI_ARGS --set image.tag=$UI_TAG"
+HELM_UI_ARGS="$HELM_UI_ARGS --set oauthProxy.image=$OAUTH_IMAGE"
+HELM_UI_ARGS="$HELM_UI_ARGS --set route.clusterDomain=$CLUSTER_DOMAIN"
+HELM_UI_ARGS="$HELM_UI_ARGS --set agent.enabled=$AGENT_ENABLED"
+HELM_UI_ARGS="$HELM_UI_ARGS --set agent.serviceName=$AGENT_DEPLOY"
+HELM_UI_ARGS="$HELM_UI_ARGS --set monitoring.prometheus.enabled=$MONITORING_ENABLED"
+HELM_UI_ARGS="$HELM_UI_ARGS --set monitoring.alertmanager.enabled=$MONITORING_ENABLED"
+if [[ -n "$WS_TOKEN" ]]; then
+  HELM_UI_ARGS="$HELM_UI_ARGS --set agent.wsToken=$WS_TOKEN"
+fi
+
+helm upgrade --install openshiftpulse deploy/helm/openshiftpulse/ \
+  -n "$NAMESPACE" --create-namespace \
+  $HELM_UI_ARGS \
+  --timeout 120s
+info "Helm release: openshiftpulse"
+
+# Fix OAuth redirect URI
+ROUTE=$(wait_for_route "openshiftpulse" "$NAMESPACE")
+if [[ -n "$ROUTE" ]]; then
+  oc patch oauthclient openshiftpulse --type merge \
+    -p "{\"redirectURIs\":[\"https://${ROUTE}/oauth/callback\"]}" 2>/dev/null || true
+  info "OAuth redirect: https://$ROUTE/oauth/callback"
+else
+  warn "Route not ready — OAuth redirect URI may need manual fix"
+fi
+
+# ─── Phase 5: Restart & Verify ───────────────────────────────────────────────
 
 step "Restarting deployments"
 oc rollout restart "deployment/openshiftpulse" -n "$NAMESPACE"
@@ -310,7 +334,7 @@ if [[ "$NO_AGENT" == "false" ]]; then
   wait_for_rollout "$AGENT_DEPLOY" "$NAMESPACE" 120
 fi
 
-# ─── Phase 5: Health & Token Verification ────────────────────────────────────
+# ─── Phase 6: Health & Token Verification ────────────────────────────────────
 
 HEALTHY="n/a"
 AI_BACKEND="${AI_BACKEND:-none}"
@@ -350,7 +374,7 @@ if [[ "$NO_AGENT" == "false" ]]; then
   fi
 fi
 
-# ─── Phase 6: Cleanup ───────────────────────────────────────────────────────
+# ─── Phase 7: Cleanup ───────────────────────────────────────────────────────
 
 # Clean up old build pods if any remain from previous S2I deploys
 oc delete pod -n "$NAMESPACE" -l openshift.io/build.name --field-selector=status.phase!=Running 2>/dev/null || true
