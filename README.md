@@ -10,8 +10,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/alimobrem/OpenshiftPulse/releases/tag/v5.16.0"><img src="https://img.shields.io/badge/release-v5.16.0-2563eb?style=for-the-badge" alt="Version"></a>
-  <img src="https://img.shields.io/badge/tests-1885%20passed-10b981?style=for-the-badge" alt="Tests">
+  <a href="https://github.com/alimobrem/OpenshiftPulse/releases/tag/v5.16.1"><img src="https://img.shields.io/badge/release-v5.16.1-2563eb?style=for-the-badge" alt="Version"></a>
+  <img src="https://img.shields.io/badge/tests-1882%20passed-10b981?style=for-the-badge" alt="Tests">
   <img src="https://img.shields.io/badge/health%20checks-77-f59e0b?style=for-the-badge" alt="Health Checks">
   <img src="https://img.shields.io/badge/CVEs-0-10b981?style=for-the-badge" alt="CVEs">
   <img src="https://img.shields.io/badge/license-MIT-6366f1?style=for-the-badge" alt="License">
@@ -138,7 +138,7 @@ npm run dev    # http://localhost:9000
 | **Smart Diagnosis** | 10 error patterns from pod logs with specific fix suggestions |
 | **Auto-Generated Tables** | Sortable, searchable, j/k navigation, CSV/JSON export |
 
-### Views (17)
+### Views (14)
 
 | View | Highlights |
 |------|-----------|
@@ -149,11 +149,11 @@ npm run dev    # http://localhost:9000
 | **Compute** | Node metrics, CPU/memory bars, HyperShift-aware |
 | **Storage** | PVC health, capacity audit, CSI drivers |
 | **Networking** | Routes, network policies, ingress health |
-| **Alerts** | Severity filters, silence lifecycle, URL-persisted filters |
-| **Builds** | BuildConfigs, ImageStreams, one-click trigger |
+| **Alerts** | Now a tab in Incident Center — severity filters, silence lifecycle |
+| **Builds** | Now a tab in Workloads — BuildConfigs, ImageStreams, one-click trigger |
 | **Access Control** | RBAC audit (6 checks), recent changes |
 | **User Management** | Users/groups/SAs, impersonation, identity audit |
-| **CRDs** | Browse by API group, search, filter |
+| **CRDs** | Now a tab in Admin — browse by API group, search, filter |
 | **Security** | 10 checks, SCC audit, ACS detection |
 | **GitOps** | 4-step setup wizard, ArgoCD Applications, sync history, drift, Rollouts (canary/blue-green), Projects |
 | **Fleet** | Multi-cluster dashboard, cross-cluster search, comparison, compliance, cert heat map |
@@ -353,7 +353,7 @@ Browser --> OAuth Proxy (8443/TLS) --> nginx (8080) --> K8s API / Prometheus / A
 ---
 
 <p align="center">
-  <strong>1885 tests</strong> &bull; <strong>77 health checks</strong> &bull; <strong>~1s builds</strong> &bull; <strong>0 CVEs</strong> &bull; <strong>17 views</strong> &bull; <strong>112 AI tools</strong> &bull; <strong>500+ operators</strong>
+  <strong>1882 tests</strong> &bull; <strong>77 health checks</strong> &bull; <strong>~1s builds</strong> &bull; <strong>0 CVEs</strong> &bull; <strong>14 views</strong> &bull; <strong>112 AI tools</strong> &bull; <strong>500+ operators</strong>
 </p>
 
 <p align="center">
