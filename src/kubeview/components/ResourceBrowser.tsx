@@ -200,13 +200,27 @@ export function ResourceBrowser() {
         </div>
 
         {/* Custom dashboards */}
-        {useCustomViewStore.getState().views.length > 0 && (
-          <div className="border-b border-slate-700 p-3">
-            <div className="mb-2 flex items-center gap-2 px-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+        <div className="border-b border-slate-700 p-3">
+          <div className="mb-2 flex items-center justify-between px-2">
+            <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
               <LayoutDashboard className="h-3 w-3" />
               Your Dashboards
-            </div>
-            {useCustomViewStore.getState().views.map((v) => (
+            </span>
+            <button
+              onClick={() => {
+                addTab({ title: 'Manage Views', icon: 'LayoutDashboard', path: '/views', pinned: false, closable: true });
+                navigate('/views');
+                closeBrowser();
+              }}
+              className="text-[10px] text-violet-400 hover:text-violet-300 transition-colors"
+            >
+              Manage
+            </button>
+          </div>
+          {useCustomViewStore.getState().views.length === 0 ? (
+            <p className="px-2 py-1 text-xs text-slate-600">No views yet. Ask the AI to create one.</p>
+          ) : (
+            useCustomViewStore.getState().views.map((v) => (
               <button
                 key={v.id}
                 onClick={() => {
@@ -217,11 +231,11 @@ export function ResourceBrowser() {
                 className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-slate-300 transition-colors hover:bg-slate-700"
               >
                 <LayoutDashboard className="h-4 w-4 text-violet-400" />
-                {v.title}
+                <span className="truncate">{v.title}</span>
               </button>
-            ))}
-          </div>
-        )}
+            ))
+          )}
+        </div>
 
         {/* Resource groups */}
         <div className="flex-1 overflow-auto p-3">
