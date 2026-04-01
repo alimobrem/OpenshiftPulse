@@ -1,10 +1,11 @@
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { Trash2, Plus, LayoutDashboard, Bot, Share2, Check, GripVertical, Pencil, Eye } from 'lucide-react';
 import { useCustomViewStore } from '../store/customViewStore';
 import { useUIStore } from '../store/uiStore';
 import { useAgentStore } from '../store/agentStore';
 import { AgentComponentRenderer } from '../components/agent/AgentComponentRenderer';
 import { EmptyState } from '../components/primitives/EmptyState';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { formatRelativeTime } from '../engine/formatters';
 import { ConfirmDialog } from '../components/feedback/ConfirmDialog';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
@@ -126,7 +127,9 @@ export default function CustomView() {
   const handleShare = async () => {
     const token = await shareView(view.id);
     if (token) {
-      const url = `${window.location.origin}/share/${token}`;
+      // Use pathname to respect any base path the app is deployed under
+      const basePath = window.location.pathname.split('/custom/')[0];
+      const url = `${window.location.origin}${basePath}/share/${token}`;
       navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -268,7 +271,7 @@ export default function CustomView() {
             margin={[16, 16]}
           >
             {view.layout.map((spec, i) => (
-              <div key={String(i)} className="rounded-lg border border-slate-800 bg-slate-900 p-4 relative group overflow-auto">
+              <div key={`${view.id}-${i}`} className="rounded-lg border border-slate-800 bg-slate-900 p-4 relative group overflow-auto">
                 {editMode && (
                   <>
                     <div className="widget-drag-handle absolute top-2 left-2 p-1 cursor-grab active:cursor-grabbing text-slate-600 hover:text-slate-400 transition-colors">
@@ -293,7 +296,9 @@ export default function CustomView() {
                   </button>
                 )}
                 <div className={editMode ? 'pl-6' : ''}>
-                  <AgentComponentRenderer spec={spec} />
+                  <ErrorBoundary>
+                    <AgentComponentRenderer spec={spec} />
+                  </ErrorBoundary>
                 </div>
               </div>
             ))}
