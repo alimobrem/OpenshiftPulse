@@ -64,6 +64,8 @@ export function AgentComponentRenderer({ spec, depth = 0, onAddToView }: Props) 
 
 /** Compact data table for inline chat rendering */
 function AgentDataTable({ spec, onAddToView }: { spec: DataTableSpec; onAddToView?: (spec: ComponentSpec) => void }) {
+  const PAGE_SIZE = 15;
+  const [page, setPage] = useState(0);
   const [sortCol, setSortCol] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   // Auto-hide columns beyond 6 to prevent horizontal scrollbar
@@ -192,14 +194,14 @@ function AgentDataTable({ spec, onAddToView }: { spec: DataTableSpec; onAddToVie
       )}
 
       {/* Table */}
-      <div className="overflow-x-auto max-h-[50vh]">
+      <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
-            <tr className="bg-slate-800/30">
+            <tr className="bg-slate-800/30 sticky top-0 z-[1]">
               {visibleColumns.map((col) => (
                 <th
                   key={col.id}
-                  className="px-3 py-1.5 text-left text-slate-400 font-medium whitespace-nowrap cursor-pointer hover:text-slate-200 select-none"
+                  className="px-3 py-1.5 text-left text-slate-400 font-medium whitespace-nowrap cursor-pointer hover:text-slate-200 select-none bg-slate-800/80"
                   style={col.width ? { width: col.width } : undefined}
                   onClick={() => handleSort(col.id)}
                 >
@@ -216,7 +218,7 @@ function AgentDataTable({ spec, onAddToView }: { spec: DataTableSpec; onAddToVie
             </tr>
           </thead>
           <tbody>
-            {processedRows.map((row, i) => (
+            {processedRows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((row, i) => (
               <tr key={i} className="border-t border-slate-800 hover:bg-slate-800/30">
                 {visibleColumns.map((col) => (
                   <td key={col.id} className="px-3 py-1.5 text-slate-300 whitespace-nowrap group/cell relative">
@@ -236,10 +238,36 @@ function AgentDataTable({ spec, onAddToView }: { spec: DataTableSpec; onAddToVie
         </table>
       </div>
 
-      {/* Footer */}
+      {/* Footer with pagination */}
       <div className="px-3 py-1 bg-slate-800/30 border-t border-slate-700 text-[10px] text-slate-500 flex items-center justify-between">
-        <span>{processedRows.length} rows{processedRows.length !== spec.rows.length ? ` (${spec.rows.length} total)` : ''}</span>
-        {spec.query && <span className="truncate ml-2" title={spec.query}>Query: {spec.query}</span>}
+        <span>
+          {processedRows.length > PAGE_SIZE
+            ? `${page * PAGE_SIZE + 1}-${Math.min((page + 1) * PAGE_SIZE, processedRows.length)} of ${processedRows.length}`
+            : `${processedRows.length} rows`}
+          {processedRows.length !== spec.rows.length && ` (${spec.rows.length} total)`}
+        </span>
+        <div className="flex items-center gap-1">
+          {spec.query && <span className="truncate mr-2" title={spec.query}>Query: {spec.query}</span>}
+          {processedRows.length > PAGE_SIZE && (
+            <>
+              <button
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={page === 0}
+                className="px-1.5 py-0.5 rounded bg-slate-700 hover:bg-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                ←
+              </button>
+              <span>{page + 1}/{Math.ceil(processedRows.length / PAGE_SIZE)}</span>
+              <button
+                onClick={() => setPage((p) => Math.min(Math.ceil(processedRows.length / PAGE_SIZE) - 1, p + 1))}
+                disabled={(page + 1) * PAGE_SIZE >= processedRows.length}
+                className="px-1.5 py-0.5 rounded bg-slate-700 hover:bg-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                →
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
