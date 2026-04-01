@@ -18,15 +18,26 @@ import 'react-resizable/css/styles.css';
 
 const ResponsiveGrid = WidthProvider(Responsive);
 
-/** Generate a sensible default layout based on component kinds */
+/** Generate a sensible default layout based on component kinds.
+ *  All widgets start full-width and stack vertically for readability.
+ *  Users can switch to side-by-side via Edit Layout mode.
+ */
 function generateDefaultLayout(specs: ComponentSpec[]): ReactGridLayout.Layout[] {
+  let y = 0;
   return specs.map((spec, i) => {
-    // Full width for summary cards, half width for tables/charts
-    const w = spec.kind === 'info_card_grid' || spec.kind === 'tabs' ? 4 : 2;
-    const h = spec.kind === 'chart' ? 4 : spec.kind === 'data_table' ? 5 : 3;
-    const x = (i * 2) % 4;
-    const y = Math.floor((i * 2) / 4) * h;
-    return { i: String(i), x, y, w, h, minW: 1, minH: 2 };
+    // Height based on content type
+    const h =
+      spec.kind === 'info_card_grid' ? 2 :
+      spec.kind === 'status_list' ? 3 :
+      spec.kind === 'badge_list' ? 2 :
+      spec.kind === 'key_value' ? 2 :
+      spec.kind === 'chart' ? 4 :
+      spec.kind === 'data_table' ? 5 :
+      spec.kind === 'tabs' ? 6 :
+      3;
+    const layout = { i: String(i), x: 0, y, w: 4, h, minW: 2, minH: 2 };
+    y += h;
+    return layout;
   });
 }
 
@@ -46,7 +57,7 @@ function positionsToLayout(positions: Record<number, { x: number; y: number; w: 
     if (pos) {
       return { i: String(i), ...pos, minW: 1, minH: 2 };
     }
-    return { i: String(i), x: (i * 2) % 4, y: Math.floor((i * 2) / 4) * 3, w: 2, h: 3, minW: 1, minH: 2 };
+    return { i: String(i), x: 0, y: i * 4, w: 4, h: 4, minW: 2, minH: 2 };
   });
 }
 
@@ -263,7 +274,7 @@ export default function CustomView() {
             layouts={{ lg: currentLayout }}
             breakpoints={{ lg: 1024, md: 768, sm: 480 }}
             cols={{ lg: 4, md: 2, sm: 1 }}
-            rowHeight={80}
+            rowHeight={100}
             isDraggable={editMode}
             isResizable={editMode}
             onLayoutChange={handleLayoutChange}
