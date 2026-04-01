@@ -75,16 +75,23 @@ export const useCustomViewStore = create<CustomViewState>()(
       set({ loading: true });
       try {
         const data = await apiFetch('/views');
-        const views: ViewSpec[] = (data.views || []).map((v: any) => ({
-          id: v.id,
-          title: v.title,
-          description: v.description || '',
-          icon: v.icon || '',
-          layout: v.layout || [],
-          positions: v.positions || {},
-          generatedAt: new Date(v.created_at).getTime(),
-          owner: v.owner,
-        }));
+        const seenIds = new Set<string>();
+        const views: ViewSpec[] = (data.views || [])
+          .map((v: any) => ({
+            id: v.id,
+            title: v.title,
+            description: v.description || '',
+            icon: v.icon || '',
+            layout: v.layout || [],
+            positions: v.positions || {},
+            generatedAt: new Date(v.created_at).getTime(),
+            owner: v.owner,
+          }))
+          .filter((v: ViewSpec) => {
+            if (seenIds.has(v.id)) return false;
+            seenIds.add(v.id);
+            return true;
+          });
         set({ views, currentUser: data.owner, loading: false });
       } catch {
         set({ loading: false });

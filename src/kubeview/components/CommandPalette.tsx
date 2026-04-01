@@ -402,10 +402,16 @@ function getCommandItems(
     );
     items.push(...matchingPages);
 
-    // Custom dashboards (AI-generated)
+    // Custom dashboards (AI-generated) — dedup by title, keep newest
     const customViews = useCustomViewStore.getState().views;
+    const seenTitles = new Set<string>();
     const matchingCustom: CommandItem[] = customViews
-      .filter((v) => !cleanQuery || v.title.toLowerCase().includes(cleanQuery) || (v.description || '').toLowerCase().includes(cleanQuery))
+      .filter((v) => {
+        const key = v.title.toLowerCase();
+        if (seenTitles.has(key)) return false;
+        seenTitles.add(key);
+        return !cleanQuery || key.includes(cleanQuery) || (v.description || '').toLowerCase().includes(cleanQuery);
+      })
       .map((v) => ({
         type: 'custom_view' as const,
         id: `custom-${v.id}`,
