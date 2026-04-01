@@ -1,0 +1,54 @@
+# Integration test stack: UI + Agent + Mock K8s API
+# Usage: docker compose -f e2e/docker-compose.yml up --build
+#        PULSE_URL=http://localhost:9000 npm run e2e
+
+services:
+  # Mock K8s API — serves static JSON responses
+  mock-k8s:
+    build:
+      context: .
+      dockerfile: mock-k8s.Dockerfile
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8001/api/v1/nodes"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  # Pulse Agent in mock mode (no real Claude API)
+  agent:
+    build:
+      context: ../../pulse-agent
+      dockerfile: Dockerfile.full
+    environment:
+      - PULSE_AGENT_HOST=0.0.0.0
+      - PULSE_AGENT_PORT=8080
+      - WS_AUTH_TOKEN=test-token-e2e
+      - ANTHROPIC_API_KEY=mock-key-for-testing
+      - K8S_API_URL=http://mock-k8s:8001
+      - PULSE_AGENT_DRY_RUN=true
+    ports:
+      - "8080:8080"
+    depends_on:
+      mock-k8s:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Pulse UI dev server
+  ui:
+    build:
+      context: ../
+      dockerfile: e2e/ui.Dockerfile
+    environment:
+      - K8S_API_URL=http://mock-k8s:8001
+      - PULSE_AGENT_URL=http://agent:8080
+    ports:
+      - "9000:9000"
+    depends_on:
+      agent:
+        condition: service_healthy

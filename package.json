@@ -25,7 +25,10 @@
     "clean": "rm -rf dist .rspack_cache node_modules/.cache",
     "e2e": "npx playwright test --config e2e/playwright.config.ts",
     "e2e:headed": "npx playwright test --config e2e/playwright.config.ts --headed",
-    "e2e:ui": "npx playwright test --config e2e/playwright.config.ts --ui"
+    "e2e:ui": "npx playwright test --config e2e/playwright.config.ts --ui",
+    "e2e:integration": "npx playwright test --config e2e/playwright.config.ts --grep integration",
+    "e2e:stack": "docker compose -f e2e/docker-compose.yml up -d && echo 'Stack running — run: PULSE_URL=http://localhost:9000 npm run e2e:integration'",
+    "e2e:stack:down": "docker compose -f e2e/docker-compose.yml down"
   },
   "dependencies": {
     "@codemirror/lang-json": "^6.0.2",
