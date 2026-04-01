@@ -183,8 +183,10 @@ export const useCustomViewStore = create<CustomViewState>()(
         await get().addWidget(activeBuilderId, widget);
         return activeBuilderId;
       }
-      // Create a new view with auto-generated name
-      const title = `View — ${new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(Date.now())}`;
+      // Derive a meaningful name from the widget's title/kind
+      const widgetTitle = (widget as any).title || '';
+      const kindLabel = widget.kind === 'chart' ? 'Chart' : widget.kind === 'data_table' ? 'Table' : widget.kind.replace('_', ' ');
+      const title = widgetTitle || `${kindLabel} View`;
       const newView: ViewSpec = {
         id: `cv-${Date.now().toString(36)}`,
         title,

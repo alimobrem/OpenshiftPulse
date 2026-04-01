@@ -63,9 +63,12 @@ export function SaveViewWatcher() {
       action: {
         label: 'Save View',
         onClick: () => {
+          // Derive a meaningful name from the first component's title
+          const firstTitle = (components[0] as any)?.title || '';
+          const autoTitle = firstTitle || `${components.length}-Widget View`;
           const view: ViewSpec = {
             id: `cv-${Date.now().toString(36)}`,
-            title: `View — ${new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(Date.now())}`,
+            title: autoTitle,
             layout: components,
             generatedAt: Date.now(),
           };

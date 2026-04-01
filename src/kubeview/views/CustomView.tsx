@@ -72,6 +72,20 @@ export default function CustomView() {
   const updateWidget = useCustomViewStore((s) => s.updateWidget);
   const shareView = useCustomViewStore((s) => s.shareView);
 
+  // Auto-set active builder when viewing a custom view — so new widgets
+  // from the agent dock get added here instead of creating a new view
+  useEffect(() => {
+    if (viewId) {
+      useCustomViewStore.getState().setActiveBuilderId(viewId);
+    }
+    return () => {
+      // Only clear if we're leaving this specific view
+      if (useCustomViewStore.getState().activeBuilderId === viewId) {
+        useCustomViewStore.getState().setActiveBuilderId(null);
+      }
+    };
+  }, [viewId]);
+
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [widgetToRemove, setWidgetToRemove] = useState<number | null>(null);
   const [editMode, setEditMode] = useState(false);
