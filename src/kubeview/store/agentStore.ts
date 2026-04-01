@@ -244,6 +244,12 @@ export const useAgentStore = create<AgentState>()(
             case 'view_spec':
               set({ pendingViewSpec: event.spec });
               break;
+            case 'view_updated':
+              // Agent modified a view — reload views to pick up changes
+              import('../store/customViewStore').then(({ useCustomViewStore }) => {
+                useCustomViewStore.getState().loadViews();
+              });
+              break;
             case 'cleared':
               set({ messages: [], streamingText: '', thinkingText: '', activeTools: [], streamingComponents: [] });
               break;
