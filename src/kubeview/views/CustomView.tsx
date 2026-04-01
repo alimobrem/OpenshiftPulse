@@ -283,7 +283,7 @@ export default function CustomView() {
             margin={[16, 16]}
           >
             {view.layout.map((spec, i) => (
-              <div key={`${view.id}-${i}`} className="rounded-lg border border-slate-800 bg-slate-900 p-4 relative group overflow-auto">
+              <div key={String(i)} className="rounded-lg border border-slate-800 bg-slate-900 p-4 relative group overflow-auto">
                 {editMode && (
                   <>
                     <div className="widget-drag-handle absolute top-2 left-2 p-1 cursor-grab active:cursor-grabbing text-slate-600 hover:text-slate-400 transition-colors">
