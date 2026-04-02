@@ -19,6 +19,7 @@ const AGENT_BASE = '/api/agent';
 interface CustomViewState {
   views: ViewSpec[];
   loading: boolean;
+  error: string | null;
   currentUser: string | null;
   /** The view currently being built in canvas mode */
   activeBuilderId: string | null;
@@ -68,11 +69,12 @@ export const useCustomViewStore = create<CustomViewState>()(
   (set, get) => ({
     views: [],
     loading: false,
+    error: null,
     currentUser: null,
     activeBuilderId: null,
 
     loadViews: async () => {
-      set({ loading: true });
+      set({ loading: true, error: null });
       try {
         const data = await apiFetch('/views');
         const seenIds = new Set<string>();
@@ -93,8 +95,8 @@ export const useCustomViewStore = create<CustomViewState>()(
             return true;
           });
         set({ views, currentUser: data.owner, loading: false });
-      } catch {
-        set({ loading: false });
+      } catch (err) {
+        set({ loading: false, error: err instanceof Error ? err.message : 'Failed to load views' });
       }
     },
 
@@ -121,7 +123,9 @@ export const useCustomViewStore = create<CustomViewState>()(
           currentUser: result.owner,
         }));
       } catch (e) {
-        console.error('Failed to save view:', e);
+        const msg = e instanceof Error ? e.message : 'Failed to save view';
+        console.error('Failed to save view:', msg);
+        set({ error: msg });
       }
     },
 

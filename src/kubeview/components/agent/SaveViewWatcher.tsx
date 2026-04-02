@@ -18,20 +18,25 @@ export function SaveViewWatcher() {
   const lastHandledMsgId = useRef<string | null>(null);
 
   // Watch for view_spec events (from create_dashboard tool)
+  // Views are auto-saved on the backend — just notify and add to local state
   useEffect(() => {
     if (!pendingViewSpec || pendingViewSpec.id === lastHandledViewSpec.current) return;
     lastHandledViewSpec.current = pendingViewSpec.id;
 
+    // Add to local store (already saved on backend)
+    useCustomViewStore.getState().loadViews();
+    useAgentStore.setState({ pendingViewSpec: null });
+
     useUIStore.getState().addToast({
       type: 'success',
-      title: `View ready: "${pendingViewSpec.title}"`,
+      title: `View saved: "${pendingViewSpec.title}"`,
       detail: `${pendingViewSpec.layout.length} widgets`,
-      duration: 0,
+      duration: 5000,
       action: {
-        label: 'Save View',
+        label: 'Open View',
         onClick: () => {
-          useCustomViewStore.getState().saveView(pendingViewSpec);
-          useAgentStore.setState({ pendingViewSpec: null });
+          window.location.hash = '';
+          window.location.pathname = `/custom/${pendingViewSpec.id}`;
         },
       },
     });

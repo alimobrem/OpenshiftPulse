@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Brain, BookOpen, TrendingUp, Search, ChevronDown, ChevronRight, ThumbsUp, Zap, History } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -55,18 +54,7 @@ async function fetchIncidents(search = ''): Promise<Incident[]> {
 type Tab = 'runbooks' | 'patterns' | 'incidents';
 
 export default function MemoryView() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const initialTab = (searchParams.get('tab') as Tab) || 'incidents';
-  const [activeTab, setActiveTabState] = useState<Tab>(initialTab);
-  const setActiveTab = (tab: Tab) => {
-    setActiveTabState(tab);
-    if (tab === 'incidents') {
-      searchParams.delete('tab');
-    } else {
-      searchParams.set('tab', tab);
-    }
-    setSearchParams(searchParams, { replace: true });
-  };
+  const [activeTab, setActiveTab] = useState<Tab>('incidents');
   const [search, setSearch] = useState('');
   const [expandedRunbook, setExpandedRunbook] = useState<string | null>(null);
 

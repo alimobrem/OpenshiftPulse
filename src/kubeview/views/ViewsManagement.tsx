@@ -11,6 +11,7 @@ export default function ViewsManagement() {
   const navigate = useNavigate();
   const views = useCustomViewStore((s) => s.views);
   const loading = useCustomViewStore((s) => s.loading);
+  const error = useCustomViewStore((s) => s.error);
   const loadViews = useCustomViewStore((s) => s.loadViews);
   const deleteView = useCustomViewStore((s) => s.deleteView);
   const shareView = useCustomViewStore((s) => s.shareView);
@@ -57,8 +58,20 @@ export default function ViewsManagement() {
           </div>
         )}
 
+        {/* Error state */}
+        {error && (
+          <div className="flex items-center justify-center py-10">
+            <div className="text-center space-y-2">
+              <p className="text-sm text-red-400">{error}</p>
+              <button onClick={loadViews} className="text-xs text-violet-400 hover:text-violet-300">
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Empty state */}
-        {!loading && views.length === 0 && (
+        {!loading && !error && views.length === 0 && (
           <div className="flex items-center justify-center py-20">
             <EmptyState
               icon={<Bot className="w-12 h-12 text-slate-600" />}
