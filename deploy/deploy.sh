@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 # Deploy OpenShift Pulse (UI + Agent) to an OpenShift cluster.
 #
-# Builds images locally with Podman, pushes to Quay.io, deploys via Helm.
-# Never uses S2I or on-cluster builds.
+# Builds both images locally with Podman, pushes to Quay.io, deploys via
+# a single Helm umbrella chart. UI and agent are always deployed together
+# to prevent token/config drift.
 #
 # Usage:
-#   ./deploy/deploy.sh                                  # UI only (no agent)
-#   ./deploy/deploy.sh --agent-repo /path/to/pulse-agent # UI + Agent
-#   ./deploy/deploy.sh --uninstall                       # Remove everything
-#   ./deploy/deploy.sh --dry-run --agent-repo ../pulse-agent  # Preview
+#   ./deploy/deploy.sh                          # Deploy UI + Agent
+#   ./deploy/deploy.sh --uninstall              # Remove everything
+#   ./deploy/deploy.sh --dry-run                # Preview
+#   ./deploy/deploy.sh --skip-build             # Redeploy with existing images
 #
 # Prerequisites: oc (logged in), helm, npm, podman (logged in to quay.io)
 
@@ -19,8 +20,6 @@ trap 'rm -f /tmp/pulse-ui-build.log /tmp/pulse-ui-push.log' EXIT
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-AGENT_REPO=""
-NO_AGENT=false
 NAMESPACE="openshiftpulse"
 RELEASE="pulse"
 UI_IMAGE="quay.io/amobrem/openshiftpulse"
@@ -33,10 +32,24 @@ DRY_RUN=false
 UNINSTALL=false
 SKIP_BUILD=false
 
+# Auto-detect agent repo: sibling directory or explicit override
+AGENT_REPO="${PULSE_AGENT_REPO:-}"
+if [[ -z "$AGENT_REPO" ]]; then
+  # Check common locations relative to this repo
+  for candidate in \
+    "$PROJECT_DIR/../pulse-agent" \
+    "$PROJECT_DIR/../ali/pulse-agent" \
+    "$HOME/ali/pulse-agent"; do
+    if [[ -d "$candidate/chart" ]]; then
+      AGENT_REPO="$(cd "$candidate" && pwd)"
+      break
+    fi
+  done
+fi
+
 while [[ $# -gt 0 ]]; do
   case $1 in
     --agent-repo) AGENT_REPO="$2"; shift 2 ;;
-    --no-agent)   NO_AGENT=true; shift ;;
     --namespace)  NAMESPACE="$2"; shift 2 ;;
     --ws-token)   _WS_TOKEN_OVERRIDE="$2"; shift 2 ;;
     --gcp-key)    GCP_KEY_FILE="$2"; shift 2 ;;
@@ -47,11 +60,13 @@ while [[ $# -gt 0 ]]; do
     --skip-build) SKIP_BUILD=true; shift ;;
     --help|-h)
       cat <<HELP
-Usage: $0 [--agent-repo /path/to/pulse-agent] [options]
+Usage: $0 [options]
+
+Deploys both UI and Agent together. The agent repo is auto-detected from
+sibling directories, or set PULSE_AGENT_REPO or use --agent-repo.
 
 Options:
-  --agent-repo PATH   Path to pulse-agent repo (deploys UI + Agent)
-  --no-agent          Deploy UI only, skip agent
+  --agent-repo PATH   Path to pulse-agent repo (auto-detected if omitted)
   --namespace NS      Target namespace (default: openshiftpulse)
   --gcp-key PATH      GCP service account JSON for Vertex AI
   --ws-token TOKEN    WebSocket auth token (auto-generated if unset)
@@ -61,14 +76,10 @@ Options:
   --uninstall         Remove all Pulse resources from the cluster
   --skip-build        Skip image builds, use existing images
 
-Images (built locally, pushed to Quay.io):
-  UI:    $UI_IMAGE:<tag>
-  Agent: $AGENT_IMAGE:<tag>
-
-AI Backend (pick one):
+AI Backend (pick one, set via env vars):
   Vertex AI:     ANTHROPIC_VERTEX_PROJECT_ID=proj CLOUD_ML_REGION=us-east5 \\
-                   $0 --agent-repo ../pulse-agent --gcp-key ~/sa-key.json
-  Anthropic API: ANTHROPIC_API_KEY=sk-ant-... $0 --agent-repo ../pulse-agent
+                   $0 --gcp-key ~/sa-key.json
+  Anthropic API: ANTHROPIC_API_KEY=sk-ant-... $0
 HELP
       exit 0 ;;
     *) echo "ERROR: Unknown argument: $1. Use --help for usage."; exit 1 ;;
@@ -168,24 +179,24 @@ info "Tools: oc, helm, npm, podman — OK"
 CLUSTER_API=$(oc whoami --show-server)
 info "Cluster: $CLUSTER_API"
 
-# Agent repo validation
+# Agent repo is required
 if [[ -z "$AGENT_REPO" ]]; then
-  NO_AGENT=true
-  warn "No --agent-repo provided — deploying UI only"
+  error "Could not find pulse-agent repo. Set PULSE_AGENT_REPO env var or use --agent-repo."
+  error "Looked in: ../pulse-agent, ../ali/pulse-agent, ~/ali/pulse-agent"
+  exit 1
 fi
+if [[ ! -d "$AGENT_REPO" ]]; then
+  error "Agent repo not found: $AGENT_REPO"
+  exit 1
+fi
+[[ -d "$AGENT_REPO/chart" ]] || { error "Agent repo missing chart/: $AGENT_REPO"; exit 1; }
+AGENT_REPO="$(cd "$AGENT_REPO" && pwd)"
+info "Agent repo: $AGENT_REPO"
 
-if [[ "$NO_AGENT" == "false" ]]; then
-  if [[ -z "${ANTHROPIC_API_KEY:-}" && -z "${ANTHROPIC_VERTEX_PROJECT_ID:-}" ]]; then
-    error "No AI backend configured. Set ANTHROPIC_API_KEY or ANTHROPIC_VERTEX_PROJECT_ID."
-    exit 1
-  fi
-  if [[ ! -d "$AGENT_REPO" ]]; then
-    error "Agent repo not found: $AGENT_REPO"
-    exit 1
-  fi
-  [[ -d "$AGENT_REPO/chart" ]] || { error "Agent repo missing chart/: $AGENT_REPO"; exit 1; }
-  AGENT_REPO="$(cd "$AGENT_REPO" && pwd)"
-  info "Agent repo: $AGENT_REPO"
+# AI backend is required
+if [[ -z "${ANTHROPIC_API_KEY:-}" && -z "${ANTHROPIC_VERTEX_PROJECT_ID:-}" ]]; then
+  error "No AI backend configured. Set ANTHROPIC_API_KEY or ANTHROPIC_VERTEX_PROJECT_ID."
+  exit 1
 fi
 
 # GCP key for Vertex AI
@@ -207,7 +218,7 @@ if [[ -z "$UI_TAG" ]]; then
     UI_TAG=$(git_tag "$PROJECT_DIR")
   fi
 fi
-if [[ -z "$AGENT_TAG" && "$NO_AGENT" == "false" ]]; then
+if [[ -z "$AGENT_TAG" ]]; then
   if [[ "$SKIP_BUILD" == "true" ]]; then
     AGENT_TAG="latest"
   else
@@ -216,7 +227,7 @@ if [[ -z "$AGENT_TAG" && "$NO_AGENT" == "false" ]]; then
 fi
 
 info "UI tag: $UI_TAG"
-[[ "$NO_AGENT" == "false" ]] && info "Agent tag: $AGENT_TAG"
+info "Agent tag: $AGENT_TAG"
 info "All preflight checks passed"
 
 # ─── Phase 1: Detect Cluster Configuration ──────────────────────────────────
@@ -260,15 +271,11 @@ if [[ "$DRY_RUN" == "true" ]]; then
   echo "  Cluster:       $CLUSTER_API"
   echo "  Namespace:     $NAMESPACE"
   echo "  UI image:      ${UI_IMAGE}:${UI_TAG}"
-  if [[ "$NO_AGENT" == "false" ]]; then
-    echo "  Agent image:   ${AGENT_IMAGE}:${AGENT_TAG}"
-    if [[ -n "${ANTHROPIC_VERTEX_PROJECT_ID:-}" ]]; then
-      echo "  AI backend:    Vertex AI (${ANTHROPIC_VERTEX_PROJECT_ID} / ${CLOUD_ML_REGION:-us-east5})"
-    elif [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
-      echo "  AI backend:    Anthropic API (direct)"
-    fi
-  else
-    echo "  Agent:         not deployed"
+  echo "  Agent image:   ${AGENT_IMAGE}:${AGENT_TAG}"
+  if [[ -n "${ANTHROPIC_VERTEX_PROJECT_ID:-}" ]]; then
+    echo "  AI backend:    Vertex AI (${ANTHROPIC_VERTEX_PROJECT_ID} / ${CLOUD_ML_REGION:-us-east5})"
+  elif [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
+    echo "  AI backend:    Anthropic API (direct)"
   fi
   echo "  OAuth proxy:   $OAUTH_IMAGE"
   echo "  Monitoring:    $MONITORING_ENABLED"
@@ -294,50 +301,42 @@ if [[ "$SKIP_BUILD" == "false" ]]; then
   npm run build --silent
   info "UI built (dist/)"
 
-  if [[ "$NO_AGENT" == "false" ]]; then
-    info "Building UI and Agent images in parallel..."
-    podman build --platform linux/amd64 -t "${UI_IMAGE}:${UI_TAG}" "$PROJECT_DIR" &>/tmp/pulse-ui-build.log &
-    UI_BUILD_PID=$!
+  info "Building UI and Agent images in parallel..."
+  podman build --platform linux/amd64 -t "${UI_IMAGE}:${UI_TAG}" "$PROJECT_DIR" &>/tmp/pulse-ui-build.log &
+  UI_BUILD_PID=$!
 
-    cd "$AGENT_REPO"
-    AGENT_DOCKERFILE="Dockerfile"
-    [[ -f "Dockerfile.full" ]] && AGENT_DOCKERFILE="Dockerfile.full"
-    podman build --platform linux/amd64 -t "${AGENT_IMAGE}:${AGENT_TAG}" -f "$AGENT_DOCKERFILE" .
-    info "Agent image built"
+  cd "$AGENT_REPO"
+  AGENT_DOCKERFILE="Dockerfile"
+  [[ -f "Dockerfile.full" ]] && AGENT_DOCKERFILE="Dockerfile.full"
+  podman build --platform linux/amd64 -t "${AGENT_IMAGE}:${AGENT_TAG}" -f "$AGENT_DOCKERFILE" .
+  info "Agent image built"
 
-    if wait $UI_BUILD_PID; then
-      info "UI image built"
-    else
-      error "UI image build failed. Logs:"
-      cat /tmp/pulse-ui-build.log
-      exit 1
-    fi
-
-    info "Pushing images..."
-    podman tag "${UI_IMAGE}:${UI_TAG}" "${UI_IMAGE}:latest"
-    podman tag "${AGENT_IMAGE}:${AGENT_TAG}" "${AGENT_IMAGE}:latest"
-
-    podman push "${UI_IMAGE}:${UI_TAG}" &>/tmp/pulse-ui-push.log &
-    UI_PUSH_PID=$!
-
-    podman push "${AGENT_IMAGE}:${AGENT_TAG}"
-    podman push "${AGENT_IMAGE}:latest"
-    info "Pushed ${AGENT_IMAGE}:${AGENT_TAG} + latest"
-
-    if wait $UI_PUSH_PID; then
-      podman push "${UI_IMAGE}:latest"
-      info "Pushed ${UI_IMAGE}:${UI_TAG} + latest"
-    else
-      error "UI image push failed"
-      cat /tmp/pulse-ui-push.log
-      exit 1
-    fi
+  if wait $UI_BUILD_PID; then
+    info "UI image built"
   else
-    podman build --platform linux/amd64 -t "${UI_IMAGE}:${UI_TAG}" .
-    podman tag "${UI_IMAGE}:${UI_TAG}" "${UI_IMAGE}:latest"
-    podman push "${UI_IMAGE}:${UI_TAG}"
+    error "UI image build failed. Logs:"
+    cat /tmp/pulse-ui-build.log
+    exit 1
+  fi
+
+  info "Pushing images..."
+  podman tag "${UI_IMAGE}:${UI_TAG}" "${UI_IMAGE}:latest"
+  podman tag "${AGENT_IMAGE}:${AGENT_TAG}" "${AGENT_IMAGE}:latest"
+
+  podman push "${UI_IMAGE}:${UI_TAG}" &>/tmp/pulse-ui-push.log &
+  UI_PUSH_PID=$!
+
+  podman push "${AGENT_IMAGE}:${AGENT_TAG}"
+  podman push "${AGENT_IMAGE}:latest"
+  info "Pushed ${AGENT_IMAGE}:${AGENT_TAG} + latest"
+
+  if wait $UI_PUSH_PID; then
     podman push "${UI_IMAGE}:latest"
     info "Pushed ${UI_IMAGE}:${UI_TAG} + latest"
+  else
+    error "UI image push failed"
+    cat /tmp/pulse-ui-push.log
+    exit 1
   fi
 else
   info "Skipping image builds (--skip-build)"
@@ -352,10 +351,8 @@ AGENT_DEPLOY="${RELEASE}-openshift-sre-agent"
 WS_SECRET="${RELEASE}-ws-token"
 
 # Create AI backend secrets before Helm install
-if [[ "$NO_AGENT" == "false" ]]; then
-  [[ -n "$GCP_KEY" ]] && ensure_secret gcp-sa-key "$NAMESPACE" --from-file=key.json="$GCP_KEY"
-  [[ -n "${ANTHROPIC_API_KEY:-}" ]] && ensure_secret anthropic-api-key "$NAMESPACE" --from-literal=api-key="${ANTHROPIC_API_KEY}"
-fi
+[[ -n "$GCP_KEY" ]] && ensure_secret gcp-sa-key "$NAMESPACE" --from-file=key.json="$GCP_KEY"
+[[ -n "${ANTHROPIC_API_KEY:-}" ]] && ensure_secret anthropic-api-key "$NAMESPACE" --from-literal=api-key="${ANTHROPIC_API_KEY}"
 
 # Resolve WS token: read existing or generate new
 WS_TOKEN=""
@@ -370,22 +367,18 @@ else
 fi
 
 # Pre-create the WS token secret so Helm lookup() finds it during template rendering.
-# Without this, fresh installs get a token mismatch: nginx uses the literal fallback
-# while the agent reads a different auto-generated token from ws-token.yaml.
-if [[ "$NO_AGENT" == "false" ]]; then
-  if ! oc get secret "$WS_SECRET" -n "$NAMESPACE" &>/dev/null; then
-    oc create secret generic "$WS_SECRET" \
-      --from-literal=token="$WS_TOKEN" \
-      -n "$NAMESPACE"
-    oc label secret "$WS_SECRET" -n "$NAMESPACE" \
-      app.kubernetes.io/part-of=pulse \
-      app.kubernetes.io/managed-by=Helm
-    oc annotate secret "$WS_SECRET" -n "$NAMESPACE" \
-      "helm.sh/resource-policy=keep" \
-      "meta.helm.sh/release-name=$RELEASE" \
-      "meta.helm.sh/release-namespace=$NAMESPACE"
-    info "WS token secret: pre-created for Helm"
-  fi
+if ! oc get secret "$WS_SECRET" -n "$NAMESPACE" &>/dev/null; then
+  oc create secret generic "$WS_SECRET" \
+    --from-literal=token="$WS_TOKEN" \
+    -n "$NAMESPACE"
+  oc label secret "$WS_SECRET" -n "$NAMESPACE" \
+    app.kubernetes.io/part-of=pulse \
+    app.kubernetes.io/managed-by=Helm
+  oc annotate secret "$WS_SECRET" -n "$NAMESPACE" \
+    "helm.sh/resource-policy=keep" \
+    "meta.helm.sh/release-name=$RELEASE" \
+    "meta.helm.sh/release-namespace=$NAMESPACE"
+  info "WS token secret: pre-created for Helm"
 fi
 
 # Label namespace for Helm ownership
@@ -395,7 +388,8 @@ oc annotate namespace "$NAMESPACE" meta.helm.sh/release-name="$RELEASE" meta.hel
 # Build Helm dependencies
 helm dependency build deploy/helm/pulse/ 2>/dev/null
 
-# Build args
+# Helm values — UI and agent always deployed together
+AI_BACKEND="none"
 HELM_ARGS=""
 # UI subchart
 HELM_ARGS="$HELM_ARGS --set openshiftpulse.image.repository=$UI_IMAGE"
@@ -404,33 +398,27 @@ HELM_ARGS="$HELM_ARGS --set openshiftpulse.oauthProxy.image=$OAUTH_IMAGE"
 HELM_ARGS="$HELM_ARGS --set openshiftpulse.route.clusterDomain=$CLUSTER_DOMAIN"
 HELM_ARGS="$HELM_ARGS --set openshiftpulse.monitoring.prometheus.enabled=$MONITORING_ENABLED"
 HELM_ARGS="$HELM_ARGS --set openshiftpulse.monitoring.alertmanager.enabled=$MONITORING_ENABLED"
+# Wire UI → agent
+HELM_ARGS="$HELM_ARGS --set openshiftpulse.agent.enabled=true"
+HELM_ARGS="$HELM_ARGS --set openshiftpulse.agent.serviceName=$AGENT_DEPLOY"
+HELM_ARGS="$HELM_ARGS --set openshiftpulse.agent.wsToken=$WS_TOKEN"
+HELM_ARGS="$HELM_ARGS --set openshiftpulse.agent.wsTokenSecret=$WS_SECRET"
+# Agent subchart
+HELM_ARGS="$HELM_ARGS --set agent.enabled=true"
+HELM_ARGS="$HELM_ARGS --set agent.image.repository=$AGENT_IMAGE"
+HELM_ARGS="$HELM_ARGS --set agent.image.tag=$AGENT_TAG"
+HELM_ARGS="$HELM_ARGS --set agent.rbac.allowWriteOperations=true"
+HELM_ARGS="$HELM_ARGS --set agent.rbac.allowSecretAccess=true"
+HELM_ARGS="$HELM_ARGS --set agent.wsAuth.existingSecret=$WS_SECRET"
 
-if [[ "$NO_AGENT" == "false" ]]; then
-  # Wire UI → agent
-  HELM_ARGS="$HELM_ARGS --set openshiftpulse.agent.enabled=true"
-  HELM_ARGS="$HELM_ARGS --set openshiftpulse.agent.serviceName=$AGENT_DEPLOY"
-  HELM_ARGS="$HELM_ARGS --set openshiftpulse.agent.wsToken=$WS_TOKEN"
-  HELM_ARGS="$HELM_ARGS --set openshiftpulse.agent.wsTokenSecret=$WS_SECRET"
-  # Agent subchart
-  HELM_ARGS="$HELM_ARGS --set agent.enabled=true"
-  HELM_ARGS="$HELM_ARGS --set agent.image.repository=$AGENT_IMAGE"
-  HELM_ARGS="$HELM_ARGS --set agent.image.tag=$AGENT_TAG"
-  HELM_ARGS="$HELM_ARGS --set agent.rbac.allowWriteOperations=true"
-  HELM_ARGS="$HELM_ARGS --set agent.rbac.allowSecretAccess=true"
-  HELM_ARGS="$HELM_ARGS --set agent.wsAuth.existingSecret=$WS_SECRET"
-
-  if [[ -n "${ANTHROPIC_VERTEX_PROJECT_ID:-}" ]]; then
-    HELM_ARGS="$HELM_ARGS --set agent.vertexAI.projectId=${ANTHROPIC_VERTEX_PROJECT_ID}"
-    HELM_ARGS="$HELM_ARGS --set agent.vertexAI.region=${CLOUD_ML_REGION:-us-east5}"
-    HELM_ARGS="$HELM_ARGS --set agent.vertexAI.existingSecret=gcp-sa-key"
-    AI_BACKEND="vertex"
-  elif [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
-    HELM_ARGS="$HELM_ARGS --set agent.anthropicApiKey.existingSecret=anthropic-api-key"
-    AI_BACKEND="anthropic"
-  fi
-else
-  HELM_ARGS="$HELM_ARGS --set openshiftpulse.agent.enabled=false"
-  HELM_ARGS="$HELM_ARGS --set agent.enabled=false"
+if [[ -n "${ANTHROPIC_VERTEX_PROJECT_ID:-}" ]]; then
+  HELM_ARGS="$HELM_ARGS --set agent.vertexAI.projectId=${ANTHROPIC_VERTEX_PROJECT_ID}"
+  HELM_ARGS="$HELM_ARGS --set agent.vertexAI.region=${CLOUD_ML_REGION:-us-east5}"
+  HELM_ARGS="$HELM_ARGS --set agent.vertexAI.existingSecret=gcp-sa-key"
+  AI_BACKEND="vertex"
+elif [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
+  HELM_ARGS="$HELM_ARGS --set agent.anthropicApiKey.existingSecret=anthropic-api-key"
+  AI_BACKEND="anthropic"
 fi
 
 helm upgrade --install "$RELEASE" deploy/helm/pulse/ \
@@ -451,38 +439,34 @@ fi
 
 # ─── Phase 4: Health Check ──────────────────────────────────────────────────
 
-HEALTHY="n/a"
-AI_BACKEND="${AI_BACKEND:-none}"
+step "Health verification"
+
+# Wait for both deployments
+wait_for_rollout "openshiftpulse" "$NAMESPACE" 60
+wait_for_rollout "$AGENT_DEPLOY" "$NAMESPACE" 120
+
+HEALTHY=false
 VERSION=""
+# Target agent pod specifically — exclude StatefulSet pods (postgresql)
+AGENT_POD=$(oc get pods -n "$NAMESPACE" -l "app.kubernetes.io/name=openshift-sre-agent" \
+  --field-selector=status.phase=Running --no-headers 2>/dev/null \
+  | grep -v postgresql | head -1 | awk '{print $1}')
 
-if [[ "$NO_AGENT" == "false" ]]; then
-  step "Health verification"
-
-  # Wait for rollout, then health check via the agent pod (not PostgreSQL)
-  wait_for_rollout "$AGENT_DEPLOY" "$NAMESPACE" 120
-
-  HEALTHY=false
-  # Target agent pod specifically — exclude StatefulSet pods (postgresql)
-  AGENT_POD=$(oc get pods -n "$NAMESPACE" -l "app.kubernetes.io/name=openshift-sre-agent" \
-    --field-selector=status.phase=Running --no-headers 2>/dev/null \
-    | grep -v postgresql | head -1 | awk '{print $1}')
-
-  if [[ -z "$AGENT_POD" ]]; then
-    warn "Could not find agent pod"
-  else
-    for i in $(seq 1 12); do
-      sleep 5
-      HEALTH=$(oc exec "$AGENT_POD" -n "$NAMESPACE" -- curl -sf http://localhost:8080/healthz 2>/dev/null || echo "")
-      if [[ "$HEALTH" == *"ok"* ]]; then
-        HEALTHY=true
-        info "Agent healthy!"
-        VERSION=$(oc exec "$AGENT_POD" -n "$NAMESPACE" -- curl -sf http://localhost:8080/version 2>/dev/null || echo "")
-        [[ -n "$VERSION" ]] && info "Agent: $VERSION"
-        break
-      fi
-      [[ $i -eq 12 ]] && warn "Agent health check failed after 60s"
-    done
-  fi
+if [[ -z "$AGENT_POD" ]]; then
+  warn "Could not find agent pod"
+else
+  for i in $(seq 1 12); do
+    sleep 5
+    HEALTH=$(oc exec "$AGENT_POD" -n "$NAMESPACE" -- curl -sf http://localhost:8080/healthz 2>/dev/null || echo "")
+    if [[ "$HEALTH" == *"ok"* ]]; then
+      HEALTHY=true
+      info "Agent healthy!"
+      VERSION=$(oc exec "$AGENT_POD" -n "$NAMESPACE" -- curl -sf http://localhost:8080/version 2>/dev/null || echo "")
+      [[ -n "$VERSION" ]] && info "Agent: $VERSION"
+      break
+    fi
+    [[ $i -eq 12 ]] && warn "Agent health check failed after 60s"
+  done
 fi
 
 # ─── Summary ─────────────────────────────────────────────────────────────────
@@ -490,9 +474,7 @@ fi
 echo ""
 echo "════════════════════════════════════════════"
 if [[ "$HEALTHY" == "true" ]]; then
-  info "Deploy complete! (UI + Agent)"
-elif [[ "$NO_AGENT" == "true" ]]; then
-  info "Deploy complete! (UI only)"
+  info "Deploy complete!"
 else
   warn "Agent health check did not pass — it may still be starting"
 fi
@@ -501,11 +483,9 @@ echo "  URL:       https://$ROUTE"
 echo "  Cluster:   $CLUSTER_API"
 echo "  NS:        $NAMESPACE"
 echo "  UI image:  ${UI_IMAGE}:${UI_TAG}"
-if [[ "$NO_AGENT" == "false" ]]; then
-  echo "  Agent img: ${AGENT_IMAGE}:${AGENT_TAG}"
-  echo "  AI:        $AI_BACKEND"
-  echo "  Agent:     ${VERSION:-unknown}"
-fi
+echo "  Agent img: ${AGENT_IMAGE}:${AGENT_TAG}"
+echo "  AI:        $AI_BACKEND"
+echo "  Agent:     ${VERSION:-unknown}"
 echo ""
 echo "  Uninstall:         $0 --uninstall"
 echo "  Integration tests: ./deploy/integration-test.sh --namespace $NAMESPACE"
