@@ -32,6 +32,9 @@ monitoring:
   alertmanager:
     enabled: true
     host: alertmanager-main.openshift-monitoring.svc:9094
+  # Self-monitoring: ServiceMonitor + PrometheusRule for Pulse itself
+  selfMonitor:
+    enabled: true
 
 # Resource limits
 resources:

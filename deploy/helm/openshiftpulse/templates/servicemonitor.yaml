@@ -1,0 +1,71 @@
+{{- if .Values.monitoring.selfMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: openshiftpulse
+  namespace: {{ include "openshiftpulse.namespace" . }}
+  labels:
+    {{- include "openshiftpulse.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: openshiftpulse
+  endpoints:
+  - port: https
+    scheme: https
+    tlsConfig:
+      insecureSkipVerify: true
+    path: /oauth/healthz
+    interval: 30s
+  {{- if .Values.agent.enabled }}
+  - port: http
+    targetPort: 8080
+    scheme: http
+    path: /healthz
+    interval: 30s
+  {{- end }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: openshiftpulse
+  namespace: {{ include "openshiftpulse.namespace" . }}
+  labels:
+    {{- include "openshiftpulse.labels" . | nindent 4 }}
+spec:
+  groups:
+  - name: openshiftpulse.rules
+    rules:
+    - alert: PulseUIDown
+      expr: up{job="openshiftpulse"} == 0
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "OpenShift Pulse UI is down"
+        description: "The Pulse UI has been unreachable for more than 5 minutes."
+    - alert: PulseAgentDown
+      expr: up{job="openshiftpulse", container="openshift-sre-agent"} == 0
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Pulse Agent is down"
+        description: "The AI SRE agent has been unreachable for more than 5 minutes."
+    - alert: PulseAgentHighRestarts
+      expr: increase(kube_pod_container_status_restarts_total{namespace="{{ include "openshiftpulse.namespace" . }}", container="openshift-sre-agent"}[1h]) > 3
+      for: 0m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Pulse Agent restarting frequently"
+        description: "The agent container has restarted {{ "{{ $value }}" }} times in the last hour."
+    - alert: PulsePostgreSQLDown
+      expr: up{job="openshiftpulse", container="postgresql"} == 0
+      for: 3m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Pulse PostgreSQL is down"
+        description: "The PostgreSQL database for Pulse has been down for 3+ minutes. Views, memory, and fix history are unavailable."
+{{- end }}

@@ -1,0 +1,4 @@
+# Exclude everything, then whitelist what the Dockerfile needs
+*
+!dist/
+!entrypoint.sh
