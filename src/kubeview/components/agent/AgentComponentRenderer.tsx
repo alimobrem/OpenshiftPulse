@@ -228,7 +228,7 @@ function AgentDataTable({ spec, onAddToView }: { spec: DataTableSpec; onAddToVie
           </thead>
           <tbody>
             {processedRows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((row, i) => (
-              <tr key={i} className="border-t border-slate-800 hover:bg-slate-800/30">
+              <tr key={i} className="border-t border-slate-800 hover:bg-slate-800/40 cursor-pointer transition-colors">
                 {visibleColumns.map((col) => (
                   <td key={col.id} className="px-3 py-1.5 text-slate-300 whitespace-nowrap group/cell relative">
                     <CellValue value={row[col.id]} columnId={col.id} columnType={col.type} row={row} />

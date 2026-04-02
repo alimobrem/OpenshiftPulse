@@ -221,8 +221,8 @@ export default function CustomView() {
   };
 
   return (
-    <div className="h-full overflow-auto bg-slate-950 p-4">
-      <div className="max-w-full mx-auto space-y-3">
+    <div className="h-full overflow-auto bg-slate-950 p-6">
+      <div className="max-w-7xl mx-auto space-y-4">
         {/* Header */}
         <div className="flex items-start justify-between">
           <div>
@@ -338,10 +338,10 @@ export default function CustomView() {
             isResizable={editMode}
             onLayoutChange={handleLayoutChange}
             draggableHandle=".widget-drag-handle"
-            margin={[8, 8]}
+            margin={[16, 16]}
           >
             {view.layout.map((spec, i) => (
-              <div key={String(i)} className={`rounded-lg border bg-slate-900 p-2 relative group overflow-auto ${editMode ? 'border-slate-700 border-dashed' : 'border-slate-800'}`}>
+              <div key={String(i)} className={`rounded-lg border bg-slate-900/80 p-3 relative group overflow-auto transition-colors ${editMode ? 'border-slate-700 border-dashed' : 'border-slate-800 hover:border-slate-700'}`}>
                 {editMode && (
                   <>
                     <div className="widget-drag-handle absolute top-2 left-2 p-1 cursor-grab active:cursor-grabbing text-slate-600 hover:text-slate-400 transition-colors">
