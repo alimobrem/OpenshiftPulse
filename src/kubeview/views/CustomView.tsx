@@ -72,6 +72,18 @@ export default function CustomView() {
   const updateWidget = useCustomViewStore((s) => s.updateWidget);
   const shareView = useCustomViewStore((s) => s.shareView);
 
+  // Update tab title to match view title
+  const updateTab = useUIStore((s) => s.updateTab);
+  useEffect(() => {
+    if (view?.title) {
+      const tabs = useUIStore.getState().tabs;
+      const tab = tabs.find((t) => t.path === `/custom/${viewId}`);
+      if (tab && tab.title !== view.title) {
+        updateTab(tab.id, { title: view.title });
+      }
+    }
+  }, [view?.title, viewId, updateTab]);
+
   // Auto-set active builder when viewing a custom view — so new widgets
   // from the agent dock get added here instead of creating a new view
   useEffect(() => {

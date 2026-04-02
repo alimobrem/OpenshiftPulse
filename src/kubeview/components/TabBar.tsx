@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { X, Plus, Pin, PinOff } from 'lucide-react';
 import { useUIStore } from '../store/uiStore';
+import { useCustomViewStore } from '../store/customViewStore';
 import { cn } from '@/lib/utils';
 import { useEffect, useRef } from 'react';
 import { getResourceIcon } from '../engine/iconRegistry';
@@ -44,6 +45,13 @@ export function getTabTitle(path: string): string {
   // /metrics/... → "name (Metrics)"
   if (parts[0] === 'metrics' && parts.length >= 4) {
     return `${parts[parts.length - 1]} (Metrics)`;
+  }
+
+  // /custom/cv-xxx → look up view title from store
+  if (parts[0] === 'custom' && parts.length >= 2) {
+    const viewId = parts[1];
+    const view = useCustomViewStore.getState().views.find((v) => v.id === viewId);
+    if (view) return view.title;
   }
 
   // /timeline, /dashboard, etc.
