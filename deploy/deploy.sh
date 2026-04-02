@@ -31,6 +31,7 @@ GCP_KEY_FILE=""
 DRY_RUN=false
 UNINSTALL=false
 SKIP_BUILD=false
+ROLLBACK=false
 
 # Auto-detect agent repo: sibling directory or explicit override
 AGENT_REPO="${PULSE_AGENT_REPO:-}"
@@ -58,6 +59,7 @@ while [[ $# -gt 0 ]]; do
     --dry-run)    DRY_RUN=true; shift ;;
     --uninstall)  UNINSTALL=true; shift ;;
     --skip-build) SKIP_BUILD=true; shift ;;
+    --rollback)   ROLLBACK=true; shift ;;
     --help|-h)
       cat <<HELP
 Usage: $0 [options]
@@ -75,6 +77,7 @@ Options:
   --dry-run           Preview what will be deployed without deploying
   --uninstall         Remove all Pulse resources from the cluster
   --skip-build        Skip image builds, use existing images
+  --rollback          Roll back to the previous Helm revision
 
 AI Backend (pick one, set via env vars):
   Vertex AI:     ANTHROPIC_VERTEX_PROJECT_ID=proj CLOUD_ML_REGION=us-east5 \\
@@ -151,6 +154,37 @@ if [[ "$UNINSTALL" == "true" ]]; then
   echo ""
   echo "════════════════════════════════════════════"
   info "Uninstall complete"
+  echo "════════════════════════════════════════════"
+  exit 0
+fi
+
+# ─── Rollback Mode ──────────────────────────────────────────────────────────
+
+if [[ "$ROLLBACK" == "true" ]]; then
+  step "Rolling back to previous revision"
+
+  oc whoami &>/dev/null || { error "Not logged in to OpenShift. Run 'oc login' first."; exit 1; }
+
+  CURRENT=$(helm history "$RELEASE" -n "$NAMESPACE" --max 1 -o json 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['revision'])" 2>/dev/null || echo "")
+  if [[ -z "$CURRENT" || "$CURRENT" -le 1 ]]; then
+    error "No previous revision to roll back to (current: ${CURRENT:-none})"
+    exit 1
+  fi
+
+  TARGET=$((CURRENT - 1))
+  info "Rolling back: revision $CURRENT → $TARGET"
+  helm rollback "$RELEASE" "$TARGET" -n "$NAMESPACE" --timeout 120s
+
+  AGENT_DEPLOY="${RELEASE}-openshift-sre-agent"
+  wait_for_rollout "openshiftpulse" "$NAMESPACE" 60
+  wait_for_rollout "$AGENT_DEPLOY" "$NAMESPACE" 60
+
+  echo ""
+  echo "════════════════════════════════════════════"
+  info "Rollback complete (revision $CURRENT → $TARGET)"
+  echo ""
+  echo "  Verify:  oc get pods -n $NAMESPACE"
+  echo "  History: helm history $RELEASE -n $NAMESPACE"
   echo "════════════════════════════════════════════"
   exit 0
 fi
@@ -385,6 +419,10 @@ fi
 oc label namespace "$NAMESPACE" app.kubernetes.io/managed-by=Helm --overwrite 2>/dev/null || true
 oc annotate namespace "$NAMESPACE" meta.helm.sh/release-name="$RELEASE" meta.helm.sh/release-namespace="$NAMESPACE" --overwrite 2>/dev/null || true
 
+# Record current revision for rollback
+PREV_REVISION=$(helm history "$RELEASE" -n "$NAMESPACE" --max 1 -o json 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['revision'])" 2>/dev/null || echo "")
+[[ -n "$PREV_REVISION" ]] && info "Current revision: $PREV_REVISION (rollback target if deploy fails)"
+
 # Build Helm dependencies
 helm dependency build deploy/helm/pulse/ 2>/dev/null
 
@@ -469,15 +507,29 @@ else
   done
 fi
 
+# Auto-rollback on failed health check
+if [[ "$HEALTHY" != "true" && -n "$PREV_REVISION" ]]; then
+  warn "Health check failed — rolling back to revision $PREV_REVISION"
+  helm rollback "$RELEASE" "$PREV_REVISION" -n "$NAMESPACE" --timeout 120s 2>/dev/null
+  wait_for_rollout "openshiftpulse" "$NAMESPACE" 60
+  wait_for_rollout "$AGENT_DEPLOY" "$NAMESPACE" 60
+  error "Deploy ROLLED BACK to revision $PREV_REVISION due to failed health check"
+  echo ""
+  echo "════════════════════════════════════════════"
+  error "Deploy failed and was rolled back"
+  echo ""
+  echo "  Rolled back to: revision $PREV_REVISION"
+  echo "  Investigate:    oc logs deployment/$AGENT_DEPLOY -n $NAMESPACE"
+  echo "  Manual retry:   $0"
+  echo "════════════════════════════════════════════"
+  exit 1
+fi
+
 # ─── Summary ─────────────────────────────────────────────────────────────────
 
 echo ""
 echo "════════════════════════════════════════════"
-if [[ "$HEALTHY" == "true" ]]; then
-  info "Deploy complete!"
-else
-  warn "Agent health check did not pass — it may still be starting"
-fi
+info "Deploy complete!"
 echo ""
 echo "  URL:       https://$ROUTE"
 echo "  Cluster:   $CLUSTER_API"
