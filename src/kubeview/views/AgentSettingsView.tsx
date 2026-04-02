@@ -1,4 +1,4 @@
-import { useState, Suspense, lazy } from 'react';
+import { useState, Suspense, lazy, useRef, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -10,6 +10,7 @@ import { Card } from '../components/primitives/Card';
 import { useMonitorStore } from '../store/monitorStore';
 import { useTrustStore, TRUST_LABELS, TRUST_DESCRIPTIONS, type TrustLevel, type CommunicationStyle } from '../store/trustStore';
 import { useAgentStore } from '../store/agentStore';
+import { useUIStore } from '../store/uiStore';
 import { fetchAgentEvalStatus } from '../engine/evalStatus';
 
 const MemoryView = lazy(() => import('./MemoryView'));
@@ -156,10 +157,32 @@ function SettingsTabContent() {
     refetchInterval: 60_000,
   });
 
-  const handleScanNow = async () => {
+  const lastScanTime = useMonitorStore((s) => s.lastScanTime);
+  const scanTimeRef = useRef(lastScanTime);
+
+  const handleScanNow = () => {
+    scanTimeRef.current = lastScanTime;
     setScanning(true);
-    try { await triggerScan(); } finally { setScanning(false); }
+    triggerScan();
+    // Auto-reset after 15s if no scan result arrives
+    setTimeout(() => setScanning(false), 15_000);
   };
+
+  // Reset scanning when a new scan result arrives
+  useEffect(() => {
+    if (scanning && lastScanTime !== scanTimeRef.current) {
+      setScanning(false);
+      const findings = useMonitorStore.getState().findings;
+      useUIStore.getState().addToast({
+        type: findings.length > 0 ? 'warning' : 'success',
+        title: 'Scan complete',
+        detail: findings.length > 0
+          ? `Found ${findings.length} issue${findings.length !== 1 ? 's' : ''}.`
+          : 'No issues found — cluster looks healthy.',
+        duration: 5000,
+      });
+    }
+  }, [lastScanTime, scanning]);
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -219,7 +242,7 @@ function SettingsTabContent() {
               disabled={!monitorConnected || scanning}
               className="px-3 py-1.5 text-xs bg-violet-600 hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-md flex items-center gap-1.5 transition-colors"
             >
-              {scanning ? <><Activity className="w-3.5 h-3.5 animate-pulse" />Scanning...</> : <><Play className="w-3.5 h-3.5" />Scan Now</>}
+              {scanning ? <><Activity className="w-3.5 h-3.5 animate-spin" />Scanning cluster...</> : !monitorConnected ? <><Play className="w-3.5 h-3.5" />Monitor disconnected</> : <><Play className="w-3.5 h-3.5" />Scan Now</>}
             </button>
             <button
               onClick={() => navigate('/incidents')}
