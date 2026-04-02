@@ -238,6 +238,14 @@ When deploying to OpenShift clusters, always verify NetworkPolicy egress rules, 
 
 When fixing PostgreSQL deployment issues, validate password encoding, avoid reserved SQL keywords in schema, and check SERIAL/sequence conflicts before the first deploy. Prefer testing with a local PG instance first.
 
+**Secret rotation procedures:**
+- **OAuth cookie-secret**: `oc delete secret openshiftpulse-oauth-secrets -n openshiftpulse` then redeploy. All users must re-login.
+- **OAuth client-secret**: Same as above. Also update OAuthClient: `oc patch oauthclient openshiftpulse -p '{"secret":"NEW_SECRET"}'`
+- **WS token**: `oc delete secret pulse-ws-token -n openshiftpulse` then redeploy. New token auto-generated and shared between UI and agent.
+- **GCP SA key**: `oc delete secret gcp-sa-key -n openshiftpulse` then redeploy with `--gcp-key /path/to/new-key.json`
+- **Anthropic API key**: `oc delete secret anthropic-api-key -n openshiftpulse` then redeploy with `ANTHROPIC_API_KEY=new-key`
+- **PostgreSQL password**: `oc delete secret pulse-openshift-sre-agent-pg-auth -n openshiftpulse` then redeploy. Requires PostgreSQL pod restart.
+
 ### GitHub Pages
 - **UI**: https://alimobrem.github.io/OpenshiftPulse/ (cyberpunk theme, `docs/index.html`)
 - **Agent**: https://alimobrem.github.io/pulse-agent/ (cyberpunk theme, custom robot logo)

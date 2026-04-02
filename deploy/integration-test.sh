@@ -7,7 +7,7 @@
 set -euo pipefail
 
 NAMESPACE="openshiftpulse"
-AGENT_RELEASE="pulse-agent"
+AGENT_RELEASE="pulse"
 FAILURES=0
 MAX_RETRIES=3
 
