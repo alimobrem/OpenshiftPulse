@@ -15,6 +15,7 @@ import type { ViewSpec, ComponentSpec } from '../engine/agentComponents';
 import { truncateForPersistence } from '../engine/agentComponents';
 
 const AGENT_BASE = '/api/agent';
+let _lastLoadAttempt = 0;
 
 interface CustomViewState {
   views: ViewSpec[];
@@ -74,6 +75,12 @@ export const useCustomViewStore = create<CustomViewState>()(
     activeBuilderId: null,
 
     loadViews: async () => {
+      // Debounce: skip if already loading or loaded within last 5 seconds
+      const now = Date.now();
+      if (get().loading) return;
+      if (_lastLoadAttempt && now - _lastLoadAttempt < 5000) return;
+      _lastLoadAttempt = now;
+
       set({ loading: true, error: null });
       try {
         const data = await apiFetch('/views');

@@ -102,6 +102,9 @@ export function TabBar() {
 
   // Sync active tab with current route
   useEffect(() => {
+    // Don't create tabs while a close-triggered navigation is pending
+    if (pendingNavigate) return;
+
     const currentPath = location.pathname;
     const matchingTab = tabs.find((t) => t.path === currentPath);
 
@@ -121,7 +124,7 @@ export function TabBar() {
         closable: true,
       });
     }
-  }, [location.pathname]);
+  }, [location.pathname, pendingNavigate]);
 
   // Navigate when user clicks a tab (not on store rehydration or URL-driven changes)
   const userClickedTab = useRef(false);
