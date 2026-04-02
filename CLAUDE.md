@@ -182,14 +182,20 @@ Agent:          Agent Settings (Settings/Memory/Views tabs)
 - **E2E**: Playwright (28 scenarios) — `npm run e2e` auto-starts mock K8s + dev server
 - **E2E config**: `e2e/playwright.config.ts`, mock K8s in `e2e/mock-k8s-server.mjs`
 - **Integration stack**: `docker compose -f e2e/docker-compose.yml up` for full UI + Agent + mock K8s
+- Do not use `sed` to edit test files — use the Edit tool instead. Sed commands have repeatedly mangled test files requiring manual cleanup.
 
-### Key Conventions
+### Code Quality
 - Path alias: `@/` maps to `src/`
-- CSS: Tailwind with slate/violet color scheme
-- Icons: lucide-react
 - State: Zustand with `persist` middleware, `openshiftpulse-` prefix
 - Routing: react-router-dom v7
 - Types: define once in `engine/types/` or `engine/readiness/`, import everywhere. **Never duplicate interfaces.**
+- This project uses TypeScript strictly. Always ensure imports are valid, types are correct, and avoid introducing type regressions when editing files. Run `tsc --noEmit` after making changes to TypeScript files.
+
+### UI Framework & Styling
+- CSS: Tailwind with slate/violet color scheme
+- Icons: lucide-react
+- When working with PatternFly (PF6), always check the PF6 API docs for component prop placement (e.g., selectableActions goes on CardHeader not Card). Do not assume PF5 patterns.
+- For dark-mode UI work, always verify text visibility, dropdown/menu contrast, and avoid glassmorphism effects that reduce readability. Test all CSS changes against both light and dark themes.
 - Feature flags: all default ON. Toggle in Admin. `isFeatureEnabled(flag)` to check. Current flags: `incidentCenter`, `identityView`, `welcomeLaunchpad`, `onboarding`, `reviewQueue`, `enhancedPulse`, `askPulse`
 - Trust level: always send as integer (0-4), never as string label
 - Confirmation nonce: always echo `nonce` from `confirm_request` back in `confirm_response`
@@ -225,6 +231,8 @@ When deploying to OpenShift clusters, always verify NetworkPolicy egress rules, 
 3. `podman login --get-login quay.io` — verify image push access
 4. `oc get secret openshiftpulse-oauth-secrets -n openshiftpulse` — verify OAuth secrets exist (or will be created)
 5. `helm template deploy/helm/pulse/ --set ...` — dry-run to catch config errors before deploying
+
+When fixing PostgreSQL deployment issues, validate password encoding, avoid reserved SQL keywords in schema, and check SERIAL/sequence conflicts before the first deploy. Prefer testing with a local PG instance first.
 6. Verify `ANTHROPIC_VERTEX_PROJECT_ID` or `ANTHROPIC_API_KEY` is set
 
 ### GitHub Pages
