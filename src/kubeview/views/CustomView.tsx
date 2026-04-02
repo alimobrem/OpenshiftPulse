@@ -18,11 +18,26 @@ import 'react-resizable/css/styles.css';
 
 const ResponsiveGrid = WidthProvider(Responsive);
 
+import { applyTemplate } from '../engine/layoutTemplates';
+
 /** Generate a sensible default layout based on component kinds.
- *  All widgets start full-width and stack vertically for readability.
- *  Users can switch to side-by-side via Edit Layout mode.
+ *  If the view has a templateId, use template positions.
+ *  Otherwise, stack full-width vertically.
  */
-function generateDefaultLayout(specs: ComponentSpec[]): ReactGridLayout.Layout[] {
+function generateDefaultLayout(specs: ComponentSpec[], templateId?: string): ReactGridLayout.Layout[] {
+  // Try template-based layout first
+  if (templateId) {
+    const result = applyTemplate(templateId, specs);
+    if (result) {
+      return Object.entries(result.positions).map(([idx, pos]) => ({
+        i: idx,
+        ...pos,
+        minW: 1,
+        minH: 2,
+      }));
+    }
+  }
+
   let y = 0;
   return specs.map((spec, i) => {
     // Height based on content type
@@ -148,7 +163,7 @@ export default function CustomView() {
     if (view.positions && Object.keys(view.positions).length > 0) {
       return positionsToLayout(view.positions, view.layout.length);
     }
-    return generateDefaultLayout(view.layout);
+    return generateDefaultLayout(view.layout, view.templateId);
   }, [view]);
 
   const handleLayoutChange = useCallback(

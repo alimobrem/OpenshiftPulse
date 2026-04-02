@@ -163,6 +163,7 @@ export interface ViewSpec {
   positions?: Record<number, { x: number; y: number; w: number; h: number }>;
   generatedAt: number;
   owner?: string;
+  templateId?: string;
 }
 
 /** Max rows persisted to localStorage to prevent bloat */
