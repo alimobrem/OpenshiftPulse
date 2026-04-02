@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Siren, Zap, Search, Clock, Bell, Settings,
+  Siren, Zap, Search, Clock, Bell, Settings, GitPullRequest,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMonitorStore } from '../store/monitorStore';
@@ -11,12 +11,14 @@ import { InvestigateTab } from './incidents/InvestigateTab';
 import { HistoryTab } from './incidents/HistoryTab';
 
 const AlertsView = lazy(() => import('./AlertsView'));
+const ReviewQueueView = lazy(() => import('./ReviewQueueView'));
 
-type IncidentTab = 'now' | 'investigate' | 'history' | 'alerts';
+type IncidentTab = 'now' | 'investigate' | 'actions' | 'history' | 'alerts';
 
 const TABS = [
   { id: 'now' as IncidentTab, label: 'Now', icon: Zap, color: 'text-amber-400' },
   { id: 'investigate' as IncidentTab, label: 'Investigate', icon: Search, color: 'text-blue-400' },
+  { id: 'actions' as IncidentTab, label: 'Actions', icon: GitPullRequest, color: 'text-violet-400' },
   { id: 'history' as IncidentTab, label: 'History', icon: Clock, color: 'text-slate-400' },
   { id: 'alerts' as IncidentTab, label: 'Alerts', icon: Bell, color: 'text-red-400' },
 ] as const;
@@ -25,7 +27,7 @@ const TABS = [
 export default function IncidentCenterView() {
   const urlTab = new URLSearchParams(window.location.search).get('tab') as IncidentTab | null;
   const [activeTab, setActiveTabState] = useState<IncidentTab>(
-    urlTab && ['now', 'investigate', 'history', 'alerts'].includes(urlTab) ? urlTab : 'now',
+    urlTab && ['now', 'investigate', 'actions', 'history', 'alerts'].includes(urlTab) ? urlTab : 'now',
   );
   const setActiveTab = (tab: IncidentTab) => {
     setActiveTabState(tab);
@@ -115,6 +117,13 @@ export default function IncidentCenterView() {
         {/* Tab content */}
         {activeTab === 'now' && <div id="incident-panel-now" role="tabpanel"><NowTab /></div>}
         {activeTab === 'investigate' && <div id="incident-panel-investigate" role="tabpanel"><InvestigateTab /></div>}
+        {activeTab === 'actions' && (
+          <div id="incident-panel-actions" role="tabpanel">
+            <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="kv-skeleton w-8 h-8 rounded-full" /></div>}>
+              <ReviewQueueView />
+            </Suspense>
+          </div>
+        )}
         {activeTab === 'history' && <div id="incident-panel-history" role="tabpanel"><HistoryTab /></div>}
         {activeTab === 'alerts' && (
           <div id="incident-panel-alerts" role="tabpanel">

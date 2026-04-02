@@ -147,7 +147,7 @@ describe('OpenShift Pulse CommandPalette', () => {
     expect(screen.getByText('Cluster Pulse')).toBeDefined();
     expect(screen.getByText('Custom Resources')).toBeDefined();
     expect(screen.getByText('Security')).toBeDefined();
-    expect(screen.getByText('Review Queue')).toBeDefined();
+    expect(screen.getByText('Actions')).toBeDefined();
   });
 
   it('shows resource types from registry', () => {

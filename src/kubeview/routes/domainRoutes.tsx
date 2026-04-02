@@ -86,7 +86,7 @@ export function domainRoutes() {
       <Route path="incidents" element={<Lazy>{isFeatureEnabled('incidentCenter') ? <IncidentCenterView /> : <CatchFallback />}</Lazy>} />
       <Route path="readiness" element={<Lazy>{isFeatureEnabled('onboarding') ? <OnboardingView /> : <CatchFallback />}</Lazy>} />
       <Route path="onboarding" element={<Navigate to="/readiness" replace />} />
-      <Route path="reviews" element={<Lazy>{isFeatureEnabled('reviewQueue') ? <ReviewQueueView /> : <CatchFallback />}</Lazy>} />
+      <Route path="reviews" element={<Navigate to="/incidents?tab=actions" replace />} />
       <Route path="memory" element={<Navigate to="/agent?tab=memory" replace />} />
       <Route path="views" element={<Navigate to="/agent?tab=views" replace />} />
       <Route path="agent" element={<Lazy><AgentSettingsView /></Lazy>} />

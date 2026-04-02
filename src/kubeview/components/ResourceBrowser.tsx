@@ -192,7 +192,6 @@ export function ResourceBrowser() {
             {
               section: 'AGENT',
               items: [
-                { label: 'Review Queue', icon: ClipboardCheck, path: '/reviews', color: 'text-violet-400' },
                 { label: 'Agent Settings', icon: Settings, path: '/agent', color: 'text-violet-400' },
               ],
             },
