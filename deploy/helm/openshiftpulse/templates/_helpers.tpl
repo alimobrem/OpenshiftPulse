@@ -18,20 +18,31 @@ helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 app: openshiftpulse
 {{- end -}}
 
-{{/* Generate OAuth client secret if not provided */}}
+{{/* OAuth client secret: reuse existing on upgrades to avoid breaking sessions. */}}
 {{- define "openshiftpulse.clientSecret" -}}
 {{- if .Values.oauthProxy.clientSecret -}}
 {{ .Values.oauthProxy.clientSecret }}
 {{- else -}}
+{{- $existing := lookup "v1" "Secret" (include "openshiftpulse.namespace" .) "openshiftpulse-oauth-secrets" -}}
+{{- if and $existing $existing.data (index $existing.data "client-secret") -}}
+{{ index $existing.data "client-secret" | b64dec }}
+{{- else -}}
 {{ randAlphaNum 32 }}
 {{- end -}}
 {{- end -}}
+{{- end -}}
 
-{{/* Generate cookie secret if not provided (must be 16, 24, or 32 bytes) */}}
+{{/* Cookie secret: reuse existing secret on upgrades to avoid logging users out.
+     Only generate a new one on fresh install or if explicitly provided. */}}
 {{- define "openshiftpulse.cookieSecret" -}}
 {{- if .Values.oauthProxy.cookieSecret -}}
 {{ .Values.oauthProxy.cookieSecret }}
 {{- else -}}
+{{- $existing := lookup "v1" "Secret" (include "openshiftpulse.namespace" .) "openshiftpulse-oauth-secrets" -}}
+{{- if and $existing $existing.data (index $existing.data "cookie-secret") -}}
+{{ index $existing.data "cookie-secret" | b64dec }}
+{{- else -}}
 {{ randAlphaNum 32 }}
+{{- end -}}
 {{- end -}}
 {{- end -}}

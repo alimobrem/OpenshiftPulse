@@ -46,6 +46,8 @@ spec:
         - --cookie-secret-file=/etc/oauth/cookie-secret
         - --pass-access-token=true
         - --pass-basic-auth=false
+        - --cookie-expire=168h
+        - --cookie-refresh=1h
         - --scope=user:full
         - --openshift-delegate-urls={"/api/kubernetes/":{"resource":"namespaces","verb":"list"}}
         ports:
