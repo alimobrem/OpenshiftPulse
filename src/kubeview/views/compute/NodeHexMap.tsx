@@ -1,12 +1,15 @@
 /**
- * NodeHexMap — Zoomable honeycomb cluster map.
- * 250 hex slots shown at overview zoom. Active nodes glow.
- * Mouse wheel to zoom, drag to pan, click to inspect.
+ * NodeHexMap — Command-center hexagonal node visualization.
+ * Honeycomb layout with context menus, filter bar, pulse animations,
+ * and capacity warning overlays.
  */
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
-import { Server, ZoomIn, ZoomOut, Maximize2, Search, X, ChevronRight } from 'lucide-react';
+import {
+  Server, Cpu, MemoryStick, ChevronRight, Search,
+  ShieldOff, Shield, Terminal, Trash2, FileText, Copy, X,
+} from 'lucide-react';
 import type { NodeDetail } from './types';
 
 export interface PodInfo {
@@ -24,322 +27,413 @@ interface Props {
   onViewAll?: () => void;
 }
 
-const TOTAL_SLOTS = 250;
-const COLS = 25;
-const HEX_R = 14;
-const HEX_W = HEX_R * 2;
-const HEX_H = Math.sqrt(3) * HEX_R;
-// Proper hex tiling: horizontal = 1.5 * R, vertical = sqrt(3) * R
-const GAP_X = HEX_R * 1.55;
-const GAP_Y = HEX_H * 1.05;
+const MAX_VISIBLE = 8;
 
-const STATUS_COLOR: Record<string, string> = {
-  ready: '#10b981',
-  pressure: '#f59e0b',
-  notReady: '#ef4444',
-  cordoned: '#6b7280',
+const STATUS = {
+  ready: { color: '#10b981', glow: '#10b98140', label: 'Ready' },
+  pressure: { color: '#f59e0b', glow: '#f59e0b40', label: 'Pressure' },
+  notReady: { color: '#ef4444', glow: '#ef444440', label: 'Not Ready' },
+  cordoned: { color: '#6b7280', glow: '#6b728040', label: 'Cordoned' },
 };
+
+function getStatus(nd: NodeDetail) {
+  if (!nd.status.ready) return STATUS.notReady;
+  if (nd.unschedulable) return STATUS.cordoned;
+  if (nd.pressures.length > 0) return STATUS.pressure;
+  return STATUS.ready;
+}
+
+const HEX_CLIP = 'polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%)';
 
 const POD_STATUS_COLOR: Record<string, string> = {
-  Running: '#10b981', Succeeded: '#3b82f6', Pending: '#f59e0b',
-  Failed: '#ef4444', Unknown: '#6b7280', CrashLoopBackOff: '#ef4444',
+  Running: '#10b981',
+  Succeeded: '#3b82f6',
+  Pending: '#f59e0b',
+  Failed: '#ef4444',
+  Unknown: '#6b7280',
+  CrashLoopBackOff: '#ef4444',
 };
 
-function getStatusKey(nd: NodeDetail): string {
-  if (!nd.status.ready) return 'notReady';
-  if (nd.unschedulable) return 'cordoned';
-  if (nd.pressures.length > 0) return 'pressure';
-  return 'ready';
+// ─── CSS for pulse animation ─────────────────────────────────────────────────
+const pulseKeyframes = `
+@keyframes hexPulse {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.35; }
+}
+`;
+
+// ─── Context Menu ────────────────────────────────────────────────────────────
+
+interface ContextMenuItem {
+  label: string;
+  icon: any;
+  action: () => void;
+  danger?: boolean;
 }
 
-function hexPoints(cx: number, cy: number, r: number): string {
-  return Array.from({ length: 6 }, (_, i) => {
-    const a = (Math.PI / 3) * i - Math.PI / 6;
-    return `${cx + r * Math.cos(a)},${cy + r * Math.sin(a)}`;
-  }).join(' ');
-}
+function ContextMenu({ x, y, items, onClose }: { x: number; y: number; items: ContextMenuItem[]; onClose: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
 
-// Hex grid position for slot index
-function hexPos(i: number) {
-  const col = i % COLS;
-  const row = Math.floor(i / COLS);
-  const cx = HEX_R + 6 + col * GAP_X + (row % 2 === 1 ? GAP_X / 2 : 0);
-  const cy = HEX_R + 6 + row * GAP_Y;
-  return { cx, cy };
-}
-
-export function NodeHexMap({ nodes, podsByNode, onNodeClick, onPodClick, onViewAll }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [zoom, setZoom] = useState(2);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [dragging, setDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [hoveredSlot, setHoveredSlot] = useState<number | null>(null);
-  const [filter, setFilter] = useState('');
-
-  const filtered = nodes.filter(nd =>
-    !filter || nd.name.toLowerCase().includes(filter.toLowerCase())
-  ).sort((a, b) => {
-    if (a.status.ready !== b.status.ready) return a.status.ready ? 1 : -1;
-    return a.name.localeCompare(b.name);
-  });
-
-  const readyCount = nodes.filter(n => n.status.ready).length;
-  const totalPods = nodes.reduce((s, n) => s + n.podCount, 0);
-  const totalCap = nodes.reduce((s, n) => s + n.podCap, 0);
-
-  // Map nodes to slot indices (first N slots)
-  const nodeSlots = new Map<number, NodeDetail>();
-  filtered.forEach((nd, i) => nodeSlots.set(i, nd));
-
-  const svgW = COLS * GAP_X + HEX_R + 12;
-  const totalRows = Math.ceil(TOTAL_SLOTS / COLS);
-  const svgH = totalRows * GAP_Y + HEX_R + 12;
-
-  // Zoom controls
-  const zoomIn = () => setZoom(z => Math.min(z * 1.4, 6));
-  const zoomOut = () => setZoom(z => Math.max(z / 1.4, 0.5));
-  const resetView = () => { setZoom(2); setPan({ x: 0, y: 0 }); };
-
-  // Mouse wheel zoom
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    const factor = e.deltaY < 0 ? 1.15 : 0.87;
-    setZoom(z => Math.min(Math.max(z * factor, 0.5), 6));
-  }, []);
-
-  // Pan handlers
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (e.button !== 0) return;
-    setDragging(true);
-    setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
-  }, [pan]);
-
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!dragging) return;
-    setPan({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
-  }, [dragging, dragStart]);
-
-  const handleMouseUp = useCallback(() => setDragging(false), []);
-
-  // Hovered node info
-  const hoveredNode = hoveredSlot !== null ? nodeSlots.get(hoveredSlot) : null;
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [onClose]);
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-gradient-to-br from-slate-900/80 to-slate-950 overflow-hidden">
+    <div
+      ref={ref}
+      className="fixed z-[100] min-w-[180px] rounded-lg border border-slate-700 bg-slate-900 shadow-2xl py-1 animate-in fade-in zoom-in-95 duration-100"
+      style={{ left: x, top: y }}
+    >
+      {items.map((item, i) => (
+        <button
+          key={i}
+          onClick={() => { item.action(); onClose(); }}
+          className={cn(
+            'flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors text-left',
+            item.danger ? 'text-red-400 hover:bg-red-900/20' : 'text-slate-300 hover:bg-slate-800',
+          )}
+        >
+          <item.icon className="w-3.5 h-3.5" />
+          {item.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ─── Gauge Bar ───────────────────────────────────────────────────────────────
+
+function GaugeBar({ icon: Icon, value, color }: { icon: any; value: number | null; color: string }) {
+  const pct = value != null ? Math.min(100, Math.max(0, value)) : null;
+  return (
+    <div className="flex items-center gap-1">
+      <Icon className="w-2.5 h-2.5 shrink-0" style={{ color }} />
+      <div className="flex-1 h-1 rounded-full bg-slate-800 overflow-hidden">
+        {pct != null ? (
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{ width: `${pct}%`, background: pct > 80 ? '#ef4444' : pct > 60 ? '#f59e0b' : color }}
+          />
+        ) : (
+          <div className="h-full w-full bg-slate-700/30" />
+        )}
+      </div>
+      <span className="text-[9px] font-mono w-6 text-right" style={{ color: pct != null && pct > 80 ? '#ef4444' : '#64748b' }}>
+        {pct != null ? `${Math.round(pct)}%` : '—'}
+      </span>
+    </div>
+  );
+}
+
+// ─── Hex Node ────────────────────────────────────────────────────────────────
+
+function HexNode({ nd, pods, onClick, onPodClick }: {
+  nd: NodeDetail; pods?: PodInfo[];
+  onClick?: () => void;
+  onPodClick?: (ns: string, name: string) => void;
+}) {
+  const status = getStatus(nd);
+  const [hovered, setHovered] = useState(false);
+  const [hoveredPod, setHoveredPod] = useState<PodInfo | null>(null);
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; type: 'node' | 'pod'; pod?: PodInfo } | null>(null);
+
+  const podPct = nd.podCap > 0 ? Math.round((nd.podCount / nd.podCap) * 100) : 0;
+  const isOverloaded = (nd.cpuUsagePct ?? 0) > 80 || (nd.memUsagePct ?? 0) > 80;
+
+  const shortName = nd.name
+    .replace(/^ip-/, '')
+    .replace(/\..*internal$/, '')
+    .replace(/\..*compute$/, '')
+    .slice(-14);
+
+  const handleNodeContext = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCtxMenu({ x: e.clientX, y: e.clientY, type: 'node' });
+  }, []);
+
+  const handlePodContext = useCallback((e: React.MouseEvent, pod: PodInfo) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCtxMenu({ x: e.clientX, y: e.clientY, type: 'pod', pod });
+  }, []);
+
+  const nodeMenuItems: ContextMenuItem[] = [
+    { label: 'View Node Details', icon: FileText, action: () => onClick?.() },
+    { label: 'Copy Node Name', icon: Copy, action: () => navigator.clipboard.writeText(nd.name) },
+    { label: nd.unschedulable ? 'Uncordon Node' : 'Cordon Node', icon: nd.unschedulable ? Shield : ShieldOff, action: () => {} },
+    { label: 'Open Terminal', icon: Terminal, action: () => {} },
+    { label: 'Drain Node', icon: Trash2, action: () => {}, danger: true },
+  ];
+
+  const podMenuItems: ContextMenuItem[] = ctxMenu?.pod ? [
+    { label: 'View Pod Details', icon: FileText, action: () => onPodClick?.(ctxMenu.pod!.namespace, ctxMenu.pod!.name) },
+    { label: 'View Logs', icon: FileText, action: () => {} },
+    { label: 'Copy Pod Name', icon: Copy, action: () => navigator.clipboard.writeText(ctxMenu.pod!.name) },
+    { label: 'Exec Into Container', icon: Terminal, action: () => {} },
+    { label: 'Delete Pod', icon: Trash2, action: () => {}, danger: true },
+  ] : [];
+
+  return (
+    <div
+      className="relative cursor-pointer transition-all duration-200"
+      style={{ width: 180, height: 200 }}
+      onClick={onClick}
+      onContextMenu={handleNodeContext}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => { setHovered(false); setHoveredPod(null); }}
+    >
+      {/* Pulse animation for overloaded nodes */}
+      {isOverloaded && (
+        <div
+          className="absolute inset-0"
+          style={{
+            clipPath: HEX_CLIP,
+            background: '#f59e0b',
+            animation: 'hexPulse 2s ease-in-out infinite',
+          }}
+        />
+      )}
+
+      {/* Hex outer glow */}
+      <div
+        className="absolute inset-0 transition-all duration-300"
+        style={{
+          clipPath: HEX_CLIP,
+          background: hovered ? status.color : `${status.color}60`,
+          filter: hovered ? 'blur(8px)' : 'blur(4px)',
+          opacity: hovered ? 0.3 : 0.1,
+          transform: hovered ? 'scale(1.04)' : 'scale(1)',
+        }}
+      />
+
+      {/* Hex border */}
+      <div
+        className="absolute inset-[1px] transition-all duration-200"
+        style={{
+          clipPath: HEX_CLIP,
+          background: `linear-gradient(135deg, ${status.color}30, ${status.color}10)`,
+        }}
+      />
+
+      {/* Hex body */}
+      <div
+        className="absolute inset-[2px] flex flex-col items-center justify-center px-4 py-3"
+        style={{
+          clipPath: HEX_CLIP,
+          background: 'linear-gradient(180deg, #0f172a 0%, #020617 100%)',
+        }}
+      >
+        {/* Status dot with pulse for unhealthy */}
+        <div
+          className={cn('absolute top-5 right-10 w-1.5 h-1.5 rounded-full', !nd.status.ready && 'animate-pulse')}
+          style={{ background: status.color, boxShadow: `0 0 4px ${status.glow}` }}
+        />
+
+        <Server className="w-4 h-4 mb-1" style={{ color: status.color }} />
+        <div className="text-[10px] font-semibold text-slate-200 text-center truncate w-full">{shortName}</div>
+        <div className="text-[8px] text-slate-500 mb-2">{nd.roles.join(' · ')}</div>
+
+        <div className="w-full space-y-0.5 mb-2 px-1">
+          <GaugeBar icon={Cpu} value={nd.cpuUsagePct} color="#3b82f6" />
+          <GaugeBar icon={MemoryStick} value={nd.memUsagePct} color="#8b5cf6" />
+        </div>
+
+        {/* Pod dots */}
+        <div className="flex flex-wrap gap-[2px] justify-center max-w-[90px]">
+          {pods ? (
+            <>
+              {pods.slice(0, 30).map((pod) => (
+                <div
+                  key={pod.name}
+                  className="rounded-sm cursor-pointer hover:scale-150 hover:z-10 transition-transform"
+                  style={{
+                    width: 6, height: 6,
+                    background: POD_STATUS_COLOR[pod.status] || '#6b7280',
+                    opacity: 0.9,
+                  }}
+                  onClick={(e) => { e.stopPropagation(); onPodClick?.(pod.namespace, pod.name); }}
+                  onContextMenu={(e) => handlePodContext(e, pod)}
+                  onMouseEnter={() => setHoveredPod(pod)}
+                  onMouseLeave={() => setHoveredPod(null)}
+                />
+              ))}
+              {Array.from({ length: Math.max(0, Math.min(nd.podCap - pods.length, 20)) }, (_, i) => (
+                <div key={`e-${i}`} className="rounded-sm" style={{ width: 6, height: 6, background: '#1e293b', opacity: 0.2 }} />
+              ))}
+            </>
+          ) : (
+            Array.from({ length: Math.min(nd.podCap, 25) }, (_, i) => (
+              <div key={i} className="rounded-sm" style={{
+                width: 6, height: 6,
+                background: i < nd.podCount ? (podPct > 90 ? '#ef4444' : podPct > 75 ? '#f59e0b' : '#10b981') : '#1e293b',
+                opacity: i < nd.podCount ? 0.9 : 0.2,
+              }} />
+            ))
+          )}
+        </div>
+        <div className="text-[8px] font-mono text-slate-500 mt-0.5">{nd.podCount}/{nd.podCap}</div>
+      </div>
+
+      {/* Pod tooltip */}
+      {hoveredPod && (
+        <div className="absolute -top-14 left-1/2 -translate-x-1/2 px-3 py-2 rounded-lg bg-slate-800 border border-slate-600 shadow-xl z-50 pointer-events-none min-w-[200px]">
+          <div className="text-[11px] font-semibold text-slate-100">{hoveredPod.name}</div>
+          <div className="text-[10px] text-slate-400 mt-0.5">{hoveredPod.namespace}</div>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="flex items-center gap-1 text-[10px]">
+              <span className="w-2 h-2 rounded-full" style={{ background: POD_STATUS_COLOR[hoveredPod.status] || '#6b7280' }} />
+              <span style={{ color: POD_STATUS_COLOR[hoveredPod.status] || '#94a3b8' }}>{hoveredPod.status}</span>
+            </span>
+            {hoveredPod.restarts > 0 && (
+              <span className="text-[10px] text-amber-400">{hoveredPod.restarts} restart{hoveredPod.restarts !== 1 ? 's' : ''}</span>
+            )}
+          </div>
+          <div className="text-[9px] text-slate-500 mt-1">Click to inspect · Right-click for actions</div>
+        </div>
+      )}
+
+      {/* Context menu */}
+      {ctxMenu && (
+        <ContextMenu
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          items={ctxMenu.type === 'node' ? nodeMenuItems : podMenuItems}
+          onClose={() => setCtxMenu(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Main Component ──────────────────────────────────────────────────────────
+
+export function NodeHexMap({ nodes, podsByNode, onNodeClick, onPodClick, onViewAll }: Props) {
+  const [filter, setFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+
+  const sorted = [...nodes]
+    .filter(nd => {
+      if (filter && !nd.name.toLowerCase().includes(filter.toLowerCase())) return false;
+      if (statusFilter === 'ready' && !nd.status.ready) return false;
+      if (statusFilter === 'issues' && nd.status.ready && nd.pressures.length === 0) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      const aReady = a.status.ready ? 1 : 0;
+      const bReady = b.status.ready ? 1 : 0;
+      if (aReady !== bReady) return aReady - bReady;
+      return a.name.localeCompare(b.name);
+    });
+
+  const visible = sorted.slice(0, MAX_VISIBLE);
+  const remaining = sorted.length - MAX_VISIBLE;
+  const readyCount = nodes.filter(n => n.status.ready).length;
+  const totalPods = nodes.reduce((sum, n) => sum + n.podCount, 0);
+  const totalCap = nodes.reduce((sum, n) => sum + n.podCap, 0);
+
+  return (
+    <div className="rounded-xl border border-slate-800 bg-gradient-to-br from-slate-900/80 to-slate-950 p-5">
+      {/* Inject pulse animation CSS */}
+      <style>{pulseKeyframes}</style>
+
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-slate-800/50">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-blue-600/10 border border-blue-800/30 flex items-center justify-center">
-            <Server className="w-4 h-4 text-blue-400" />
+          <div className="w-9 h-9 rounded-lg bg-blue-600/10 border border-blue-800/30 flex items-center justify-center">
+            <Server className="w-5 h-5 text-blue-400" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-slate-100">Cluster Map</h3>
-            <p className="text-[10px] text-slate-500">{readyCount}/{nodes.length} nodes active · {totalPods} pods · {TOTAL_SLOTS} slots</p>
+            <h3 className="text-sm font-semibold text-slate-100">Cluster Nodes</h3>
+            <p className="text-xs text-slate-500">{readyCount}/{nodes.length} ready · {totalPods}/{totalCap} pods</p>
           </div>
         </div>
-
-        <div className="flex items-center gap-2">
-          {/* Search */}
-          <div className="flex items-center gap-1 bg-slate-800/50 rounded px-2 py-1 border border-slate-700/50">
-            <Search className="w-3 h-3 text-slate-500" />
-            <input type="text" value={filter} onChange={(e) => setFilter(e.target.value)}
-              placeholder="Find node..." className="bg-transparent text-[10px] text-slate-300 placeholder-slate-600 outline-none w-20" />
-            {filter && <button onClick={() => setFilter('')}><X className="w-2.5 h-2.5 text-slate-500" /></button>}
-          </div>
-
-          {/* Legend */}
-          <div className="flex items-center gap-2 text-[9px] text-slate-500 mx-2">
-            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Active</span>
-            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Warn</span>
-            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-500" /> Down</span>
-            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-slate-700" /> Empty</span>
-          </div>
-
-          {/* Zoom controls */}
-          <div className="flex items-center gap-0.5 bg-slate-800 rounded border border-slate-700/50">
-            <button onClick={zoomOut} className="p-1 text-slate-400 hover:text-slate-200 transition-colors"><ZoomOut className="w-3.5 h-3.5" /></button>
-            <span className="text-[9px] text-slate-500 w-8 text-center">{Math.round(zoom * 100)}%</span>
-            <button onClick={zoomIn} className="p-1 text-slate-400 hover:text-slate-200 transition-colors"><ZoomIn className="w-3.5 h-3.5" /></button>
-            <button onClick={resetView} className="p-1 text-slate-400 hover:text-slate-200 transition-colors border-l border-slate-700/50"><Maximize2 className="w-3.5 h-3.5" /></button>
-          </div>
+        <div className="flex items-center gap-3 text-[10px] text-slate-500">
+          {Object.entries(STATUS).map(([key, s]) => (
+            <span key={key} className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full" style={{ background: s.color }} />
+              {s.label}
+            </span>
+          ))}
         </div>
       </div>
 
-      {/* Map viewport */}
-      <div
-        ref={containerRef}
-        className="relative overflow-hidden cursor-grab active:cursor-grabbing"
-        style={{ height: 340 }}
-        onWheel={handleWheel}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-      >
-        <svg
-          viewBox={`0 0 ${svgW} ${svgH}`}
-          preserveAspectRatio="xMinYMin meet"
-          className="transition-transform duration-100"
-          style={{
-            width: svgW * zoom,
-            height: svgH * zoom,
-            transform: `translate(${pan.x}px, ${pan.y}px)`,
-          }}
-        >
-          <defs>
-            <linearGradient id="hexFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#0f172a" />
-              <stop offset="100%" stopColor="#020617" />
-            </linearGradient>
-            <filter id="nodeGlow">
-              <feGaussianBlur stdDeviation="2" result="blur" />
-              <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-            </filter>
-          </defs>
-
-          {/* All hex slots */}
-          {Array.from({ length: TOTAL_SLOTS }, (_, i) => {
-            const { cx, cy } = hexPos(i);
-            const nd = nodeSlots.get(i);
-            const isHovered = hoveredSlot === i;
-
-            if (!nd) {
-              // Empty slot
-              return (
-                <polygon
-                  key={i}
-                  points={hexPoints(cx, cy, HEX_R - 1)}
-                  fill="none"
-                  stroke="#1e293b"
-                  strokeWidth={0.5}
-                  opacity={0.3}
-                />
-              );
-            }
-
-            // Active node
-            const sk = getStatusKey(nd);
-            const color = STATUS_COLOR[sk];
-            const pods = podsByNode?.[nd.name] || [];
-            const isOverloaded = (nd.cpuUsagePct ?? 0) > 80 || (nd.memUsagePct ?? 0) > 80;
-
-            return (
-              <g key={i}
-                className="cursor-pointer"
-                onClick={() => onNodeClick?.(nd.name)}
-                onMouseEnter={() => setHoveredSlot(i)}
-                onMouseLeave={() => setHoveredSlot(null)}
-              >
-                {/* Glow ring */}
-                <polygon
-                  points={hexPoints(cx, cy, HEX_R + 1)}
-                  fill="none" stroke={color} strokeWidth={isHovered ? 1.5 : 0.5}
-                  opacity={isHovered ? 0.6 : 0.2}
-                  filter={isHovered ? 'url(#nodeGlow)' : undefined}
-                />
-
-                {/* Hex body */}
-                <polygon
-                  points={hexPoints(cx, cy, HEX_R - 1)}
-                  fill="url(#hexFill)" stroke={color} strokeWidth={1}
-                  opacity={0.95}
-                />
-
-                {/* Capacity fill — inner hex sized by pod usage */}
-                <polygon
-                  points={hexPoints(cx, cy, HEX_R * (nd.podCount / nd.podCap) * 0.7)}
-                  fill={color} opacity={0.12}
-                />
-
-                {/* Status dot */}
-                <circle cx={cx} cy={cy} r={2} fill={color} opacity={0.8} />
-
-                {/* Overload pulse */}
-                {isOverloaded && (
-                  <polygon
-                    points={hexPoints(cx, cy, HEX_R - 1)}
-                    fill="#f59e0b" opacity={0.15}
-                  >
-                    <animate attributeName="opacity" values="0.05;0.2;0.05" dur="2s" repeatCount="indefinite" />
-                  </polygon>
-                )}
-
-                {/* Name label — only when zoomed in enough */}
-                {zoom >= 1.5 && (
-                  <>
-                    <text x={cx} y={cy - 3} textAnchor="middle" fill="#e2e8f0" fontSize={4} fontWeight={600}>
-                      {nd.name.replace(/^ip-/, '').replace(/\..*/, '').slice(-10)}
-                    </text>
-                    <text x={cx} y={cy + 3} textAnchor="middle" fill="#64748b" fontSize={3}>
-                      {nd.podCount}/{nd.podCap}
-                    </text>
-                  </>
-                )}
-
-                {/* Pod dots — only when zoomed in a lot */}
-                {zoom >= 3 && pods.slice(0, 12).map((pod, j) => {
-                  const angle = (j / 12) * Math.PI * 2;
-                  const pr = HEX_R * 0.5;
-                  const px = cx + pr * Math.cos(angle);
-                  const py = cy + pr * Math.sin(angle);
-                  return (
-                    <circle key={pod.name} cx={px} cy={py} r={1.2}
-                      fill={POD_STATUS_COLOR[pod.status] || '#6b7280'}
-                      className="cursor-pointer"
-                      onClick={(e) => { e.stopPropagation(); onPodClick?.(pod.namespace, pod.name); }}
-                    />
-                  );
-                })}
-              </g>
-            );
-          })}
-        </svg>
-
-        {/* Hover info panel */}
-        {hoveredNode && (
-          <div className="absolute top-2 right-2 w-48 rounded-lg bg-slate-800/95 border border-slate-700 shadow-xl p-3 pointer-events-none z-10">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-2 h-2 rounded-full" style={{ background: STATUS_COLOR[getStatusKey(hoveredNode)] }} />
-              <span className="text-xs font-semibold text-slate-100 truncate">{hoveredNode.name.replace(/^ip-/, '').replace(/\..*internal$/, '')}</span>
-            </div>
-            <div className="space-y-1 text-[10px]">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Role</span>
-                <span className="text-slate-300">{hoveredNode.roles.join(', ')}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">CPU</span>
-                <span className={cn('font-mono', (hoveredNode.cpuUsagePct ?? 0) > 80 ? 'text-red-400' : 'text-slate-300')}>
-                  {hoveredNode.cpuUsagePct != null ? `${Math.round(hoveredNode.cpuUsagePct)}%` : '—'}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Memory</span>
-                <span className={cn('font-mono', (hoveredNode.memUsagePct ?? 0) > 80 ? 'text-red-400' : 'text-slate-300')}>
-                  {hoveredNode.memUsagePct != null ? `${Math.round(hoveredNode.memUsagePct)}%` : '—'}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Pods</span>
-                <span className="text-slate-300 font-mono">{hoveredNode.podCount}/{hoveredNode.podCap}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Age</span>
-                <span className="text-slate-300">{hoveredNode.age}</span>
-              </div>
-            </div>
-            <div className="mt-2 pt-1.5 border-t border-slate-700/50 text-[9px] text-slate-500">Click to inspect · Scroll to zoom</div>
-          </div>
-        )}
-
-        {/* Zoom hint */}
-        {zoom === 1 && !hoveredNode && (
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] text-slate-600 pointer-events-none">
-            Scroll to zoom · Drag to pan · Click node to inspect
-          </div>
-        )}
+      {/* Filter bar */}
+      <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-1.5 flex-1 bg-slate-800/50 rounded-lg px-2.5 py-1.5 border border-slate-700/50">
+          <Search className="w-3.5 h-3.5 text-slate-500" />
+          <input
+            type="text"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder="Filter nodes..."
+            className="bg-transparent text-xs text-slate-300 placeholder-slate-600 outline-none flex-1"
+          />
+          {filter && (
+            <button onClick={() => setFilter('')} className="text-slate-500 hover:text-slate-300">
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+        {['all', 'ready', 'issues'].map((f) => (
+          <button
+            key={f}
+            onClick={() => setStatusFilter(f === 'all' ? null : f)}
+            className={cn(
+              'px-2.5 py-1.5 rounded-lg text-xs transition-colors border',
+              (statusFilter === f || (f === 'all' && !statusFilter))
+                ? 'bg-blue-600/20 text-blue-300 border-blue-700/50'
+                : 'text-slate-500 hover:text-slate-300 border-slate-700/30 hover:border-slate-600',
+            )}
+          >
+            {f === 'all' ? 'All' : f === 'ready' ? 'Healthy' : 'Issues'}
+          </button>
+        ))}
       </div>
+
+      {/* Honeycomb hex grid */}
+      <div className="flex flex-col items-center gap-0">
+        {(() => {
+          const cols = Math.min(visible.length, 4);
+          const rows: NodeDetail[][] = [];
+          for (let i = 0; i < visible.length; i += cols) {
+            rows.push(visible.slice(i, i + cols));
+          }
+          return rows.map((row, rowIdx) => (
+            <div
+              key={rowIdx}
+              className="flex gap-1 justify-center"
+              style={{ marginTop: rowIdx > 0 ? -20 : 0, marginLeft: rowIdx % 2 === 1 ? 90 : 0 }}
+            >
+              {row.map(nd => (
+                <HexNode
+                  key={nd.name}
+                  nd={nd}
+                  pods={podsByNode?.[nd.name]}
+                  onClick={() => onNodeClick?.(nd.name)}
+                  onPodClick={onPodClick}
+                />
+              ))}
+            </div>
+          ));
+        })()}
+      </div>
+
+      {/* View all link */}
+      {remaining > 0 && (
+        <div className="mt-4 flex justify-center">
+          <button
+            onClick={onViewAll}
+            className="flex items-center gap-1 px-4 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 transition-colors"
+          >
+            View all {sorted.length} nodes <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
