@@ -18,7 +18,8 @@ export type ComponentSpec =
   | RelationshipTreeSpec
   | LogViewerSpec
   | YamlViewerSpec
-  | MetricCardSpec;
+  | MetricCardSpec
+  | NodeMapSpec;
 
 export interface RelationshipTreeSpec {
   kind: 'relationship_tree';
@@ -158,6 +159,31 @@ export interface MetricCardSpec {
   color?: string;
   /** Threshold values for sparkline color changes */
   thresholds?: { warning: number; critical: number };
+}
+
+export interface NodeMapSpec {
+  kind: 'node_map';
+  title?: string;
+  description?: string;
+  nodes: Array<{
+    name: string;
+    status: 'ready' | 'not-ready' | 'pressure' | 'cordoned';
+    roles: string[];
+    cpuPct?: number;
+    memPct?: number;
+    podCount: number;
+    podCap: number;
+    age?: string;
+    instanceType?: string;
+    conditions?: string[];
+  }>;
+  pods?: Record<string, Array<{
+    name: string;
+    namespace: string;
+    status: string;
+    restarts: number;
+  }>>;
+  maxVisible?: number;
 }
 
 export interface ViewSpec {

@@ -43,7 +43,8 @@ function getStatus(nd: NodeDetail) {
   return STATUS.ready;
 }
 
-const HEX_CLIP = 'polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%)';
+// Exact flat-top hexagon with 60° angles
+const HEX_CLIP = 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)';
 
 const POD_STATUS_COLOR: Record<string, string> = {
   Running: '#10b981',
@@ -236,7 +237,8 @@ function HexNode({ nd, pods, onClick, onPodClick }: {
 
         <Server className="w-4 h-4 mb-1" style={{ color: status.color }} />
         <div className="text-[10px] font-semibold text-slate-200 text-center truncate w-full">{shortName}</div>
-        <div className="text-[8px] text-slate-500 mb-2">{nd.roles.join(' · ')}</div>
+        <div className="text-[8px] text-slate-500 mb-1">{nd.roles.join(' · ')}{nd.instanceType ? ` · ${nd.instanceType}` : ''}</div>
+        {nd.age && <div className="text-[7px] text-slate-600 mb-1">{nd.age}</div>}
 
         <div className="w-full space-y-0.5 mb-2 px-1">
           <GaugeBar icon={Cpu} value={nd.cpuUsagePct} color="#3b82f6" />
@@ -252,7 +254,7 @@ function HexNode({ nd, pods, onClick, onPodClick }: {
                   key={pod.name}
                   className="rounded-sm cursor-pointer hover:scale-150 hover:z-10 transition-transform"
                   style={{
-                    width: 6, height: 6,
+                    width: 7, height: 7,
                     background: POD_STATUS_COLOR[pod.status] || '#6b7280',
                     opacity: 0.9,
                   }}
@@ -263,13 +265,13 @@ function HexNode({ nd, pods, onClick, onPodClick }: {
                 />
               ))}
               {Array.from({ length: Math.max(0, Math.min(nd.podCap - pods.length, 20)) }, (_, i) => (
-                <div key={`e-${i}`} className="rounded-sm" style={{ width: 6, height: 6, background: '#1e293b', opacity: 0.2 }} />
+                <div key={`e-${i}`} className="rounded-sm" style={{ width: 7, height: 7, background: '#1e293b', opacity: 0.2 }} />
               ))}
             </>
           ) : (
             Array.from({ length: Math.min(nd.podCap, 25) }, (_, i) => (
               <div key={i} className="rounded-sm" style={{
-                width: 6, height: 6,
+                width: 7, height: 7,
                 background: i < nd.podCount ? (podPct > 90 ? '#ef4444' : podPct > 75 ? '#f59e0b' : '#10b981') : '#1e293b',
                 opacity: i < nd.podCount ? 0.9 : 0.2,
               }} />
@@ -407,7 +409,7 @@ export function NodeHexMap({ nodes, podsByNode, onNodeClick, onPodClick, onViewA
             <div
               key={rowIdx}
               className="flex gap-1 justify-center"
-              style={{ marginTop: rowIdx > 0 ? -20 : 0, marginLeft: rowIdx % 2 === 1 ? 90 : 0 }}
+              style={{ marginTop: rowIdx > 0 ? -16 : 0, marginLeft: rowIdx % 2 === 1 ? 95 : 0 }}
             >
               {row.map(nd => (
                 <HexNode

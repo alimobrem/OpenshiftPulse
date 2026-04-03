@@ -23,7 +23,9 @@ import type {
   LogViewerSpec,
   YamlViewerSpec,
   MetricCardSpec,
+  NodeMapSpec,
 } from '../../engine/agentComponents';
+import { AgentNodeMap } from './AgentNodeMap';
 import { Badge } from '../primitives/Badge';
 import { InfoCard } from '../primitives/InfoCard';
 import { MetricCard as SparklineMetricCard } from '../metrics/Sparkline';
@@ -68,6 +70,8 @@ export function AgentComponentRenderer({ spec, depth = 0, onAddToView, refreshIn
       return <AgentYamlViewer spec={spec} />;
     case 'metric_card':
       return <AgentMetricCard spec={spec} />;
+    case 'node_map':
+      return <AgentNodeMap spec={spec} />;
     default:
       return null;
   }
