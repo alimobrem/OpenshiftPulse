@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Send, StopCircle, Bot, Loader2, Wrench, Brain, AlertTriangle, Trash2, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useNavigateTab } from '../../hooks/useNavigateTab';
 import type { ComponentSpec } from '../../engine/agentComponents';
 import { useAgentStore } from '../../store/agentStore';
 import { useCustomViewStore } from '../../store/customViewStore';
@@ -32,6 +33,7 @@ export function DockAgentPanel() {
   const monitorFindings = useMonitorStore((s) => s.findings);
   const monitorCritical = monitorFindings.filter((f) => f.severity === 'critical').length;
   const navigate = useNavigate();
+  const go = useNavigateTab();
   const [input, setInput] = useState('');
   const [confirmClear, setConfirmClear] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -90,10 +92,10 @@ export function DockAgentPanel() {
   return (
     <div className="flex flex-col h-full">
       {/* Monitor status bar */}
-      <a
-        href="/incidents"
+      <button
+        onClick={() => go('/incidents', 'Incidents')}
         className={cn(
-          'flex items-center gap-1.5 px-3 py-1 text-xs border-b border-slate-800 transition-colors hover:bg-slate-800/50',
+          'flex items-center gap-1.5 px-3 py-1 text-xs border-b border-slate-800 transition-colors hover:bg-slate-800/50 w-full text-left',
           monitorConnected
             ? monitorFindings.length > 0
               ? monitorCritical > 0 ? 'text-red-400' : 'text-amber-400'
@@ -107,7 +109,7 @@ export function DockAgentPanel() {
             ? `Monitoring: ${monitorFindings.length} finding${monitorFindings.length !== 1 ? 's' : ''}`
             : 'Monitoring: All clear'
           : 'Monitoring: Disconnected'}
-      </a>
+      </button>
 
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-2 space-y-3" role="log" aria-label="Agent messages">

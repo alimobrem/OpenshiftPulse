@@ -435,12 +435,12 @@ export default function AdminView() {
                   Security, reliability, and observability gates for production clusters.
                 </p>
               </div>
-              <a
-                href="/readiness"
+              <button
+                onClick={() => go('/readiness', 'Production Readiness')}
                 className="text-xs text-blue-400 hover:text-blue-300 transition-colors whitespace-nowrap"
               >
                 View Details →
-              </a>
+              </button>
             </div>
           </div>
 
