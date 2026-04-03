@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   XCircle, AlertTriangle, Activity, CheckCircle, Eye, X,
@@ -82,6 +82,45 @@ export function NowTab() {
   const { incidents, counts, isLoading } = useIncidentFeed();
   const [silencesExpanded, setSilencesExpanded] = useState(false);
   const [confirmExpireId, setConfirmExpireId] = useState<string | null>(null);
+  const [focusedIdx, setFocusedIdx] = useState(-1);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // Keyboard shortcuts for incident triage (j/k/s/i/d)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Skip if user is typing in an input or dialog is open
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (document.querySelector('[role="dialog"]')) return;
+      if (incidents.length === 0) return;
+
+      if (e.key === 'j' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        setFocusedIdx((prev) => Math.min(prev + 1, incidents.length - 1));
+      } else if (e.key === 'k' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        setFocusedIdx((prev) => Math.max(prev - 1, 0));
+      } else if (focusedIdx >= 0 && focusedIdx < incidents.length) {
+        const incident = incidents[focusedIdx];
+        if (e.key === 'i') {
+          e.preventDefault();
+          useUIStore.getState().openDock('agent');
+          const agentStore = useAgentStore.getState();
+          if (agentStore.connected) {
+            agentStore.sendMessage(`The monitor detected this issue:\n\n"${incident.title}: ${incident.detail}"\n\nInvestigate this further. What is the root cause and what should I do to fix it?`);
+          }
+        } else if (e.key === 's' && incident.source === 'prometheus-alert') {
+          e.preventDefault();
+          handleSilence(incident.title);
+        } else if (e.key === 'd' && incident.source === 'finding') {
+          e.preventDefault();
+          dismissFinding(incident.id);
+        }
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [incidents, focusedIdx]);
 
   // Fetch active silences from Alertmanager
   const { data: silences = [] } = useQuery<Silence[]>({
@@ -221,11 +260,12 @@ export function NowTab() {
           description="No active incidents. The cluster is healthy."
         />
       ) : (
-        <div className="space-y-2">
-          {incidents.map((incident) => (
+        <div className="space-y-2" ref={listRef}>
+          {incidents.map((incident, idx) => (
             <IncidentCard
               key={incident.id}
               incident={incident}
+              focused={idx === focusedIdx}
               onDismiss={incident.source === 'finding' ? () => dismissFinding(incident.id) : undefined}
               onSilence={
                 incident.source === 'prometheus-alert'
@@ -282,10 +322,12 @@ export function NowTab() {
 
 function IncidentCard({
   incident,
+  focused,
   onDismiss,
   onSilence,
 }: {
   incident: IncidentItem;
+  focused?: boolean;
   onDismiss?: () => void;
   onSilence?: (duration?: string) => void;
 }) {
@@ -293,9 +335,15 @@ function IncidentCard({
   const [confirmSilence, setConfirmSilence] = useState(false);
   const [confirmDismiss, setConfirmDismiss] = useState(false);
   const [silenceDuration, setSilenceDuration] = useState(DEFAULT_SILENCE_DURATION);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (focused) cardRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [focused]);
 
   return (
-    <Card>
+    <div ref={cardRef}>
+    <Card className={focused ? 'ring-1 ring-violet-500/60' : undefined}>
       <div className="px-4 py-3 flex items-start gap-3">
         {incident.severity === 'critical' ? (
           <XCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
@@ -418,5 +466,13 @@ function IncidentCard({
         }}
       />
     </Card>
+    {focused && (
+      <div className="text-[10px] text-slate-600 text-right -mt-1 mr-1">
+        <kbd className="px-1 py-0.5 bg-slate-800 rounded border border-slate-700 font-mono">i</kbd> investigate
+        {onSilence && <> · <kbd className="px-1 py-0.5 bg-slate-800 rounded border border-slate-700 font-mono">s</kbd> silence</>}
+        {onDismiss && <> · <kbd className="px-1 py-0.5 bg-slate-800 rounded border border-slate-700 font-mono">d</kbd> dismiss</>}
+      </div>
+    )}
+    </div>
   );
 }
