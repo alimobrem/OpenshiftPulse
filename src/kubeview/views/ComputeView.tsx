@@ -18,9 +18,10 @@ import { useNavigateTab } from '../hooks/useNavigateTab';
 import { useK8sListWatch } from '../hooks/useK8sListWatch';
 import { useClusterStore } from '../store/clusterStore';
 import { Card } from '../components/primitives/Card';
+import { Badge } from '../components/primitives/Badge';
 import { CapacityTab } from './compute/CapacityTab';
 import { StatCard } from './compute/StatCard';
-// NodeTable replaced by NodeHexMap visualization
+import { ClusterTypeSummary } from './compute/ClusterTypeSummary';
 import { NodeAlerts } from './compute/NodeAlerts';
 import { MachineManagement } from './compute/MachineManagement';
 import { MachineConfigSection } from './compute/MachineConfigSection';
@@ -37,6 +38,8 @@ export default function ComputeView() {
     window.history.replaceState(null, '', url.toString());
   };
   const isHyperShift = useClusterStore((s) => s.isHyperShift);
+  const platform = useClusterStore((s) => s.platform);
+  const clusterVersion = useClusterStore((s) => s.clusterVersion);
 
   const { data: nodes = [] } = useK8sListWatch({ apiPath: '/api/v1/nodes' });
   const { data: pods = [] } = useK8sListWatch({ apiPath: '/api/v1/pods' });
@@ -231,7 +234,13 @@ export default function ComputeView() {
     <div className="h-full overflow-auto bg-slate-950 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2"><Server className="w-6 h-6 text-blue-500" /> Compute</h1>
+          <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
+            <Server className="w-6 h-6 text-blue-500" /> Compute
+            <Badge variant={isHyperShift ? 'info' : 'outline'} size="sm">
+              {isHyperShift ? 'Hosted' : 'Self-Managed'}
+            </Badge>
+            {platform && <span className="text-sm font-normal text-slate-500">{platform}</span>}
+          </h1>
           <p className="text-sm text-slate-400 mt-1">Cluster capacity, node health, and resource utilization</p>
         </div>
 
@@ -248,6 +257,15 @@ export default function ComputeView() {
         {computeTab === 'capacity' && <CapacityTab />}
 
         {computeTab === 'overview' && <>
+        {/* Cluster type summary */}
+        <ClusterTypeSummary
+          isHyperShift={isHyperShift}
+          nodeDetails={nodeDetails}
+          nodePools={nodePools}
+          clusterVersion={clusterVersion}
+          platform={platform}
+        />
+
         {/* Key metrics — sparklines for trends, static for capacity */}
         <MetricGrid>
           <MetricCard
@@ -290,44 +308,81 @@ export default function ComputeView() {
           <StatCard label="Pods" value={`${clusterCapacity.totalPods}/${clusterCapacity.podCapacity}`} />
         </div>
 
-        {/* Compute Health Audit */}
-        <ComputeHealthAudit
-          nodes={nodes}
-          healthChecks={healthChecks}
-          clusterAutoscaler={clusterAutoscaler}
-          machineAutoscalers={machineAutoscalers}
-          nodeDetails={nodeDetails}
-          nodePools={nodePools}
-          go={go}
-        />
-
         {/* Alerts */}
         <NodeAlerts unreadyNodes={unreadyNodes} pressureNodes={pressureNodes} go={go} />
 
-        {/* Node hex map */}
-        <NodeHexMap
-          nodes={nodeDetails}
-          podsByNode={podDetailsByNode}
-          onNodeClick={(name) => go(`/r/v1~nodes/_/${name}`, name)}
-          onPodClick={(ns, name) => go(`/r/v1~pods/${ns}/${name}`, name)}
-          onViewAll={() => go('/r/v1~nodes', 'Nodes')}
-        />
+        {isHyperShift ? (
+          <>
+            {/* HyperShift: NodePools first (primary scaling), then hex map, then audit */}
+            <MachineManagement
+              isHyperShift={isHyperShift}
+              machines={machines}
+              machineSets={machineSets}
+              healthChecks={healthChecks}
+              machineAutoscalers={machineAutoscalers}
+              clusterAutoscaler={clusterAutoscaler}
+              nodePools={nodePools}
+              go={go}
+            />
 
+            <NodeHexMap
+              nodes={nodeDetails}
+              podsByNode={podDetailsByNode}
+              onNodeClick={(name) => go(`/r/v1~nodes/_/${name}`, name)}
+              onPodClick={(ns, name) => go(`/r/v1~pods/${ns}/${name}`, name)}
+              onViewAll={() => go('/r/v1~nodes', 'Nodes')}
+              isHyperShift
+            />
 
-        {/* Machine Management */}
-        <MachineManagement
-          isHyperShift={isHyperShift}
-          machines={machines}
-          machineSets={machineSets}
-          healthChecks={healthChecks}
-          machineAutoscalers={machineAutoscalers}
-          clusterAutoscaler={clusterAutoscaler}
-          nodePools={nodePools}
-          go={go}
-        />
+            <ComputeHealthAudit
+              nodes={nodes}
+              healthChecks={healthChecks}
+              clusterAutoscaler={clusterAutoscaler}
+              machineAutoscalers={machineAutoscalers}
+              nodeDetails={nodeDetails}
+              nodePools={nodePools}
+              go={go}
+            />
 
-        {/* MachineConfig Management */}
-        <MachineConfigSection machineConfigPools={machineConfigPools} go={go} />
+            {machineConfigPools.length > 0 && (
+              <MachineConfigSection machineConfigPools={machineConfigPools} go={go} />
+            )}
+          </>
+        ) : (
+          <>
+            {/* Regular: Audit → Hex map → Machine management → MachineConfig */}
+            <ComputeHealthAudit
+              nodes={nodes}
+              healthChecks={healthChecks}
+              clusterAutoscaler={clusterAutoscaler}
+              machineAutoscalers={machineAutoscalers}
+              nodeDetails={nodeDetails}
+              nodePools={nodePools}
+              go={go}
+            />
+
+            <NodeHexMap
+              nodes={nodeDetails}
+              podsByNode={podDetailsByNode}
+              onNodeClick={(name) => go(`/r/v1~nodes/_/${name}`, name)}
+              onPodClick={(ns, name) => go(`/r/v1~pods/${ns}/${name}`, name)}
+              onViewAll={() => go('/r/v1~nodes', 'Nodes')}
+            />
+
+            <MachineManagement
+              isHyperShift={isHyperShift}
+              machines={machines}
+              machineSets={machineSets}
+              healthChecks={healthChecks}
+              machineAutoscalers={machineAutoscalers}
+              clusterAutoscaler={clusterAutoscaler}
+              nodePools={nodePools}
+              go={go}
+            />
+
+            <MachineConfigSection machineConfigPools={machineConfigPools} go={go} />
+          </>
+        )}
         </>}
       </div>
     </div>

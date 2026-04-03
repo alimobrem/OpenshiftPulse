@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Info } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card } from '../../components/primitives/Card';
 import type { K8sResource } from '../../engine/renderers';
@@ -38,11 +38,6 @@ export function MachineManagement({
 function HyperShiftSection({ nodePools, go }: { nodePools: K8sResource[]; go: (path: string, title: string) => void }) {
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2 px-4 py-2.5 bg-blue-950/30 border border-blue-800/50 rounded-lg">
-        <Info className="w-4 h-4 text-blue-400 shrink-0" />
-        <span className="text-xs text-blue-300">Hosted Control Plane — Machine API managed externally. Worker scaling via NodePools.</span>
-      </div>
-
       <Card>
         <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">

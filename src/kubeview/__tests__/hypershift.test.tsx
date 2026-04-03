@@ -264,3 +264,93 @@ describe('HyperShift UI - ComputeView health audit', () => {
     expect(screen.getByText('Dedicated Worker Nodes')).toBeDefined();
   });
 });
+
+describe('HyperShift UI - ClusterTypeSummary', () => {
+  let ComputeView: any;
+  const workerNode = {
+    metadata: { name: 'worker-1', uid: 'w1', labels: { 'node-role.kubernetes.io/worker': '' }, creationTimestamp: '2025-01-01T00:00:00Z' },
+    status: {
+      conditions: [{ type: 'Ready', status: 'True' }],
+      allocatable: { cpu: '4', memory: '16Gi', pods: '250' },
+      capacity: { cpu: '4', memory: '16Gi' },
+      nodeInfo: { kubeletVersion: 'v1.30.0', osImage: 'RHCOS', containerRuntimeVersion: 'cri-o://1.30' },
+    },
+  };
+
+  beforeEach(async () => {
+    const mod = await import('../views/ComputeView');
+    ComputeView = mod.default;
+    _mockListWatchData['/api/v1/nodes'] = [workerNode];
+  });
+
+  it('shows "Hosted" badge in header on HyperShift', () => {
+    useClusterStore.setState({ isHyperShift: true, controlPlaneTopology: 'External' });
+    qcWrap(<ComputeView />);
+    expect(screen.getByText('Hosted')).toBeDefined();
+  });
+
+  it('shows "Self-Managed" badge in header on traditional cluster', () => {
+    useClusterStore.setState({ isHyperShift: false, controlPlaneTopology: 'HighlyAvailable' });
+    qcWrap(<ComputeView />);
+    // Appears in both header badge and summary card
+    expect(screen.getAllByText('Self-Managed').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('shows platform in header when available', () => {
+    useClusterStore.setState({ isHyperShift: false, platform: 'AWS' });
+    qcWrap(<ComputeView />);
+    // Appears in both header and summary card
+    expect(screen.getAllByText('AWS').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('shows "Hosted (External)" topology on HyperShift summary', () => {
+    useClusterStore.setState({ isHyperShift: true, controlPlaneTopology: 'External', platform: 'AWS', clusterVersion: '4.17.0' });
+    qcWrap(<ComputeView />);
+    expect(screen.getByText('Hosted (External)')).toBeDefined();
+  });
+
+  it('shows "Self-Managed" topology on regular summary', () => {
+    useClusterStore.setState({ isHyperShift: false, controlPlaneTopology: 'HighlyAvailable', platform: 'Azure' });
+    qcWrap(<ComputeView />);
+    expect(screen.getAllByText('Self-Managed').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('shows "Control Plane" heading on regular cluster summary', () => {
+    useClusterStore.setState({ isHyperShift: false, controlPlaneTopology: 'HighlyAvailable' });
+    qcWrap(<ComputeView />);
+    // "Control Plane" appears in summary card heading and possibly audit checks
+    expect(screen.getAllByText('Control Plane').length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('HyperShift UI - MachineConfigSection conditional', () => {
+  let ComputeView: any;
+  const workerNode = {
+    metadata: { name: 'worker-1', uid: 'w1', labels: { 'node-role.kubernetes.io/worker': '' }, creationTimestamp: '2025-01-01T00:00:00Z' },
+    status: {
+      conditions: [{ type: 'Ready', status: 'True' }],
+      allocatable: { cpu: '4', memory: '16Gi', pods: '250' },
+      capacity: { cpu: '4', memory: '16Gi' },
+      nodeInfo: { kubeletVersion: 'v1.30.0', osImage: 'RHCOS', containerRuntimeVersion: 'cri-o://1.30' },
+    },
+  };
+
+  beforeEach(async () => {
+    const mod = await import('../views/ComputeView');
+    ComputeView = mod.default;
+    _mockListWatchData['/api/v1/nodes'] = [workerNode];
+  });
+
+  it('hides MachineConfigSection on HyperShift when no MCPs', () => {
+    useClusterStore.setState({ isHyperShift: true, controlPlaneTopology: 'External' });
+    qcWrap(<ComputeView />);
+    expect(screen.queryByText('MachineConfigPools (0)')).toBeNull();
+    expect(screen.queryByText('Machine Configuration')).toBeNull();
+  });
+
+  it('shows MachineConfigSection on traditional cluster', () => {
+    useClusterStore.setState({ isHyperShift: false, controlPlaneTopology: 'HighlyAvailable' });
+    qcWrap(<ComputeView />);
+    expect(screen.getByText('Machine Configuration')).toBeDefined();
+  });
+});

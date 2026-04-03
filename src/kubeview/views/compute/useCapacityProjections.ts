@@ -5,6 +5,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { queryInstant } from '../../components/metrics/prometheus';
+import { useClusterStore } from '../../store/clusterStore';
 
 export type Lookback = '7d' | '30d' | '90d';
 
@@ -43,10 +44,15 @@ function extractValue(data: unknown): number | null {
 }
 
 export function useCapacityProjections(lookback: Lookback = '30d'): CapacityProjections {
+  const isHyperShift = useClusterStore((s) => s.isHyperShift);
+  const cpuDivisor = isHyperShift
+    ? 'count(count by (cpu) (node_cpu_seconds_total))'
+    : 'sum(machine_cpu_cores)';
+
   // Current usage ratios
   const { data: cpuCurrent, isLoading: l1 } = useQuery({
-    queryKey: ['capacity', 'cpu-current'],
-    queryFn: () => queryInstant('sum(rate(node_cpu_seconds_total{mode!="idle"}[5m])) / sum(machine_cpu_cores)').catch(() => []),
+    queryKey: ['capacity', 'cpu-current', isHyperShift],
+    queryFn: () => queryInstant(`sum(rate(node_cpu_seconds_total{mode!="idle"}[5m])) / ${cpuDivisor}`).catch(() => []),
     refetchInterval: 60000,
   });
   const { data: memCurrent, isLoading: l2 } = useQuery({
@@ -67,8 +73,8 @@ export function useCapacityProjections(lookback: Lookback = '30d'): CapacityProj
 
   // Projected usage at +90 days using predict_linear
   const { data: cpuProjected, isLoading: l5 } = useQuery({
-    queryKey: ['capacity', 'cpu-projected', lookback],
-    queryFn: () => queryInstant(`predict_linear(sum(rate(node_cpu_seconds_total{mode!="idle"}[5m]))[${lookback}:5m], ${HORIZON_SECONDS}) / sum(machine_cpu_cores)`).catch(() => []),
+    queryKey: ['capacity', 'cpu-projected', lookback, isHyperShift],
+    queryFn: () => queryInstant(`predict_linear(sum(rate(node_cpu_seconds_total{mode!="idle"}[5m]))[${lookback}:5m], ${HORIZON_SECONDS}) / ${cpuDivisor}`).catch(() => []),
     refetchInterval: 300000,
   });
   const { data: memProjected, isLoading: l6 } = useQuery({

@@ -11,12 +11,14 @@ import { MetricGrid } from '../../components/primitives/MetricGrid';
 import { Panel } from '../../components/primitives/Panel';
 import { Card } from '../../components/primitives/Card';
 import { CHART_COLORS } from '../../engine/colors';
+import { useClusterStore } from '../../store/clusterStore';
 import { useCapacityProjections, type Lookback } from './useCapacityProjections';
 import { ExhaustionCard } from './ExhaustionCard';
 
 const LOOKBACK_OPTIONS: Lookback[] = ['7d', '30d', '90d'];
 
 export function CapacityTab() {
+  const isHyperShift = useClusterStore((s) => s.isHyperShift);
   const [lookback, setLookback] = React.useState<Lookback>('30d');
   const { projections, isLoading, criticalCount, warningCount } = useCapacityProjections(lookback);
 
@@ -88,7 +90,9 @@ export function CapacityTab() {
             <MetricGrid>
               <MetricCard
                 title="CPU Utilization"
-                query="sum(rate(node_cpu_seconds_total{mode!='idle'}[5m])) / sum(machine_cpu_cores) * 100"
+                query={isHyperShift
+                  ? "sum(rate(node_cpu_seconds_total{mode!='idle'}[5m])) / count(count by (cpu) (node_cpu_seconds_total)) * 100"
+                  : "sum(rate(node_cpu_seconds_total{mode!='idle'}[5m])) / sum(machine_cpu_cores) * 100"}
                 unit="%"
                 color={CHART_COLORS.blue}
                 thresholds={{ warning: 70, critical: 90 }}

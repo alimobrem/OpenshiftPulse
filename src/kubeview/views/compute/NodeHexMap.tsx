@@ -25,9 +25,8 @@ interface Props {
   onNodeClick?: (name: string) => void;
   onPodClick?: (namespace: string, name: string) => void;
   onViewAll?: () => void;
+  isHyperShift?: boolean;
 }
-
-const MAX_VISIBLE = 8;
 
 const STATUS = {
   ready: { color: '#10b981', glow: '#10b98140', label: 'Ready' },
@@ -317,16 +316,29 @@ function HexNode({ nd, pods, onClick, onPodClick }: {
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-export function NodeHexMap({ nodes, podsByNode, onNodeClick, onPodClick, onViewAll }: Props) {
+export function NodeHexMap({ nodes, podsByNode, onNodeClick, onPodClick, onViewAll, isHyperShift }: Props) {
+  const MAX_VISIBLE = isHyperShift ? 12 : 8;
   const [filter, setFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [roleFilter, setRoleFilter] = useState<string | null>(null);
   const [expandedNode, setExpandedNode] = useState<string | null>(null);
+
+  // Available role filters based on cluster type
+  const roleOptions = isHyperShift
+    ? [{ key: null, label: 'All' }, { key: 'worker', label: 'Worker' }]
+    : [{ key: null, label: 'All' }, { key: 'control-plane', label: 'Control Plane' }, { key: 'worker', label: 'Worker' }, { key: 'infra', label: 'Infra' }];
 
   const sorted = [...nodes]
     .filter(nd => {
       if (filter && !nd.name.toLowerCase().includes(filter.toLowerCase())) return false;
       if (statusFilter === 'ready' && !nd.status.ready) return false;
       if (statusFilter === 'issues' && nd.status.ready && nd.pressures.length === 0) return false;
+      if (roleFilter) {
+        const matchRole = roleFilter === 'control-plane'
+          ? nd.roles.includes('master') || nd.roles.includes('control-plane')
+          : nd.roles.includes(roleFilter);
+        if (!matchRole) return false;
+      }
       return true;
     })
     .sort((a, b) => {
@@ -397,6 +409,21 @@ export function NodeHexMap({ nodes, podsByNode, onNodeClick, onPodClick, onViewA
             )}
           >
             {f === 'all' ? 'All' : f === 'ready' ? 'Healthy' : 'Issues'}
+          </button>
+        ))}
+        <div className="w-px h-5 bg-slate-700/50" />
+        {roleOptions.map((r) => (
+          <button
+            key={r.key ?? 'all-roles'}
+            onClick={() => setRoleFilter(r.key)}
+            className={cn(
+              'px-2.5 py-1.5 rounded-lg text-xs transition-colors border',
+              roleFilter === r.key
+                ? 'bg-violet-600/20 text-violet-300 border-violet-700/50'
+                : 'text-slate-500 hover:text-slate-300 border-slate-700/30 hover:border-slate-600',
+            )}
+          >
+            {r.label}
           </button>
         ))}
       </div>
