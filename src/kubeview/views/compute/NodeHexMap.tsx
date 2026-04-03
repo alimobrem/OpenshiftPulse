@@ -1,24 +1,26 @@
 /**
  * NodeHexMap — Command-center hexagonal node visualization.
- * Each node is a glowing hexagon with pod grid, resource gauges,
- * and status-driven coloring.
+ * Honeycomb layout with context menus, filter bar, pulse animations,
+ * and capacity warning overlays.
  */
 
-import { useState } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
-import { Server, Cpu, MemoryStick, Box, ChevronRight } from 'lucide-react';
+import {
+  Server, Cpu, MemoryStick, ChevronRight, Search,
+  ShieldOff, Shield, Terminal, Trash2, FileText, Copy, X,
+} from 'lucide-react';
 import type { NodeDetail } from './types';
 
 export interface PodInfo {
   name: string;
   namespace: string;
-  status: string; // Running, Pending, Failed, Succeeded, Unknown
+  status: string;
   restarts: number;
 }
 
 interface Props {
   nodes: NodeDetail[];
-  /** Map of node name → pods running on that node */
   podsByNode?: Record<string, PodInfo[]>;
   onNodeClick?: (name: string) => void;
   onPodClick?: (namespace: string, name: string) => void;
@@ -41,8 +43,69 @@ function getStatus(nd: NodeDetail) {
   return STATUS.ready;
 }
 
-/** CSS clip-path for a proper flat-top hexagon (60° angles) */
 const HEX_CLIP = 'polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%)';
+
+const POD_STATUS_COLOR: Record<string, string> = {
+  Running: '#10b981',
+  Succeeded: '#3b82f6',
+  Pending: '#f59e0b',
+  Failed: '#ef4444',
+  Unknown: '#6b7280',
+  CrashLoopBackOff: '#ef4444',
+};
+
+// ─── CSS for pulse animation ─────────────────────────────────────────────────
+const pulseKeyframes = `
+@keyframes hexPulse {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.35; }
+}
+`;
+
+// ─── Context Menu ────────────────────────────────────────────────────────────
+
+interface ContextMenuItem {
+  label: string;
+  icon: any;
+  action: () => void;
+  danger?: boolean;
+}
+
+function ContextMenu({ x, y, items, onClose }: { x: number; y: number; items: ContextMenuItem[]; onClose: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [onClose]);
+
+  return (
+    <div
+      ref={ref}
+      className="fixed z-[100] min-w-[180px] rounded-lg border border-slate-700 bg-slate-900 shadow-2xl py-1 animate-in fade-in zoom-in-95 duration-100"
+      style={{ left: x, top: y }}
+    >
+      {items.map((item, i) => (
+        <button
+          key={i}
+          onClick={() => { item.action(); onClose(); }}
+          className={cn(
+            'flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors text-left',
+            item.danger ? 'text-red-400 hover:bg-red-900/20' : 'text-slate-300 hover:bg-slate-800',
+          )}
+        >
+          <item.icon className="w-3.5 h-3.5" />
+          {item.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ─── Gauge Bar ───────────────────────────────────────────────────────────────
 
 function GaugeBar({ icon: Icon, value, color }: { icon: any; value: number | null; color: string }) {
   const pct = value != null ? Math.min(100, Math.max(0, value)) : null;
@@ -66,21 +129,20 @@ function GaugeBar({ icon: Icon, value, color }: { icon: any; value: number | nul
   );
 }
 
-const POD_STATUS_COLOR: Record<string, string> = {
-  Running: '#10b981',
-  Succeeded: '#3b82f6',
-  Pending: '#f59e0b',
-  Failed: '#ef4444',
-  Unknown: '#6b7280',
-  CrashLoopBackOff: '#ef4444',
-};
+// ─── Hex Node ────────────────────────────────────────────────────────────────
 
-function HexNode({ nd, pods, onClick, onPodClick }: { nd: NodeDetail; pods?: PodInfo[]; onClick?: () => void; onPodClick?: (ns: string, name: string) => void }) {
+function HexNode({ nd, pods, onClick, onPodClick }: {
+  nd: NodeDetail; pods?: PodInfo[];
+  onClick?: () => void;
+  onPodClick?: (ns: string, name: string) => void;
+}) {
   const status = getStatus(nd);
   const [hovered, setHovered] = useState(false);
   const [hoveredPod, setHoveredPod] = useState<PodInfo | null>(null);
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; type: 'node' | 'pod'; pod?: PodInfo } | null>(null);
 
   const podPct = nd.podCap > 0 ? Math.round((nd.podCount / nd.podCap) * 100) : 0;
+  const isOverloaded = (nd.cpuUsagePct ?? 0) > 80 || (nd.memUsagePct ?? 0) > 80;
 
   const shortName = nd.name
     .replace(/^ip-/, '')
@@ -88,21 +150,62 @@ function HexNode({ nd, pods, onClick, onPodClick }: { nd: NodeDetail; pods?: Pod
     .replace(/\..*compute$/, '')
     .slice(-14);
 
+  const handleNodeContext = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCtxMenu({ x: e.clientX, y: e.clientY, type: 'node' });
+  }, []);
+
+  const handlePodContext = useCallback((e: React.MouseEvent, pod: PodInfo) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCtxMenu({ x: e.clientX, y: e.clientY, type: 'pod', pod });
+  }, []);
+
+  const nodeMenuItems: ContextMenuItem[] = [
+    { label: 'View Node Details', icon: FileText, action: () => onClick?.() },
+    { label: 'Copy Node Name', icon: Copy, action: () => navigator.clipboard.writeText(nd.name) },
+    { label: nd.unschedulable ? 'Uncordon Node' : 'Cordon Node', icon: nd.unschedulable ? Shield : ShieldOff, action: () => {} },
+    { label: 'Open Terminal', icon: Terminal, action: () => {} },
+    { label: 'Drain Node', icon: Trash2, action: () => {}, danger: true },
+  ];
+
+  const podMenuItems: ContextMenuItem[] = ctxMenu?.pod ? [
+    { label: 'View Pod Details', icon: FileText, action: () => onPodClick?.(ctxMenu.pod!.namespace, ctxMenu.pod!.name) },
+    { label: 'View Logs', icon: FileText, action: () => {} },
+    { label: 'Copy Pod Name', icon: Copy, action: () => navigator.clipboard.writeText(ctxMenu.pod!.name) },
+    { label: 'Exec Into Container', icon: Terminal, action: () => {} },
+    { label: 'Delete Pod', icon: Trash2, action: () => {}, danger: true },
+  ] : [];
+
   return (
     <div
       className="relative cursor-pointer transition-all duration-200"
       style={{ width: 180, height: 200 }}
       onClick={onClick}
+      onContextMenu={handleNodeContext}
       onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseLeave={() => { setHovered(false); setHoveredPod(null); }}
     >
+      {/* Pulse animation for overloaded nodes */}
+      {isOverloaded && (
+        <div
+          className="absolute inset-0"
+          style={{
+            clipPath: HEX_CLIP,
+            background: '#f59e0b',
+            animation: 'hexPulse 2s ease-in-out infinite',
+          }}
+        />
+      )}
+
       {/* Hex outer glow */}
       <div
         className="absolute inset-0 transition-all duration-300"
         style={{
           clipPath: HEX_CLIP,
           background: hovered ? status.color : `${status.color}60`,
-          filter: hovered ? `blur(8px)` : 'blur(4px)',
+          filter: hovered ? 'blur(8px)' : 'blur(4px)',
           opacity: hovered ? 0.3 : 0.1,
           transform: hovered ? 'scale(1.04)' : 'scale(1)',
         }}
@@ -125,72 +228,60 @@ function HexNode({ nd, pods, onClick, onPodClick }: { nd: NodeDetail; pods?: Pod
           background: 'linear-gradient(180deg, #0f172a 0%, #020617 100%)',
         }}
       >
-        {/* Status dot */}
+        {/* Status dot with pulse for unhealthy */}
         <div
-          className="absolute top-5 right-10 w-1.5 h-1.5 rounded-full"
+          className={cn('absolute top-5 right-10 w-1.5 h-1.5 rounded-full', !nd.status.ready && 'animate-pulse')}
           style={{ background: status.color, boxShadow: `0 0 4px ${status.glow}` }}
         />
 
-        {/* Node icon + name */}
         <Server className="w-4 h-4 mb-1" style={{ color: status.color }} />
         <div className="text-[10px] font-semibold text-slate-200 text-center truncate w-full">{shortName}</div>
         <div className="text-[8px] text-slate-500 mb-2">{nd.roles.join(' · ')}</div>
 
-        {/* Gauges */}
         <div className="w-full space-y-0.5 mb-2 px-1">
           <GaugeBar icon={Cpu} value={nd.cpuUsagePct} color="#3b82f6" />
           <GaugeBar icon={MemoryStick} value={nd.memUsagePct} color="#8b5cf6" />
         </div>
 
-        {/* Pod dots — clickable if pod data available */}
-        <div className="flex flex-wrap gap-[2px] justify-center max-w-[90px] relative">
+        {/* Pod dots */}
+        <div className="flex flex-wrap gap-[2px] justify-center max-w-[90px]">
           {pods ? (
-            // Real pods — each dot is clickable
             <>
-              {pods.slice(0, 30).map((pod, i) => (
+              {pods.slice(0, 30).map((pod) => (
                 <div
                   key={pod.name}
-                  className="rounded-sm cursor-pointer hover:scale-150 hover:z-10 transition-transform relative"
+                  className="rounded-sm cursor-pointer hover:scale-150 hover:z-10 transition-transform"
                   style={{
-                    width: 6,
-                    height: 6,
+                    width: 6, height: 6,
                     background: POD_STATUS_COLOR[pod.status] || '#6b7280',
                     opacity: 0.9,
                   }}
                   onClick={(e) => { e.stopPropagation(); onPodClick?.(pod.namespace, pod.name); }}
+                  onContextMenu={(e) => handlePodContext(e, pod)}
                   onMouseEnter={() => setHoveredPod(pod)}
                   onMouseLeave={() => setHoveredPod(null)}
                 />
               ))}
-              {/* Empty slots */}
               {Array.from({ length: Math.max(0, Math.min(nd.podCap - pods.length, 20)) }, (_, i) => (
-                <div key={`empty-${i}`} className="rounded-sm" style={{ width: 6, height: 6, background: '#1e293b', opacity: 0.2 }} />
+                <div key={`e-${i}`} className="rounded-sm" style={{ width: 6, height: 6, background: '#1e293b', opacity: 0.2 }} />
               ))}
             </>
           ) : (
-            // Fallback: no pod data, show count-based dots
             Array.from({ length: Math.min(nd.podCap, 25) }, (_, i) => (
-              <div
-                key={i}
-                className="rounded-sm"
-                style={{
-                  width: 6,
-                  height: 6,
-                  background: i < nd.podCount
-                    ? podPct > 90 ? '#ef4444' : podPct > 75 ? '#f59e0b' : '#10b981'
-                    : '#1e293b',
-                  opacity: i < nd.podCount ? 0.9 : 0.2,
-                }}
-              />
+              <div key={i} className="rounded-sm" style={{
+                width: 6, height: 6,
+                background: i < nd.podCount ? (podPct > 90 ? '#ef4444' : podPct > 75 ? '#f59e0b' : '#10b981') : '#1e293b',
+                opacity: i < nd.podCount ? 0.9 : 0.2,
+              }} />
             ))
           )}
         </div>
         <div className="text-[8px] font-mono text-slate-500 mt-0.5">{nd.podCount}/{nd.podCap}</div>
       </div>
 
-      {/* Pod tooltip — outside clip-path so it's visible */}
+      {/* Pod tooltip */}
       {hoveredPod && (
-        <div className="absolute -top-12 left-1/2 -translate-x-1/2 px-3 py-2 rounded-lg bg-slate-800 border border-slate-600 shadow-xl z-50 pointer-events-none min-w-[200px]">
+        <div className="absolute -top-14 left-1/2 -translate-x-1/2 px-3 py-2 rounded-lg bg-slate-800 border border-slate-600 shadow-xl z-50 pointer-events-none min-w-[200px]">
           <div className="text-[11px] font-semibold text-slate-100">{hoveredPod.name}</div>
           <div className="text-[10px] text-slate-400 mt-0.5">{hoveredPod.namespace}</div>
           <div className="flex items-center gap-2 mt-1">
@@ -202,31 +293,56 @@ function HexNode({ nd, pods, onClick, onPodClick }: { nd: NodeDetail; pods?: Pod
               <span className="text-[10px] text-amber-400">{hoveredPod.restarts} restart{hoveredPod.restarts !== 1 ? 's' : ''}</span>
             )}
           </div>
-          <div className="text-[9px] text-slate-500 mt-1">Click to inspect pod</div>
+          <div className="text-[9px] text-slate-500 mt-1">Click to inspect · Right-click for actions</div>
         </div>
+      )}
+
+      {/* Context menu */}
+      {ctxMenu && (
+        <ContextMenu
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          items={ctxMenu.type === 'node' ? nodeMenuItems : podMenuItems}
+          onClose={() => setCtxMenu(null)}
+        />
       )}
     </div>
   );
 }
 
+// ─── Main Component ──────────────────────────────────────────────────────────
+
 export function NodeHexMap({ nodes, podsByNode, onNodeClick, onPodClick, onViewAll }: Props) {
-  const sorted = [...nodes].sort((a, b) => {
-    const aReady = a.status.ready ? 1 : 0;
-    const bReady = b.status.ready ? 1 : 0;
-    if (aReady !== bReady) return aReady - bReady;
-    return a.name.localeCompare(b.name);
-  });
+  const [filter, setFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+
+  const sorted = [...nodes]
+    .filter(nd => {
+      if (filter && !nd.name.toLowerCase().includes(filter.toLowerCase())) return false;
+      if (statusFilter === 'ready' && !nd.status.ready) return false;
+      if (statusFilter === 'issues' && nd.status.ready && nd.pressures.length === 0) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      const aReady = a.status.ready ? 1 : 0;
+      const bReady = b.status.ready ? 1 : 0;
+      if (aReady !== bReady) return aReady - bReady;
+      return a.name.localeCompare(b.name);
+    });
 
   const visible = sorted.slice(0, MAX_VISIBLE);
-  const remaining = nodes.length - MAX_VISIBLE;
+  const remaining = sorted.length - MAX_VISIBLE;
   const readyCount = nodes.filter(n => n.status.ready).length;
   const totalPods = nodes.reduce((sum, n) => sum + n.podCount, 0);
   const totalCap = nodes.reduce((sum, n) => sum + n.podCap, 0);
 
   return (
     <div className="rounded-xl border border-slate-800 bg-gradient-to-br from-slate-900/80 to-slate-950 p-5">
+      {/* Inject pulse animation CSS */}
+      <style>{pulseKeyframes}</style>
+
       {/* Header */}
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-blue-600/10 border border-blue-800/30 flex items-center justify-center">
             <Server className="w-5 h-5 text-blue-400" />
@@ -246,7 +362,40 @@ export function NodeHexMap({ nodes, podsByNode, onNodeClick, onPodClick, onViewA
         </div>
       </div>
 
-      {/* Honeycomb hex grid — offset odd rows for hex tiling */}
+      {/* Filter bar */}
+      <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-1.5 flex-1 bg-slate-800/50 rounded-lg px-2.5 py-1.5 border border-slate-700/50">
+          <Search className="w-3.5 h-3.5 text-slate-500" />
+          <input
+            type="text"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder="Filter nodes..."
+            className="bg-transparent text-xs text-slate-300 placeholder-slate-600 outline-none flex-1"
+          />
+          {filter && (
+            <button onClick={() => setFilter('')} className="text-slate-500 hover:text-slate-300">
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+        {['all', 'ready', 'issues'].map((f) => (
+          <button
+            key={f}
+            onClick={() => setStatusFilter(f === 'all' ? null : f)}
+            className={cn(
+              'px-2.5 py-1.5 rounded-lg text-xs transition-colors border',
+              (statusFilter === f || (f === 'all' && !statusFilter))
+                ? 'bg-blue-600/20 text-blue-300 border-blue-700/50'
+                : 'text-slate-500 hover:text-slate-300 border-slate-700/30 hover:border-slate-600',
+            )}
+          >
+            {f === 'all' ? 'All' : f === 'ready' ? 'Healthy' : 'Issues'}
+          </button>
+        ))}
+      </div>
+
+      {/* Honeycomb hex grid */}
       <div className="flex flex-col items-center gap-0">
         {(() => {
           const cols = Math.min(visible.length, 4);
@@ -281,7 +430,7 @@ export function NodeHexMap({ nodes, podsByNode, onNodeClick, onPodClick, onViewA
             onClick={onViewAll}
             className="flex items-center gap-1 px-4 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 transition-colors"
           >
-            View all {nodes.length} nodes <ChevronRight className="w-3.5 h-3.5" />
+            View all {sorted.length} nodes <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>
       )}
