@@ -34,6 +34,7 @@ export const NAV_ITEMS: NavItem[] = [
 
   // Agent
   { id: 'agent', label: 'Agent Settings', icon: 'Bot', path: '/agent', group: 'agent', subtitle: 'Trust level, monitoring, memory, views management', color: 'text-violet-400' },
+  { id: 'tools', label: 'Tools & Agents', icon: 'Wrench', path: '/tools', group: 'agent', subtitle: 'Tool catalog, usage analytics, agent modes', color: 'text-fuchsia-400' },
 ];
 
 /** Look up a nav item by path */

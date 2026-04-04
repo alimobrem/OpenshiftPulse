@@ -20,6 +20,7 @@ const DriftDetectorView = lazy(() => import('../views/fleet/DriftDetectorView').
 const IncidentCenterView = lazy(() => import('../views/IncidentCenterView'));
 const OnboardingView = lazy(() => import('../views/OnboardingView'));
 const AgentSettingsView = lazy(() => import('../views/AgentSettingsView'));
+const ToolsView = lazy(() => import('../views/ToolsView'));
 
 function CatchFallback() {
   return (
@@ -87,6 +88,7 @@ export function domainRoutes() {
       <Route path="memory" element={<Navigate to="/agent?tab=memory" replace />} />
       <Route path="views" element={<Navigate to="/agent?tab=views" replace />} />
       <Route path="agent" element={<Lazy><AgentSettingsView /></Lazy>} />
+      <Route path="tools" element={<Lazy><ToolsView /></Lazy>} />
     </>
   );
 }
