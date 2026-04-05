@@ -110,6 +110,8 @@ npm run dev    # http://localhost:9000
 | **Trust Escalation** | Confirmation dialog for agent trust level 3/4 escalation, preventing accidental grant of destructive capabilities |
 | **Version History** | Custom view version history panel — browse, compare, and restore previous versions of agent-generated views |
 | **Live Chart Refresh** | Charts auto-refresh with Live/Paused toggle indicator. Visual feedback for real-time vs. static data |
+| **Custom Dashboards** | AI-generated views with 73 PromQL recipes, semantic auto-layout engine, view validator (dedup, schema, title quality), quality critic (0-10 scoring). Plan → Build → Critique → Present workflow. Clone, delete, version history, share. User-scoped with owner-based access control |
+| **Tool Analytics** | Full tool call audit log (PostgreSQL), tool chain discovery (bigram analysis), usage stats API, token tracking per turn. Tools page with catalog, usage log, and analytics tabs — includes unused tools coverage chart for prompt optimization |
 | **Feature Flags** | localStorage-based feature flag system with toggle UI in Admin. Gate unreleased features, A/B test surfaces, disable features without redeployment |
 | **Security** | 10 audit checks incl. ACS/StackRox detection, HyperShift-adapted. [Full details](SECURITY.md) |
 
@@ -141,7 +143,7 @@ npm run dev    # http://localhost:9000
 | **Smart Diagnosis** | 10 error patterns from pod logs with specific fix suggestions |
 | **Auto-Generated Tables** | Sortable, searchable, j/k navigation, CSV/JSON export |
 
-### Views (14)
+### Views (16)
 
 | View | Highlights |
 |------|-----------|
@@ -160,6 +162,8 @@ npm run dev    # http://localhost:9000
 | **Security** | 10 checks, SCC audit, ACS detection |
 | **GitOps** | 4-step setup wizard, ArgoCD Applications, sync history, drift, Rollouts (canary/blue-green), Projects |
 | **Fleet** | Multi-cluster dashboard, cross-cluster search, comparison, compliance, cert heat map |
+| **Custom Views** | AI-generated dashboards at `/custom/:viewId`. Agent creates views via `create_dashboard` tool with metric cards, charts, and tables. Semantic auto-layout, version history, clone, delete, share. Plan → Build → Critique workflow |
+| **Tools** | Tool catalog (agents + tools by category), Usage Log (paginated audit trail), Analytics (top tools bar chart, by mode/category, context hogs, tool chain patterns, unused tools coverage chart, token efficiency) |
 | **Admin** | 11 tabs: Overview, Readiness, Operators, Config, Updates, Snapshots, Quotas, Certificates, GitOps, Errors, Timeline |
 
 ---
