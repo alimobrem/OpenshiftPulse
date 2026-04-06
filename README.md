@@ -58,20 +58,33 @@ Real-time Kubernetes dashboard built with React, TypeScript, and WebSocket watch
 - **oc CLI** — logged into target cluster
 - **Container registry** — writable push access (Quay.io, Docker Hub, etc.)
 
-### Container Registry Setup
+### Fork & Deploy Checklist
 
-The default registry is `quay.io/amobrem`. To use your own:
+If you're deploying your own instance, here's what to change:
+
+| What | Where | Default | Change to |
+|------|-------|---------|-----------|
+| **Container registry** | env vars or Helm values | `quay.io/amobrem` | Your registry (e.g., `quay.io/your-org`) |
+| **Claude API** | env var or Helm secret | none | Your Anthropic API key or GCP Vertex AI project |
+| **CI image push** | `.github/workflows/` | `quay.io/amobrem` | Your registry |
+| **GitHub Pages** | `docs/index.html` | `alimobrem.github.io` | Your GitHub Pages URL |
+
+Everything else (RBAC, OAuth, WS tokens, PostgreSQL) is auto-configured by the deploy script.
 
 ```bash
-# Option 1: Environment variables
+# 1. Set your registry
 export PULSE_UI_IMAGE=your-registry.io/your-org/openshiftpulse
 export PULSE_AGENT_IMAGE=your-registry.io/your-org/pulse-agent
-./deploy/deploy.sh
 
-# Option 2: Helm values
-helm install pulse ./deploy/helm/pulse \
-  --set openshiftpulse.image.repository=your-registry.io/your-org/openshiftpulse \
-  --set agent.image.repository=your-registry.io/your-org/pulse-agent
+# 2. Set your Claude API credentials (pick one)
+export ANTHROPIC_API_KEY=sk-ant-...                    # Anthropic direct
+# OR
+export ANTHROPIC_VERTEX_PROJECT_ID=your-gcp-project    # Vertex AI
+
+# 3. Login and deploy
+oc login https://api.your-cluster:6443
+podman login your-registry.io
+./deploy/deploy.sh
 ```
 
 ## Quick Start
