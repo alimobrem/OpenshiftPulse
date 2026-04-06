@@ -128,6 +128,7 @@ jobs:
 
   e2e-tests:
     name: E2E Tests
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
