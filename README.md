@@ -76,9 +76,31 @@ helm install pulse ./deploy/helm/pulse \
 
 ## Quick Start
 
+### Local Development
+
 ```bash
-npm install && oc login && oc proxy --port=8001 &
-npm run dev    # http://localhost:9000
+# 1. Install dependencies
+pnpm install
+
+# 2. Connect to your cluster
+oc login https://api.your-cluster:6443
+oc proxy --port=8001 &
+
+# 3. Start dev server
+pnpm dev    # http://localhost:9000
+```
+
+### Deploy to Cluster (One Command)
+
+```bash
+# Builds UI + Agent images, pushes to registry, deploys via Helm
+./deploy/deploy.sh
+
+# Preview without applying
+./deploy/deploy.sh --dry-run
+
+# Skip image builds (redeploy with existing images)
+./deploy/deploy.sh --skip-build
 ```
 
 ## Screenshots
