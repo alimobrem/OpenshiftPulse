@@ -1,8 +1,8 @@
-import { useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useMemo, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   Package, Server, Globe, Shield, Clock, AlertTriangle, CheckCircle, XCircle,
-  Activity, Layers, FileText,
+  Activity, Layers, FileText, ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card } from '../components/primitives/Card';
@@ -19,9 +19,13 @@ import { getPodStatus } from '../engine/renderers/statusUtils';
 
 export default function ProjectDashboard() {
   const { namespace } = useParams<{ namespace: string }>();
+  const navigate = useNavigate();
   const go = useNavigateTab();
   const ns = namespace || 'default';
   const safeNs = sanitizePromQL(ns);
+
+  // Fetch all namespaces for the dropdown
+  const { data: allNamespaces = [] } = useK8sListWatch<K8sResource>({ apiPath: '/api/v1/namespaces' });
 
   const { data: pods = [] } = useK8sListWatch<Pod>({ apiPath: '/api/v1/pods', namespace: ns });
   const { data: deployments = [] } = useK8sListWatch<Deployment>({ apiPath: '/apis/apps/v1/deployments', namespace: ns });
@@ -51,13 +55,31 @@ export default function ProjectDashboard() {
   return (
     <div className="h-full overflow-auto bg-slate-950 p-6">
       <div className="max-w-6xl mx-auto space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
-            <Layers className="w-6 h-6 text-blue-500" />
-            {ns}
-          </h1>
-          <p className="text-sm text-slate-400 mt-1">Project overview — all resources at a glance</p>
+        {/* Header with namespace selector */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
+              <Layers className="w-6 h-6 text-blue-500" />
+              {ns}
+            </h1>
+            <p className="text-sm text-slate-400 mt-1">Project overview — all resources at a glance</p>
+          </div>
+          <div className="relative">
+            <select
+              value={ns}
+              onChange={(e) => navigate(`/project/${e.target.value}`)}
+              className="appearance-none bg-slate-900 border border-slate-700 rounded-lg pl-3 pr-8 py-2 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+            >
+              {allNamespaces
+                .map((n: any) => n.metadata?.name)
+                .filter(Boolean)
+                .sort()
+                .map((name: string) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+            </select>
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          </div>
         </div>
 
         {/* Summary cards */}
