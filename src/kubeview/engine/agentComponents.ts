@@ -109,6 +109,8 @@ export interface TabsSpec {
 
 export interface GridSpec {
   kind: 'grid';
+  title?: string;
+  description?: string;
   columns?: number; // default 2
   items: ComponentSpec[];
 }

@@ -657,13 +657,23 @@ function AgentGrid({ spec, depth = 0 }: { spec: GridSpec; depth?: number }) {
   const columns = spec.columns ?? 2;
 
   return (
-    <div
-      className="my-2 grid gap-4"
-      style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
-    >
-      {spec.items.map((item, i) => (
-        <AgentComponentRenderer key={i} spec={item} depth={depth + 1} />
-      ))}
+    <div className="my-2">
+      {spec.title && (
+        <div className="px-3 py-1.5 bg-slate-800/50 border border-slate-700 rounded-t-lg text-xs font-medium text-slate-300 flex items-center justify-between">
+          <div className="truncate">
+            <span>{spec.title}</span>
+            {spec.description && <span className="text-[10px] text-slate-500 ml-2">{spec.description}</span>}
+          </div>
+        </div>
+      )}
+      <div
+        className={cn('grid gap-4', spec.title && 'border border-t-0 border-slate-700 rounded-b-lg p-3')}
+        style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
+      >
+        {spec.items.map((item, i) => (
+          <AgentComponentRenderer key={i} spec={item} depth={depth + 1} />
+        ))}
+      </div>
     </div>
   );
 }
