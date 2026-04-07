@@ -31,21 +31,21 @@ function idealHeight(spec: ComponentSpec): number {
   const gridCols = spec.kind === 'grid' ? ((spec as any).columns || 2) : 1;
   const gridRows = Math.ceil(gridItems / gridCols);
   return (
-    spec.kind === 'info_card_grid' ? 5 :
-    spec.kind === 'grid' ? (3 + gridRows * 4) :
-    spec.kind === 'metric_card' ? 4 :
-    spec.kind === 'status_list' ? Math.min(4 + ((spec as any).items?.length || 3), 12) :
-    spec.kind === 'badge_list' ? 3 :
-    spec.kind === 'key_value' ? Math.min(4 + ((spec as any).pairs?.length || 2), 10) :
-    spec.kind === 'chart' ? 12 :
-    spec.kind === 'data_table' ? Math.min(4 + rows, 16) :
-    spec.kind === 'log_viewer' ? 12 :
-    spec.kind === 'yaml_viewer' ? 10 :
-    spec.kind === 'tabs' ? 16 :
-    spec.kind === 'bar_list' ? 8 :
-    spec.kind === 'progress_list' ? 8 :
-    spec.kind === 'stat_card' ? 4 :
-    6
+    spec.kind === 'info_card_grid' ? 4 :
+    spec.kind === 'grid' ? (2 + gridRows * 3) :
+    spec.kind === 'metric_card' ? 3 :
+    spec.kind === 'status_list' ? Math.min(3 + ((spec as any).items?.length || 3), 10) :
+    spec.kind === 'badge_list' ? 2 :
+    spec.kind === 'key_value' ? Math.min(3 + ((spec as any).pairs?.length || 2), 8) :
+    spec.kind === 'chart' ? 10 :
+    spec.kind === 'data_table' ? Math.min(3 + rows, 14) :
+    spec.kind === 'log_viewer' ? 10 :
+    spec.kind === 'yaml_viewer' ? 8 :
+    spec.kind === 'tabs' ? 14 :
+    spec.kind === 'bar_list' ? 6 :
+    spec.kind === 'progress_list' ? 6 :
+    spec.kind === 'stat_card' ? 3 :
+    5
   );
 }
 
