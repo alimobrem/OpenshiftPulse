@@ -25,7 +25,7 @@ import { applyTemplate } from '../engine/layoutTemplates';
  *  Otherwise, stack full-width vertically.
  */
 /** Compute ideal height for a component spec (rowHeight=30 units) */
-function idealHeight(spec: ComponentSpec): number {
+export function idealHeight(spec: ComponentSpec): number {
   const rows = spec.kind === 'data_table' ? (spec as any).rows?.length || 5 : 0;
   const gridItems = spec.kind === 'grid' ? ((spec as any).items?.length || 0) : 0;
   const gridCols = spec.kind === 'grid' ? ((spec as any).columns || 2) : 1;
@@ -80,17 +80,17 @@ function layoutToPositions(layout: ReactGridLayout.Layout[]): Record<number, { x
   return positions;
 }
 
-/** Convert our positions map to react-grid-layout Layout[], clamping heights to content */
-function positionsToLayout(positions: Record<string | number, { x: number; y: number; w: number; h: number }>, specs: ComponentSpec[]): ReactGridLayout.Layout[] {
+/** Convert positions map to react-grid-layout Layout[].
+ *  Height is ALWAYS computed from content via idealHeight — saved h is ignored.
+ *  Only x, y, w are used from saved positions. */
+export function positionsToLayout(positions: Record<string | number, { x: number; y: number; w: number; h: number }>, specs: ComponentSpec[]): ReactGridLayout.Layout[] {
   return Array.from({ length: specs.length }, (_, i) => {
-    // JSON keys are strings, so check both numeric and string keys
     const pos = positions[i] || positions[String(i)];
-    const ideal = idealHeight(specs[i]);
+    const h = idealHeight(specs[i]);
     if (pos) {
-      // Clamp saved height to ideal — prevents oversized cells from stale positions
-      return { i: String(i), ...pos, h: Math.min(pos.h, ideal), minW: 1, minH: 2 };
+      return { i: String(i), x: pos.x, y: pos.y, w: pos.w, h, minW: 1, minH: 2 };
     }
-    return { i: String(i), x: 0, y: i * 5, w: 4, h: ideal, minW: 1, minH: 2 };
+    return { i: String(i), x: 0, y: i * 5, w: 4, h, minW: 1, minH: 2 };
   });
 }
 
