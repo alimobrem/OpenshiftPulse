@@ -58,6 +58,9 @@ function generateDefaultLayout(specs: ComponentSpec[], templateId?: string): Rea
       spec.kind === 'log_viewer' ? 12 :
       spec.kind === 'yaml_viewer' ? 10 :
       spec.kind === 'tabs' ? 16 :
+      spec.kind === 'bar_list' ? 8 :
+      spec.kind === 'progress_list' ? 8 :
+      spec.kind === 'stat_card' ? 4 :
       6;
     const layout = { i: String(i), x: 0, y, w: 4, h, minW: 1, minH: 2 };
     y += h;
