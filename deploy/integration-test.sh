@@ -205,8 +205,52 @@ fi
 echo ""
 echo "[View API]"
 VIEW_ID=""
-# Create (pass token for auth)
-CREATE_RESP=$(agent_post "/views?token=${_WS_TOKEN}" '{"title":"Integration Test View","description":"auto-test","layout":[{"kind":"key_value","pairs":[{"key":"test","value":"ok"}]}]}')
+_VIEW_USER="integration-test"
+
+# View helpers — include X-Forwarded-User header for user identity
+view_post() {
+  local path="$1"; local data="${2:-}"
+  if [[ -n "$data" ]]; then
+    agent_exec python3 -c "
+import urllib.request, json
+req = urllib.request.Request('http://localhost:8080${path}', data=json.dumps(${data}).encode(), headers={'Content-Type': 'application/json', 'X-Forwarded-User': '${_VIEW_USER}'}, method='POST')
+print(urllib.request.urlopen(req).read().decode())
+"
+  else
+    agent_exec python3 -c "
+import urllib.request
+req = urllib.request.Request('http://localhost:8080${path}', headers={'X-Forwarded-User': '${_VIEW_USER}'}, method='POST')
+print(urllib.request.urlopen(req).read().decode())
+"
+  fi
+}
+view_get() {
+  local path="$1"
+  agent_exec python3 -c "
+import urllib.request
+req = urllib.request.Request('http://localhost:8080${path}', headers={'X-Forwarded-User': '${_VIEW_USER}'})
+print(urllib.request.urlopen(req).read().decode())
+"
+}
+view_put() {
+  local path="$1"; local data="$2"
+  agent_exec python3 -c "
+import urllib.request, json
+req = urllib.request.Request('http://localhost:8080${path}', data=json.dumps(${data}).encode(), headers={'Content-Type': 'application/json', 'X-Forwarded-User': '${_VIEW_USER}'}, method='PUT')
+print(urllib.request.urlopen(req).read().decode())
+"
+}
+view_delete() {
+  local path="$1"
+  agent_exec python3 -c "
+import urllib.request
+req = urllib.request.Request('http://localhost:8080${path}', headers={'X-Forwarded-User': '${_VIEW_USER}'}, method='DELETE')
+print(urllib.request.urlopen(req).read().decode())
+"
+}
+
+# Create (pass token for auth + user header)
+CREATE_RESP=$(view_post "/views?token=${_WS_TOKEN}" '{"title":"Integration Test View","description":"auto-test","layout":[{"kind":"key_value","pairs":[{"key":"test","value":"ok"}]}]}')
 if echo "$CREATE_RESP" | grep -q '"id"'; then
   VIEW_ID=$(echo "$CREATE_RESP" | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
   pass "POST /views → created $VIEW_ID"
@@ -216,31 +260,31 @@ fi
 
 # List
 if [[ -n "$VIEW_ID" ]]; then
-  LIST_RESP=$(agent_get "/views?token=${_WS_TOKEN}")
+  LIST_RESP=$(view_get "/views?token=${_WS_TOKEN}")
   echo "$LIST_RESP" | grep -q "$VIEW_ID" && pass "GET /views → lists created view" || fail "GET /views missing created view"
 fi
 
 # Get
 if [[ -n "$VIEW_ID" ]]; then
-  GET_RESP=$(agent_get "/views/$VIEW_ID?token=${_WS_TOKEN}")
+  GET_RESP=$(view_get "/views/$VIEW_ID?token=${_WS_TOKEN}")
   echo "$GET_RESP" | grep -q "Integration Test View" && pass "GET /views/$VIEW_ID → correct title" || fail "GET /views/$VIEW_ID wrong content"
 fi
 
 # Update
 if [[ -n "$VIEW_ID" ]]; then
-  UPDATE_RESP=$(agent_put "/views/$VIEW_ID?token=${_WS_TOKEN}" '{"title":"Updated Title"}')
+  UPDATE_RESP=$(view_put "/views/$VIEW_ID?token=${_WS_TOKEN}" '{"title":"Updated Title"}')
   echo "$UPDATE_RESP" | grep -q '"updated":true' && pass "PUT /views/$VIEW_ID → updated" || fail "PUT /views/$VIEW_ID failed"
 fi
 
 # Share
 if [[ -n "$VIEW_ID" ]]; then
-  SHARE_RESP=$(agent_post "/views/$VIEW_ID/share?token=${_WS_TOKEN}")
+  SHARE_RESP=$(view_post "/views/$VIEW_ID/share?token=${_WS_TOKEN}")
   echo "$SHARE_RESP" | grep -q '"share_token"' && pass "POST /views/$VIEW_ID/share → token generated" || fail "POST /views/$VIEW_ID/share failed"
 fi
 
 # Delete
 if [[ -n "$VIEW_ID" ]]; then
-  DEL_RESP=$(agent_delete "/views/$VIEW_ID?token=${_WS_TOKEN}")
+  DEL_RESP=$(view_delete "/views/$VIEW_ID?token=${_WS_TOKEN}")
   echo "$DEL_RESP" | grep -q '"deleted":true' && pass "DELETE /views/$VIEW_ID → deleted" || fail "DELETE /views/$VIEW_ID failed"
 fi
 
