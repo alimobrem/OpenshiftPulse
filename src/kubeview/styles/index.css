@@ -1,3 +1,11 @@
+/* Self-hosted Geist fonts */
+@font-face { font-family: 'Geist'; font-weight: 400; font-display: swap; src: url('./fonts/Geist-Regular.woff2') format('woff2'); }
+@font-face { font-family: 'Geist'; font-weight: 500; font-display: swap; src: url('./fonts/Geist-Medium.woff2') format('woff2'); }
+@font-face { font-family: 'Geist'; font-weight: 600; font-display: swap; src: url('./fonts/Geist-SemiBold.woff2') format('woff2'); }
+@font-face { font-family: 'Geist'; font-weight: 700; font-display: swap; src: url('./fonts/Geist-Bold.woff2') format('woff2'); }
+@font-face { font-family: 'Geist Mono'; font-weight: 400; font-display: swap; src: url('./fonts/GeistMono-Regular.woff2') format('woff2'); }
+@font-face { font-family: 'Geist Mono'; font-weight: 500; font-display: swap; src: url('./fonts/GeistMono-Medium.woff2') format('woff2'); }
+
 /* Tailwind CSS */
 @tailwind base;
 @tailwind components;
