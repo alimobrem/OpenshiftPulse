@@ -28,6 +28,7 @@ import type {
   BarListSpec,
   ProgressListSpec,
   StatCardSpec,
+  TimelineSpec,
 } from '../../engine/agentComponents';
 import { AgentNodeMap } from './AgentNodeMap';
 import { Badge } from '../primitives/Badge';
@@ -82,6 +83,8 @@ export function AgentComponentRenderer({ spec, depth = 0, onAddToView, refreshIn
       return <AgentProgressList spec={spec} />;
     case 'stat_card':
       return <AgentStatCard spec={spec} />;
+    case 'timeline':
+      return <AgentTimeline spec={spec} />;
     default:
       return null;
   }
@@ -1074,6 +1077,290 @@ function AgentMetricCard({ spec }: { spec: MetricCardSpec }) {
         </span>
       </div>
       {spec.description && <div className="text-xs text-slate-500">{spec.description}</div>}
+    </div>
+  );
+}
+
+// ─── Timeline Swimlane ───────────────────────────────────────────────────────
+
+const SEVERITY_COLORS: Record<string, string> = {
+  critical: '#ef4444',
+  warning: '#f59e0b',
+  info: '#3b82f6',
+  normal: '#64748b',
+};
+
+const CATEGORY_COLORS: Record<string, string> = {
+  alert: '#ef4444',
+  event: '#3b82f6',
+  rollout: '#10b981',
+  config: '#8b5cf6',
+};
+
+type TimelineGrouping = 'source' | 'severity';
+
+function AgentTimeline({ spec }: { spec: TimelineSpec }) {
+  const [hoveredEvent, setHoveredEvent] = useState<{ x: number; y: number; event: TimelineSpec['lanes'][0]['events'][0] } | null>(null);
+  const [grouping, setGrouping] = useState<TimelineGrouping>('source');
+
+  // Regroup lanes by severity when toggled
+  const lanes = useMemo(() => {
+    if (grouping === 'source') return spec.lanes;
+
+    // Flatten all events with their lane's category, then group by severity
+    const bySeverity: Record<string, Array<TimelineSpec['lanes'][0]['events'][0]>> = {
+      critical: [],
+      warning: [],
+      info: [],
+      normal: [],
+    };
+    for (const lane of spec.lanes) {
+      for (const evt of lane.events) {
+        bySeverity[evt.severity]?.push(evt);
+      }
+    }
+    const categoryForSeverity: Record<string, 'alert' | 'event' | 'rollout' | 'config'> = {
+      critical: 'alert',
+      warning: 'alert',
+      info: 'event',
+      normal: 'config',
+    };
+    return Object.entries(bySeverity)
+      .filter(([, events]) => events.length > 0)
+      .map(([severity, events]) => ({
+        label: severity.charAt(0).toUpperCase() + severity.slice(1),
+        category: categoryForSeverity[severity],
+        events,
+      }));
+  }, [spec.lanes, grouping]);
+
+  // Compute time range from all events if not provided
+  const timeRange = useMemo(() => {
+    if (spec.timeRange) return spec.timeRange;
+    let start = Infinity;
+    let end = -Infinity;
+    for (const lane of lanes) {
+      for (const evt of lane.events) {
+        start = Math.min(start, evt.timestamp);
+        end = Math.max(end, evt.endTimestamp || evt.timestamp);
+      }
+    }
+    if (!isFinite(start) || !isFinite(end)) return { start: Date.now() - 3600000, end: Date.now() };
+    // Add 5% padding on each side
+    const padding = (end - start) * 0.05;
+    return { start: start - padding, end: end + padding };
+  }, [lanes, spec.timeRange]);
+
+  // SVG dimensions
+  const LABEL_WIDTH = 120;
+  const LANE_HEIGHT = 30;
+  const PADDING_TOP = 10;
+  const PADDING_BOTTOM = 30;
+  const PADDING_LEFT = 10;
+  const PADDING_RIGHT = 10;
+  const svgWidth = 800;
+  const chartWidth = svgWidth - LABEL_WIDTH - PADDING_LEFT - PADDING_RIGHT;
+  const svgHeight = PADDING_TOP + lanes.length * LANE_HEIGHT + PADDING_BOTTOM;
+
+  // Time scale
+  const timeSpan = timeRange.end - timeRange.start || 1;
+  const timeToX = (ts: number) => LABEL_WIDTH + PADDING_LEFT + ((ts - timeRange.start) / timeSpan) * chartWidth;
+
+  // Format timestamp for display
+  const formatTime = (ts: number) => {
+    const date = new Date(ts);
+    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // Generate time markers (5 evenly spaced)
+  const timeMarkers = useMemo(() => {
+    const markers = [];
+    for (let i = 0; i <= 4; i++) {
+      const ts = timeRange.start + (timeSpan * i) / 4;
+      markers.push({ x: timeToX(ts), label: formatTime(ts) });
+    }
+    return markers;
+  }, [timeRange, timeSpan]);
+
+  return (
+    <div className="my-2 border border-slate-700 rounded-lg overflow-hidden min-w-0 bg-slate-900/50">
+      {/* Header */}
+      <div className="px-3 py-1.5 bg-slate-800/50 border-b border-slate-700 text-xs font-medium text-slate-300 flex items-center justify-between">
+        <div className="truncate">
+          {spec.title && <span>{spec.title}</span>}
+          {spec.description && <span className="text-[10px] text-slate-500 ml-2">{spec.description}</span>}
+        </div>
+        <div className="flex items-center gap-0.5 bg-slate-900 rounded px-0.5 py-0.5 flex-shrink-0">
+          <button
+            onClick={() => setGrouping('source')}
+            className={cn('px-2 py-0.5 text-[10px] rounded transition-colors', grouping === 'source' ? 'bg-slate-700 text-slate-200' : 'text-slate-500 hover:text-slate-300')}
+          >
+            By Source
+          </button>
+          <button
+            onClick={() => setGrouping('severity')}
+            className={cn('px-2 py-0.5 text-[10px] rounded transition-colors', grouping === 'severity' ? 'bg-slate-700 text-slate-200' : 'text-slate-500 hover:text-slate-300')}
+          >
+            By Severity
+          </button>
+        </div>
+      </div>
+
+      {/* Timeline */}
+      <div className="p-3 overflow-x-auto">
+        <div style={{ minWidth: svgWidth, position: 'relative' }}>
+          <svg width={svgWidth} height={svgHeight} className="overflow-visible">
+            {/* Time grid lines */}
+            {timeMarkers.map((marker, i) => (
+              <line
+                key={i}
+                x1={marker.x}
+                y1={PADDING_TOP}
+                x2={marker.x}
+                y2={svgHeight - PADDING_BOTTOM}
+                stroke="#334155"
+                strokeWidth="1"
+                strokeDasharray="2,2"
+                opacity="0.5"
+              />
+            ))}
+
+            {/* Lanes */}
+            {lanes.map((lane, laneIdx) => {
+              const laneY = PADDING_TOP + laneIdx * LANE_HEIGHT + LANE_HEIGHT / 2;
+
+              return (
+                <g key={laneIdx}>
+                  {/* Lane background line */}
+                  <line
+                    x1={LABEL_WIDTH + PADDING_LEFT}
+                    y1={laneY}
+                    x2={svgWidth - PADDING_RIGHT}
+                    y2={laneY}
+                    stroke="#1e293b"
+                    strokeWidth="2"
+                  />
+
+                  {/* Lane label */}
+                  <g>
+                    <circle
+                      cx={10}
+                      cy={laneY}
+                      r={3}
+                      fill={CATEGORY_COLORS[lane.category]}
+                    />
+                    <text
+                      x={18}
+                      y={laneY}
+                      fontSize="11"
+                      fill="#94a3b8"
+                      dominantBaseline="middle"
+                      className="select-none"
+                    >
+                      {lane.label}
+                    </text>
+                  </g>
+
+                  {/* Events */}
+                  {lane.events.map((evt, evtIdx) => {
+                    const x = timeToX(evt.timestamp);
+                    const isDuration = evt.endTimestamp !== undefined;
+                    const endX = isDuration ? timeToX(evt.endTimestamp!) : x;
+                    const width = isDuration ? endX - x : 0;
+                    const color = SEVERITY_COLORS[evt.severity];
+
+                    return (
+                      <g
+                        key={evtIdx}
+                        onMouseEnter={(e) => {
+                          const rect = (e.currentTarget as SVGGElement).getBoundingClientRect();
+                          setHoveredEvent({
+                            x: rect.left + rect.width / 2,
+                            y: rect.top,
+                            event: evt,
+                          });
+                        }}
+                        onMouseLeave={() => setHoveredEvent(null)}
+                        className="cursor-pointer"
+                      >
+                        {isDuration ? (
+                          <rect
+                            x={x}
+                            y={laneY - 6}
+                            width={Math.max(width, 2)}
+                            height={12}
+                            fill={color}
+                            rx={2}
+                            opacity={0.8}
+                          />
+                        ) : (
+                          <circle
+                            cx={x}
+                            cy={laneY}
+                            r={5}
+                            fill={color}
+                            stroke="#0f172a"
+                            strokeWidth="1"
+                          />
+                        )}
+                      </g>
+                    );
+                  })}
+                </g>
+              );
+            })}
+
+            {/* Time axis markers */}
+            {timeMarkers.map((marker, i) => (
+              <text
+                key={i}
+                x={marker.x}
+                y={svgHeight - 10}
+                fontSize="10"
+                fill="#64748b"
+                textAnchor="middle"
+                className="select-none"
+              >
+                {marker.label}
+              </text>
+            ))}
+          </svg>
+
+          {/* Tooltip */}
+          {hoveredEvent && (
+            <div
+              className="fixed z-50 px-2 py-1.5 rounded bg-slate-800 border border-slate-700 shadow-lg pointer-events-none"
+              style={{
+                left: hoveredEvent.x,
+                top: hoveredEvent.y - 10,
+                transform: 'translate(-50%, -100%)',
+              }}
+            >
+              <div className="text-xs font-medium text-slate-200">{hoveredEvent.event.label}</div>
+              {hoveredEvent.event.detail && (
+                <div className="text-[10px] text-slate-400">{hoveredEvent.event.detail}</div>
+              )}
+              <div className="text-[10px] text-slate-500 mt-0.5">
+                {formatTime(hoveredEvent.event.timestamp)}
+                {hoveredEvent.event.endTimestamp && ` - ${formatTime(hoveredEvent.event.endTimestamp)}`}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="px-3 pb-2 flex items-center gap-4 text-[10px]">
+        <div className="flex items-center gap-3">
+          <span className="text-slate-500 uppercase tracking-wider">Severity:</span>
+          {Object.entries(SEVERITY_COLORS).map(([severity, color]) => (
+            <div key={severity} className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+              <span className="text-slate-400 capitalize">{severity}</span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
