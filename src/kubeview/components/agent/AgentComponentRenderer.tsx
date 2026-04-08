@@ -5,7 +5,7 @@
 import { useState, useMemo, useCallback, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { CheckCircle, AlertTriangle, XCircle, Clock, HelpCircle, ChevronDown, ChevronUp, Plus, ArrowUpDown, ArrowUp, ArrowDown, Settings2, Eye, EyeOff, Filter } from 'lucide-react';
+import { CheckCircle, AlertTriangle, XCircle, Clock, HelpCircle, ChevronDown, ChevronUp, Plus, ArrowUpDown, ArrowUp, ArrowDown, Settings2, Eye, EyeOff, Filter, Search, Download } from 'lucide-react';
 
 // Lazy-load the chart component to keep recharts (~150KB) out of the initial bundle
 const LazyAgentChart = lazy(() => import('./AgentChart'));
@@ -89,10 +89,12 @@ export function AgentComponentRenderer({ spec, depth = 0, onAddToView, refreshIn
 
 /** Compact data table for inline chat rendering */
 function AgentDataTable({ spec, onAddToView }: { spec: DataTableSpec; onAddToView?: (spec: ComponentSpec) => void }) {
+  const navigate = useNavigate();
   const PAGE_SIZE = 15;
   const [page, setPage] = useState(0);
   const [sortCol, setSortCol] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [search, setSearch] = useState('');
   // Auto-hide columns beyond 6 to prevent horizontal scrollbar
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
     const MAX_DEFAULT_COLS = 6;
@@ -120,6 +122,15 @@ function AgentDataTable({ spec, onAddToView }: { spec: DataTableSpec; onAddToVie
     });
   }, []);
 
+  const handleRowClick = useCallback((row: Record<string, string | number | boolean>) => {
+    const gvr = row._gvr ? String(row._gvr) : '';
+    const name = String(row.name || '');
+    const ns = String(row.namespace || '');
+    if (gvr && name) {
+      navigate(`/r/${gvr}/${ns || '_'}/${name}`);
+    }
+  }, [navigate]);
+
   const visibleColumns = useMemo(
     () => spec.columns.filter((c) => !hiddenCols.has(c.id)),
     [spec.columns, hiddenCols],
@@ -127,7 +138,14 @@ function AgentDataTable({ spec, onAddToView }: { spec: DataTableSpec; onAddToVie
 
   const processedRows = useMemo(() => {
     let rows = [...spec.rows];
-    // Apply filters
+    // Apply global search
+    if (search) {
+      const q = search.toLowerCase();
+      rows = rows.filter((row) =>
+        Object.values(row).some((v) => String(v ?? '').toLowerCase().includes(q))
+      );
+    }
+    // Apply per-column filters
     for (const [colId, filterVal] of Object.entries(filters)) {
       if (!filterVal) continue;
       const lower = filterVal.toLowerCase();
@@ -145,22 +163,73 @@ function AgentDataTable({ spec, onAddToView }: { spec: DataTableSpec; onAddToVie
       });
     }
     return rows;
-  }, [spec.rows, filters, sortCol, sortDir]);
+  }, [spec.rows, search, filters, sortCol, sortDir]);
+
+  const handleExport = useCallback((format: 'csv' | 'json') => {
+    const cols = spec.columns.filter((c) => !c.id.startsWith('_'));
+    const exportTitle = spec.title || 'export';
+    const date = new Date().toISOString().slice(0, 10);
+    if (format === 'csv') {
+      const header = cols.map((c) => c.header).join(',');
+      const csvRows = processedRows.map((row) =>
+        cols.map((c) => {
+          const val = String(row[c.id] ?? '').replace(/"/g, '""');
+          return val.includes(',') || val.includes('"') ? `"${val}"` : val;
+        }).join(',')
+      );
+      const blob = new Blob([header + '\n' + csvRows.join('\n')], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${exportTitle}-${date}.csv`;
+      a.click();
+    } else {
+      const data = processedRows.map((row) => {
+        const obj: Record<string, unknown> = {};
+        for (const c of cols) obj[c.id] = row[c.id];
+        return obj;
+      });
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${exportTitle}-${date}.json`;
+      a.click();
+    }
+  }, [spec, processedRows]);
 
   return (
     <div className="my-2 border border-slate-700 rounded-lg overflow-hidden min-w-0">
       {/* Header */}
-      <div className="px-3 py-1.5 bg-slate-800/50 border-b border-slate-700 text-xs font-medium text-slate-300 flex items-center justify-between">
-        <div className="truncate">
+      <div className="px-3 py-1.5 bg-slate-800/50 border-b border-slate-700 text-xs font-medium text-slate-300 flex items-center justify-between gap-2">
+        <div className="truncate flex-shrink-0">
           <span>{spec.title || 'Table'}</span>
           {spec.description && <span className="text-[10px] text-slate-500 ml-2">{spec.description}</span>}
-          {Object.values(filters).some(Boolean) && (
+          {(search || Object.values(filters).some(Boolean)) && (
             <span className="text-[10px] text-violet-400 ml-2">
-              ({processedRows.length}/{spec.rows.length} filtered)
+              ({processedRows.length}/{spec.rows.length})
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {/* Search */}
+          <div className="relative">
+            <Search className="w-3 h-3 absolute left-1.5 top-1/2 -translate-y-1/2 text-slate-600" />
+            <input
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+              placeholder="Search..."
+              className="w-28 pl-5 pr-1.5 py-0.5 text-[10px] bg-slate-900 border border-slate-700 rounded text-slate-300 placeholder-slate-600 outline-none focus:border-violet-500 focus:w-40 transition-all"
+            />
+          </div>
+          {/* Export */}
+          <div className="relative group/export">
+            <button className="p-0.5 text-slate-500 hover:text-slate-300 rounded transition-colors" title="Export">
+              <Download className="w-3.5 h-3.5" />
+            </button>
+            <div className="absolute right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded shadow-lg hidden group-hover/export:block z-20">
+              <button onClick={() => handleExport('csv')} className="block w-full px-3 py-1 text-[10px] text-slate-300 hover:bg-slate-700 whitespace-nowrap">Export CSV</button>
+              <button onClick={() => handleExport('json')} className="block w-full px-3 py-1 text-[10px] text-slate-300 hover:bg-slate-700 whitespace-nowrap">Export JSON</button>
+            </div>
+          </div>
           <button
             onClick={() => setShowSettings(!showSettings)}
             className={cn('p-0.5 rounded transition-colors', showSettings ? 'text-violet-400 bg-slate-700' : 'text-slate-500 hover:text-slate-300')}
@@ -244,7 +313,11 @@ function AgentDataTable({ spec, onAddToView }: { spec: DataTableSpec; onAddToVie
           </thead>
           <tbody>
             {processedRows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((row, i) => (
-              <tr key={i} className="border-t border-slate-800 hover:bg-slate-800/40 cursor-pointer transition-colors">
+              <tr
+                key={i}
+                className={cn('border-t border-slate-800 hover:bg-slate-800/40 transition-colors', row._gvr && 'cursor-pointer')}
+                onClick={() => row._gvr && handleRowClick(row)}
+              >
                 {visibleColumns.map((col) => (
                   <td key={col.id} className="px-3 py-1.5 text-slate-300 whitespace-nowrap group/cell relative">
                     <CellValue value={row[col.id]} columnId={col.id} columnType={col.type} row={row} />
