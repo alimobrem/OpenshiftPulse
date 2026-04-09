@@ -44,6 +44,25 @@ export interface AgentEvalStatus {
   prompt_audit?: Record<string, PromptAudit>;
 }
 
+export interface EvalTrend {
+  suite: string;
+  runs: number;
+  latest_score?: number;
+  latest_gate?: boolean;
+  latest_judge?: number | null;
+  latest_ts?: string;
+  previous_score?: number;
+  delta?: number;
+  trend?: 'up' | 'down' | 'stable' | 'new';
+  sparkline?: number[];
+}
+
+export async function fetchEvalTrend(suite: string = 'release'): Promise<EvalTrend | null> {
+  const res = await fetch(`/api/agent/eval/trend?suite=${suite}`);
+  if (!res.ok) return null;
+  return res.json();
+}
+
 export async function fetchAgentEvalStatus(): Promise<AgentEvalStatus | null> {
   const res = await fetch('/api/agent/eval/status');
   if (!res.ok) return null;

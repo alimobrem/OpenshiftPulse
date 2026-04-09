@@ -494,6 +494,15 @@ function ToolsSummaryTab() {
 /* ------------------------------------------------------------------ */
 
 function EvalsTab({ evalStatus }: { evalStatus: import('../engine/evalStatus').AgentEvalStatus | null | undefined }) {
+  const { data: releaseTrend } = useQuery({
+    queryKey: ['eval', 'trend', 'release'],
+    queryFn: async () => {
+      const { fetchEvalTrend } = await import('../engine/evalStatus');
+      return fetchEvalTrend('release');
+    },
+    staleTime: 60_000,
+  });
+
   if (!evalStatus) {
     return <div className="text-center py-12 text-sm text-slate-500">Loading eval status...</div>;
   }
@@ -606,6 +615,49 @@ function EvalsTab({ evalStatus }: { evalStatus: import('../engine/evalStatus').A
               Gate: {evalStatus.outcomes.gate_passed ? 'PASS' : 'FAIL'}
             </span>
           </div>
+        </div>
+      )}
+
+      {/* Score Trend */}
+      {releaseTrend && releaseTrend.runs > 0 && (
+        <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+          <h3 className="text-xs font-medium text-slate-300 mb-3">Release Score Trend</h3>
+          <div className="flex items-center gap-4 mb-3">
+            <div className="text-lg font-semibold text-slate-100">
+              {releaseTrend.latest_score != null ? `${(releaseTrend.latest_score * 100).toFixed(0)}%` : 'n/a'}
+            </div>
+            {releaseTrend.delta != null && (
+              <span className={cn(
+                'text-xs font-medium',
+                releaseTrend.delta > 0.01 ? 'text-emerald-400' : releaseTrend.delta < -0.01 ? 'text-red-400' : 'text-slate-500',
+              )}>
+                {releaseTrend.delta > 0 ? '+' : ''}{(releaseTrend.delta * 100).toFixed(1)}% vs previous
+              </span>
+            )}
+            <span className="text-[10px] text-slate-600 ml-auto">{releaseTrend.runs} runs recorded</span>
+          </div>
+          {/* Sparkline */}
+          {releaseTrend.sparkline && releaseTrend.sparkline.length > 1 && (
+            <div className="flex items-end gap-px h-8">
+              {(() => {
+                const vals = releaseTrend.sparkline!;
+                const min = Math.min(...vals) - 0.05;
+                const max = Math.max(...vals) + 0.05;
+                const range = max - min || 1;
+                return vals.map((v, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      'flex-1 rounded-sm min-w-[3px]',
+                      i === vals.length - 1 ? 'bg-blue-500' : 'bg-slate-700',
+                    )}
+                    style={{ height: `${((v - min) / range) * 100}%` }}
+                    title={`${(v * 100).toFixed(1)}%`}
+                  />
+                ));
+              })()}
+            </div>
+          )}
         </div>
       )}
     </div>
