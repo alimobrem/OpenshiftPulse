@@ -6,6 +6,7 @@ import {
   Zap, AlertTriangle, CheckCircle2, XCircle, Settings, LayoutDashboard, Wrench,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ScannerPanel } from '../components/monitor/ScannerPanel';
 import { Card } from '../components/primitives/Card';
 import { useMonitorStore } from '../store/monitorStore';
 import { useTrustStore, TRUST_LABELS, TRUST_DESCRIPTIONS, type TrustLevel, type CommunicationStyle } from '../store/trustStore';
@@ -37,7 +38,7 @@ const COMM_OPTIONS: { value: CommunicationStyle; label: string; description: str
   { value: 'technical', label: 'Technical', description: 'Deep technical detail, CLI examples' },
 ];
 
-type AgentTab = 'settings' | 'memory' | 'views' | 'tools';
+type AgentTab = 'settings' | 'scanners' | 'memory' | 'views' | 'tools';
 
 export default function AgentSettingsView() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -52,6 +53,7 @@ export default function AgentSettingsView() {
 
   const agentTabs: Array<{ id: AgentTab; label: string; icon: React.ReactNode; activeIcon: React.ReactNode }> = [
     { id: 'settings', label: 'Settings', icon: <Settings className="w-3.5 h-3.5 text-violet-400" />, activeIcon: <Settings className="w-3.5 h-3.5" /> },
+    { id: 'scanners', label: 'Scanners', icon: <Shield className="w-3.5 h-3.5 text-blue-400" />, activeIcon: <Shield className="w-3.5 h-3.5" /> },
     { id: 'memory', label: 'Memory', icon: <Brain className="w-3.5 h-3.5 text-pink-400" />, activeIcon: <Brain className="w-3.5 h-3.5" /> },
     { id: 'views', label: 'Views', icon: <LayoutDashboard className="w-3.5 h-3.5 text-emerald-400" />, activeIcon: <LayoutDashboard className="w-3.5 h-3.5" /> },
     { id: 'tools', label: 'Tools', icon: <Wrench className="w-3.5 h-3.5 text-fuchsia-400" />, activeIcon: <Wrench className="w-3.5 h-3.5" /> },
@@ -96,6 +98,7 @@ export default function AgentSettingsView() {
 
         {/* Tab content */}
         {activeTab === 'settings' && <SettingsTabContent />}
+        {activeTab === 'scanners' && <ScannerPanel />}
         {activeTab === 'memory' && (
           <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="kv-skeleton w-8 h-8 rounded-full" /></div>}>
             <MemoryView embedded />

@@ -98,9 +98,9 @@ describe('IncidentCenterView', () => {
 
   it('renders all 5 tab buttons', () => {
     renderView();
-    expect(screen.getByRole('tab', { name: /Now/ })).toBeDefined();
-    expect(screen.getByRole('tab', { name: /Investigate/ })).toBeDefined();
-    expect(screen.getByRole('tab', { name: /Actions/ })).toBeDefined();
+    expect(screen.getByRole('tab', { name: /Active/ })).toBeDefined();
+    expect(screen.getByRole('tab', { name: /Timeline/ })).toBeDefined();
+    expect(screen.getByRole('tab', { name: /Review Queue/ })).toBeDefined();
     expect(screen.getByRole('tab', { name: /History/ })).toBeDefined();
     expect(screen.getByRole('tab', { name: /Alerts/ })).toBeDefined();
   });

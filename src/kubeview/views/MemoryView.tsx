@@ -145,7 +145,7 @@ export default function MemoryView({ embedded = false }: { embedded?: boolean })
           <div>
             <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
               <Brain className="w-6 h-6 text-blue-500" />
-              Agent Intelligence
+              Agent Memory
             </h1>
             <p className="text-sm text-slate-400 mt-1">
               The agent learns from every interaction. Give thumbs up on helpful responses to teach it reusable runbooks.

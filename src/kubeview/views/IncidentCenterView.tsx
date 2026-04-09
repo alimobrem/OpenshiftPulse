@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Siren, Zap, Search, Clock, Bell, Settings, GitPullRequest, Shield,
+  Siren, Zap, Search, Clock, Bell, Settings, GitPullRequest,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMonitorStore } from '../store/monitorStore';
@@ -9,18 +9,16 @@ import { useUIStore } from '../store/uiStore';
 import { NowTab } from './incidents/NowTab';
 import { InvestigateTab } from './incidents/InvestigateTab';
 import { HistoryTab } from './incidents/HistoryTab';
-import { ScannerPanel } from '../components/monitor/ScannerPanel';
 
 const AlertsView = lazy(() => import('./AlertsView'));
 const ReviewQueueView = lazy(() => import('./ReviewQueueView'));
 
-type IncidentTab = 'now' | 'investigate' | 'actions' | 'history' | 'alerts' | 'scanners';
+type IncidentTab = 'now' | 'investigate' | 'actions' | 'history' | 'alerts';
 
 const TABS = [
-  { id: 'now' as IncidentTab, label: 'Now', icon: Zap, color: 'text-amber-400' },
-  { id: 'investigate' as IncidentTab, label: 'Investigate', icon: Search, color: 'text-blue-400' },
-  { id: 'actions' as IncidentTab, label: 'Actions', icon: GitPullRequest, color: 'text-violet-400' },
-  { id: 'scanners' as IncidentTab, label: 'Scanners', icon: Shield, color: 'text-blue-400' },
+  { id: 'now' as IncidentTab, label: 'Active', icon: Zap, color: 'text-amber-400' },
+  { id: 'investigate' as IncidentTab, label: 'Timeline', icon: Search, color: 'text-blue-400' },
+  { id: 'actions' as IncidentTab, label: 'Review Queue', icon: GitPullRequest, color: 'text-violet-400' },
   { id: 'history' as IncidentTab, label: 'History', icon: Clock, color: 'text-slate-400' },
   { id: 'alerts' as IncidentTab, label: 'Alerts', icon: Bell, color: 'text-red-400' },
 ] as const;
@@ -29,7 +27,7 @@ const TABS = [
 export default function IncidentCenterView() {
   const urlTab = new URLSearchParams(window.location.search).get('tab') as IncidentTab | null;
   const [activeTab, setActiveTabState] = useState<IncidentTab>(
-    urlTab && ['now', 'investigate', 'actions', 'history', 'alerts', 'scanners'].includes(urlTab) ? urlTab : 'now',
+    urlTab && ['now', 'investigate', 'actions', 'history', 'alerts'].includes(urlTab) ? urlTab : 'now',
   );
   const setActiveTab = (tab: IncidentTab) => {
     setActiveTabState(tab);
@@ -126,7 +124,6 @@ export default function IncidentCenterView() {
             </Suspense>
           </div>
         )}
-        {activeTab === 'scanners' && <div id="incident-panel-scanners" role="tabpanel"><ScannerPanel /></div>}
         {activeTab === 'history' && <div id="incident-panel-history" role="tabpanel"><HistoryTab /></div>}
         {activeTab === 'alerts' && (
           <div id="incident-panel-alerts" role="tabpanel">
