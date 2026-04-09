@@ -26,7 +26,7 @@ export default function TopologyMap({ nodes, pods, events = [], go }: TopologyMa
   const podMovements = usePodMovements(pods);
 
   const navigateToNode = useCallback((nodeName: string) => {
-    go(`/r/~v1~nodes/*/${nodeName}`, nodeName);
+    go(`/r/v1~nodes/_/${nodeName}`, nodeName);
   }, [go]);
 
   // Compute summary stats

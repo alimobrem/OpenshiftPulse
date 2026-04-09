@@ -85,7 +85,10 @@ export default function CRDsView() {
     const group = crd.spec?.group || '';
     const plural = crd.spec?.names?.plural || '';
     const storageVersion = crd.spec?.versions?.find(v => v.storage)?.name || crd.spec?.versions?.[0]?.name || 'v1';
-    return `/r/${group}~${storageVersion}~${plural}`;
+    const gvr = group
+      ? `${group}~${storageVersion}~${plural}`
+      : `${storageVersion}~${plural}`;
+    return `/r/${gvr}`;
   }
 
   return (
