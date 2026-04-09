@@ -16,6 +16,7 @@ import { FleetReportTab } from './pulse/FleetReportTab';
 import { AIOnboarding } from '../components/agent/AIOnboarding';
 import { OvernightActivityFeed } from './pulse/OvernightActivityFeed';
 import { InsightsRail } from './pulse/InsightsRail';
+import { ScannerPanel } from '../components/monitor/ScannerPanel';
 import { Sparkles, CheckCircle, XCircle, Search, AlertTriangle } from 'lucide-react';
 
 const TopologyMap = lazy(() => import('../components/topology/TopologyMap'));
@@ -184,6 +185,9 @@ export default function PulseView() {
                 go={go}
               />
             )}
+
+            {/* Scanner transparency panel */}
+            <ScannerPanel />
           </div>
 
           {/* ── Right rail: always visible ── */}
