@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Bot, Shield, MessageSquare, Activity, Play, Eye, Brain,
   Zap, AlertTriangle, CheckCircle2, XCircle, Settings, LayoutDashboard, Wrench,
+  FlaskConical, BarChart3,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ScannerPanel } from '../components/monitor/ScannerPanel';
@@ -38,9 +39,14 @@ const COMM_OPTIONS: { value: CommunicationStyle; label: string; description: str
   { value: 'technical', label: 'Technical', description: 'Deep technical detail, CLI examples' },
 ];
 
-type AgentTab = 'settings' | 'scanners' | 'memory' | 'views' | 'tools';
+type AgentTab = 'settings' | 'scanners' | 'memory' | 'views' | 'tools' | 'evals';
 
 export default function AgentSettingsView() {
+  const { data: evalStatus } = useQuery({
+    queryKey: ['agent', 'eval-status'],
+    queryFn: () => fetchAgentEvalStatus().catch(() => null),
+    refetchInterval: 60_000,
+  });
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTab = (searchParams.get('tab') as AgentTab) || 'settings';
   const [activeTab, setActiveTabState] = useState<AgentTab>(initialTab);
@@ -57,6 +63,7 @@ export default function AgentSettingsView() {
     { id: 'memory', label: 'Memory', icon: <Brain className="w-3.5 h-3.5 text-pink-400" />, activeIcon: <Brain className="w-3.5 h-3.5" /> },
     { id: 'views', label: 'Views', icon: <LayoutDashboard className="w-3.5 h-3.5 text-emerald-400" />, activeIcon: <LayoutDashboard className="w-3.5 h-3.5" /> },
     { id: 'tools', label: 'Tools', icon: <Wrench className="w-3.5 h-3.5 text-fuchsia-400" />, activeIcon: <Wrench className="w-3.5 h-3.5" /> },
+    { id: 'evals', label: 'Evals', icon: <FlaskConical className="w-3.5 h-3.5 text-cyan-400" />, activeIcon: <FlaskConical className="w-3.5 h-3.5" /> },
   ];
 
   return (
@@ -110,6 +117,7 @@ export default function AgentSettingsView() {
           </Suspense>
         )}
         {activeTab === 'tools' && <ToolsSummaryTab />}
+        {activeTab === 'evals' && <EvalsTab evalStatus={evalStatus} />}
       </div>
     </div>
   );
@@ -477,6 +485,129 @@ function ToolsSummaryTab() {
         <Wrench className="w-3.5 h-3.5 text-fuchsia-400" />
         Open full Tools & Agents page
       </button>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Evals Tab                                                           */
+/* ------------------------------------------------------------------ */
+
+function EvalsTab({ evalStatus }: { evalStatus: import('../engine/evalStatus').AgentEvalStatus | null | undefined }) {
+  if (!evalStatus) {
+    return <div className="text-center py-12 text-sm text-slate-500">Loading eval status...</div>;
+  }
+
+  const suites = [
+    { key: 'release', label: 'Release Gate', data: evalStatus.release },
+    { key: 'safety', label: 'Safety', data: evalStatus.safety },
+    { key: 'integration', label: 'Integration', data: evalStatus.integration },
+    { key: 'view_designer', label: 'View Designer', data: evalStatus.view_designer },
+  ];
+
+  const sreAudit = evalStatus.prompt_audit?.sre;
+  const maxChars = sreAudit ? Math.max(...sreAudit.sections.map(s => s.chars), 1) : 1;
+
+  return (
+    <div className="space-y-6">
+      {/* Quality gate banner */}
+      <div className={cn(
+        'rounded-lg border p-4 flex items-center gap-3',
+        evalStatus.quality_gate_passed
+          ? 'bg-emerald-950/30 border-emerald-800/50'
+          : 'bg-red-950/30 border-red-800/50',
+      )}>
+        {evalStatus.quality_gate_passed
+          ? <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+          : <AlertTriangle className="w-5 h-5 text-red-400" />}
+        <div>
+          <div className="text-sm font-medium text-slate-100">
+            Quality Gate: {evalStatus.quality_gate_passed ? 'PASSING' : 'FAILING'}
+          </div>
+          <div className="text-xs text-slate-400">
+            Release gate scores static fixtures. Use <code className="text-slate-300">pulse-eval replay --judge</code> for live agent testing.
+          </div>
+        </div>
+      </div>
+
+      {/* Suite scores */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {suites.map(({ key, label, data }) => (
+          <div key={key} className="bg-slate-900 border border-slate-800 rounded-lg p-3">
+            <div className="flex items-center gap-1.5 mb-1">
+              {data?.gate_passed
+                ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                : <XCircle className="w-3.5 h-3.5 text-red-400" />}
+              <span className="text-[11px] text-slate-400">{label}</span>
+            </div>
+            <div className="text-lg font-semibold text-slate-100">
+              {data ? `${(data.average_overall * 100).toFixed(0)}%` : 'n/a'}
+            </div>
+            {data && (
+              <div className="text-[10px] text-slate-500 mt-0.5">
+                {data.scenario_count} scenarios{data.passed_count != null ? `, ${data.passed_count} passed` : ''}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Dimension breakdown for release suite */}
+      {evalStatus.release?.dimension_averages && (
+        <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+          <h3 className="text-xs font-medium text-slate-300 mb-3">Release Gate Dimensions</h3>
+          <div className="space-y-1.5">
+            {Object.entries(evalStatus.release.dimension_averages).map(([dim, score]) => (
+              <div key={dim} className="flex items-center gap-2 text-xs">
+                <span className="w-36 text-slate-400">{dim.replace(/_/g, ' ')}</span>
+                <div className="flex-1 h-3 bg-slate-800 rounded-sm overflow-hidden">
+                  <div
+                    className={cn('h-full rounded-sm', score >= 0.8 ? 'bg-emerald-600/60' : score >= 0.6 ? 'bg-amber-600/60' : 'bg-red-600/60')}
+                    style={{ width: `${score * 100}%` }}
+                  />
+                </div>
+                <span className="w-12 text-right text-slate-400">{(score * 100).toFixed(0)}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Prompt token audit */}
+      {sreAudit && (
+        <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+          <h3 className="text-xs font-medium text-slate-300 mb-1">Prompt Token Audit (SRE mode)</h3>
+          <p className="text-[10px] text-slate-500 mb-3">~{sreAudit.estimated_tokens.toLocaleString()} tokens total</p>
+          <div className="space-y-1">
+            {sreAudit.sections.filter(s => s.chars > 0).map((s) => (
+              <div key={s.name} className="flex items-center gap-2 text-xs">
+                <span className="w-36 truncate font-mono text-slate-400">{s.name}</span>
+                <div className="flex-1 h-3 bg-slate-800 rounded-sm overflow-hidden">
+                  <div
+                    className="h-full bg-cyan-600/50 rounded-sm"
+                    style={{ width: `${(s.chars / maxChars) * 100}%` }}
+                  />
+                </div>
+                <span className="w-12 text-right text-slate-500">{s.pct.toFixed(0)}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Outcomes */}
+      {evalStatus.outcomes && (
+        <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+          <h3 className="text-xs font-medium text-slate-300 mb-2">Outcome Tracking</h3>
+          <div className="flex items-center gap-4 text-xs text-slate-400">
+            <span>Current: {evalStatus.outcomes.current_actions} actions</span>
+            <span>Baseline: {evalStatus.outcomes.baseline_actions} actions</span>
+            <span className={evalStatus.outcomes.gate_passed ? 'text-emerald-400' : 'text-red-400'}>
+              Gate: {evalStatus.outcomes.gate_passed ? 'PASS' : 'FAIL'}
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

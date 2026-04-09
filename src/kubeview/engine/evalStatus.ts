@@ -2,14 +2,31 @@ export interface EvalSuiteSummary {
   gate_passed: boolean;
   scenario_count: number;
   average_overall: number;
+  passed_count?: number;
+  dimension_averages?: Record<string, number>;
+  blocker_counts?: Record<string, number>;
+}
+
+export interface PromptAuditSection {
+  name: string;
+  chars: number;
+  pct: number;
+}
+
+export interface PromptAudit {
+  mode: string;
+  sections: PromptAuditSection[];
+  total_chars: number;
+  estimated_tokens: number;
 }
 
 export interface AgentEvalStatus {
   quality_gate_passed: boolean;
   generated_at_ms?: number;
-  release?: EvalSuiteSummary & { blocker_counts?: Record<string, number> };
+  release?: EvalSuiteSummary;
   safety?: EvalSuiteSummary;
   integration?: EvalSuiteSummary;
+  view_designer?: EvalSuiteSummary;
   outcomes?: {
     gate_passed: boolean;
     current_actions: number;
@@ -24,6 +41,7 @@ export interface AgentEvalStatus {
       };
     };
   };
+  prompt_audit?: Record<string, PromptAudit>;
 }
 
 export async function fetchAgentEvalStatus(): Promise<AgentEvalStatus | null> {
