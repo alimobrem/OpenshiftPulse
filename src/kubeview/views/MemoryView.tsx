@@ -218,9 +218,9 @@ export default function MemoryView({ embedded = false }: { embedded?: boolean })
                   </span>
                   <div>
                     <div className="text-sm text-slate-200">{pat.description}</div>
-                    {pat.keywords && pat.keywords.length > 0 && (
+                    {pat.keywords && (Array.isArray(pat.keywords) ? pat.keywords : [pat.keywords]).length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-2">
-                        {pat.keywords.map((kw, j) => (
+                        {(Array.isArray(pat.keywords) ? pat.keywords : [pat.keywords]).map((kw: string, j: number) => (
                           <span key={j} className="text-xs bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">{kw}</span>
                         ))}
                       </div>
