@@ -34,6 +34,7 @@ DRY_RUN=false
 UNINSTALL=false
 SKIP_BUILD=false
 ROLLBACK=false
+HELM_SETS=()
 
 # Auto-detect agent repo: sibling directory or explicit override
 AGENT_REPO="${PULSE_AGENT_REPO:-}"
@@ -62,6 +63,7 @@ while [[ $# -gt 0 ]]; do
     --uninstall)  UNINSTALL=true; shift ;;
     --skip-build) SKIP_BUILD=true; shift ;;
     --rollback)   ROLLBACK=true; shift ;;
+    --set)        HELM_SETS+=("--set" "$2"); shift 2 ;;
     --help|-h)
       cat <<HELP
 Usage: $0 [options]
@@ -80,6 +82,8 @@ Options:
   --uninstall         Remove all Pulse resources from the cluster
   --skip-build        Skip image builds, use existing images
   --rollback          Roll back to the previous Helm revision
+  --set KEY=VALUE     Pass custom Helm --set values (repeatable)
+                      e.g. --set agent.mcp.enabled=true
 
 AI Backend (pick one, set via env vars):
   Vertex AI:     ANTHROPIC_VERTEX_PROJECT_ID=proj CLOUD_ML_REGION=us-east5 \\
@@ -348,8 +352,9 @@ if [[ "$SKIP_BUILD" == "false" ]]; then
   UI_BUILD_PID=$!
 
   cd "$AGENT_REPO"
+  # Default Dockerfile is the full single-stage build.
+  # Use Dockerfile.fast only when the pre-built deps image is available in-cluster.
   AGENT_DOCKERFILE="Dockerfile"
-  [[ -f "Dockerfile.full" ]] && AGENT_DOCKERFILE="Dockerfile.full"
   podman build --platform linux/amd64 -t "${AGENT_IMAGE}:${AGENT_TAG}" -f "$AGENT_DOCKERFILE" .
   info "Agent image built"
 
@@ -488,6 +493,7 @@ helm dependency update deploy/helm/pulse/ >/dev/null 2>&1 || true
 helm upgrade --install "$RELEASE" deploy/helm/pulse/ \
   -n "$NAMESPACE" --create-namespace \
   --values "$VALUES_FILE" \
+  ${HELM_SETS[@]+"${HELM_SETS[@]}"} \
   --timeout 300s \
   --rollback-on-failure
 info "Helm release: $RELEASE (umbrella)"

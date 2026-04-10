@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Puzzle, Wrench, Server, Layers, RefreshCw, CheckCircle2, XCircle,
-  AlertTriangle, BarChart3, ArrowRight, Play,
+  Puzzle, Server, Layers, RefreshCw, CheckCircle2, XCircle,
+  AlertTriangle, BarChart3, ArrowRight, Play, X, FileText, ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -71,7 +71,8 @@ export default function AdminExtensionsView() {
 function SkillsTab() {
   const queryClient = useQueryClient();
   const [testQuery, setTestQuery] = useState('');
-  const [testResult, setTestResult] = useState('');
+  const [testResult, setTestResult] = useState<{ skill: string; description: string; degraded: boolean } | null>(null);
+  const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
 
   const { data: skills = [], isLoading } = useQuery({
     queryKey: ['admin', 'skills'],
@@ -92,8 +93,21 @@ function SkillsTab() {
 
   const testRouting = async () => {
     if (!testQuery.trim()) return;
-    // TODO: call /admin/skills/{name}/test when endpoint exists
-    setTestResult(`Query "${testQuery}" would route to: (test endpoint not yet wired)`);
+    try {
+      const res = await fetch('/api/agent/admin/skills/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: testQuery }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTestResult({ skill: data.skill, description: data.description, degraded: data.degraded });
+      } else {
+        setTestResult(null);
+      }
+    } catch {
+      setTestResult(null);
+    }
   };
 
   return (
@@ -115,10 +129,14 @@ function SkillsTab() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {skills.map((skill: Record<string, unknown>) => (
-            <div key={String(skill.name)} className={cn(
-              'bg-slate-900 border rounded-lg p-4 space-y-2',
-              skill.degraded ? 'border-amber-800/50' : 'border-slate-800',
-            )}>
+            <button
+              key={String(skill.name)}
+              onClick={() => setSelectedSkill(String(skill.name))}
+              className={cn(
+                'bg-slate-900 border rounded-lg p-4 space-y-2 text-left transition-colors hover:border-blue-700/50 hover:bg-slate-900/80 cursor-pointer',
+                skill.degraded ? 'border-amber-800/50' : 'border-slate-800',
+              )}
+            >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   {skill.degraded
@@ -140,7 +158,7 @@ function SkillsTab() {
               {Boolean(skill.degraded) && (
                 <div className="text-[10px] text-amber-400">{String(skill.degraded_reason)}</div>
               )}
-            </div>
+            </button>
           ))}
         </div>
       )}
@@ -161,8 +179,198 @@ function SkillsTab() {
           />
           <button onClick={testRouting} className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-md">Test</button>
         </div>
-        {testResult && <div className="text-xs text-slate-400 mt-2">{testResult}</div>}
+        {testResult && (
+          <div className="flex items-center gap-2 mt-2 text-xs">
+            <ArrowRight className="w-3 h-3 text-blue-400" />
+            <span className={cn('font-medium', testResult.degraded ? 'text-amber-400' : 'text-emerald-400')}>
+              {testResult.skill}
+            </span>
+            <span className="text-slate-500">{testResult.description}</span>
+          </div>
+        )}
       </div>
+
+      {/* Skill detail drawer */}
+      {selectedSkill && (
+        <SkillDetailDrawer name={selectedSkill} onClose={() => setSelectedSkill(null)} />
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Skill Detail Drawer                                                 */
+/* ------------------------------------------------------------------ */
+
+type SkillFile = 'raw_content' | 'evals_content' | 'mcp_content' | 'layouts_content' | 'components_content';
+
+const SKILL_FILES: Array<{ key: SkillFile; label: string; filename: string }> = [
+  { key: 'raw_content', label: 'skill.md', filename: 'skill.md' },
+  { key: 'evals_content', label: 'evals.yaml', filename: 'evals.yaml' },
+  { key: 'mcp_content', label: 'mcp.yaml', filename: 'mcp.yaml' },
+  { key: 'layouts_content', label: 'layouts.yaml', filename: 'layouts.yaml' },
+  { key: 'components_content', label: 'components.yaml', filename: 'components.yaml' },
+];
+
+function SkillDetailDrawer({ name, onClose }: { name: string; onClose: () => void }) {
+  const [activeFile, setActiveFile] = useState<SkillFile>('raw_content');
+
+  const { data: detail, isLoading } = useQuery({
+    queryKey: ['admin', 'skill-detail', name],
+    queryFn: async () => {
+      const res = await fetch(`/api/agent/skills/${name}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+  });
+
+  const availableFiles = SKILL_FILES.filter((f) => detail?.[f.key]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/50" />
+      <div
+        className="relative w-full max-w-2xl bg-slate-950 border-l border-slate-800 h-full overflow-auto shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="sticky top-0 z-10 bg-slate-950 border-b border-slate-800 px-5 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Puzzle className="w-5 h-5 text-violet-400" />
+            <div>
+              <h2 className="text-base font-semibold text-slate-100">{name}</h2>
+              {detail && (
+                <p className="text-xs text-slate-500">v{detail.version} &middot; {detail.description}</p>
+              )}
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-slate-200">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {isLoading ? (
+          <div className="flex justify-center py-12"><div className="kv-skeleton w-8 h-8 rounded-full" /></div>
+        ) : detail ? (
+          <div className="p-5 space-y-4">
+            {/* Metadata */}
+            <div className="grid grid-cols-2 gap-3">
+              <MetaCard label="Keywords" value={detail.keywords?.length ?? 0} />
+              <MetaCard label="Categories" value={detail.categories?.join(', ') || 'none'} />
+              <MetaCard label="Priority" value={detail.priority} />
+              <MetaCard label="Write Tools" value={detail.write_tools ? 'Yes' : 'No'} />
+            </div>
+
+            {detail.degraded && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-amber-950/30 border border-amber-800/30 rounded-md text-xs text-amber-400">
+                <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                {detail.degraded_reason}
+              </div>
+            )}
+
+            {/* Handoff rules */}
+            {detail.handoff_to && Object.keys(detail.handoff_to).length > 0 && (
+              <div className="bg-slate-900 border border-slate-800 rounded-lg p-3">
+                <h3 className="text-xs font-medium text-slate-300 mb-2">Handoff Rules</h3>
+                <div className="space-y-1">
+                  {Object.entries(detail.handoff_to).map(([target, keywords]) => (
+                    <div key={target} className="flex items-center gap-2 text-xs">
+                      <ArrowRight className="w-3 h-3 text-blue-400" />
+                      <span className="text-slate-200 font-medium">{target}</span>
+                      <span className="text-slate-500">when: {(keywords as string[]).join(', ')}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Required tools */}
+            {detail.requires_tools?.length > 0 && (
+              <div className="bg-slate-900 border border-slate-800 rounded-lg p-3">
+                <h3 className="text-xs font-medium text-slate-300 mb-2">Required Tools</h3>
+                <div className="flex flex-wrap gap-1">
+                  {detail.requires_tools.map((t: string) => (
+                    <span key={t} className="text-[10px] px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded font-mono">{t}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* File tabs */}
+            {availableFiles.length > 0 && (
+              <div>
+                <div className="flex gap-1 mb-2 overflow-x-auto">
+                  {availableFiles.map((f) => (
+                    <button
+                      key={f.key}
+                      onClick={() => setActiveFile(f.key)}
+                      className={cn(
+                        'flex items-center gap-1 px-2.5 py-1 text-[11px] rounded-md whitespace-nowrap transition-colors',
+                        activeFile === f.key ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200 bg-slate-900',
+                      )}
+                    >
+                      <FileText className="w-3 h-3" />
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+                <textarea
+                  readOnly
+                  value={detail[activeFile] || ''}
+                  className="w-full h-96 px-3 py-2 text-xs font-mono bg-slate-900 border border-slate-800 rounded-lg text-slate-300 resize-y focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+            )}
+
+            {/* Configurable fields */}
+            {detail.configurable?.length > 0 && (
+              <SkillConfigSection configurable={detail.configurable} />
+            )}
+          </div>
+        ) : (
+          <div className="flex justify-center py-12 text-sm text-slate-500">Skill not found</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MetaCard({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="bg-slate-900 border border-slate-800 rounded-md px-3 py-2">
+      <div className="text-[10px] text-slate-500 uppercase tracking-wider">{label}</div>
+      <div className="text-sm text-slate-200 mt-0.5">{value}</div>
+    </div>
+  );
+}
+
+function SkillConfigSection({ configurable }: { configurable: Array<Record<string, unknown>> }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="bg-slate-900 border border-slate-800 rounded-lg p-3">
+      <button onClick={() => setOpen(!open)} className="flex items-center gap-2 text-xs font-medium text-slate-300 w-full">
+        <ChevronDown className={cn('w-3.5 h-3.5 transition-transform', open && 'rotate-180')} />
+        Configurable Fields ({configurable.length})
+      </button>
+      {open && (
+        <div className="mt-2 space-y-1.5">
+          {configurable.map((cfg) => {
+            const [fieldName, fieldDef] = Object.entries(cfg)[0] || [];
+            if (!fieldName) return null;
+            const def = fieldDef as Record<string, unknown> | undefined;
+            return (
+              <div key={fieldName} className="flex items-center justify-between text-xs border-t border-slate-800 pt-1.5">
+                <span className="text-slate-200 font-mono">{fieldName}</span>
+                <div className="flex items-center gap-2 text-slate-500">
+                  <span>{String(def?.type || 'string')}</span>
+                  {def?.default !== undefined && <span>default: {String(def.default)}</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
