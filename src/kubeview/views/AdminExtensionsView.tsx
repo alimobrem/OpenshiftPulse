@@ -626,20 +626,65 @@ function SkillConfigSection({ configurable }: { configurable: Array<Record<strin
 /* ------------------------------------------------------------------ */
 
 function MCPTab() {
+  const queryClient = useQueryClient();
   const [expandedServer, setExpandedServer] = useState<number | null>(null);
+  const [updating, setUpdating] = useState(false);
 
-  const { data: connections = [], isLoading } = useQuery({
+  const { data: mcpData, isLoading } = useQuery({
     queryKey: ['admin', 'mcp'],
     queryFn: async () => {
       const res = await fetch('/api/agent/admin/mcp');
-      if (!res.ok) return [];
-      return res.json();
+      if (!res.ok) return { connections: [], available_toolsets: [] };
+      return res.json() as Promise<{
+        connections: Array<Record<string, unknown>>;
+        available_toolsets: string[];
+      }>;
     },
   });
 
+  const connections = mcpData?.connections || [];
+  const availableToolsets = mcpData?.available_toolsets || [];
+
+  const toggleToolset = async (toolset: string, currentToolsets: string[]) => {
+    const newToolsets = currentToolsets.includes(toolset)
+      ? currentToolsets.filter((t) => t !== toolset)
+      : [...currentToolsets, toolset];
+
+    if (newToolsets.length === 0) return; // Must have at least one
+
+    setUpdating(true);
+    try {
+      const res = await fetch('/api/agent/admin/mcp/toolsets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ toolsets: newToolsets }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        queryClient.invalidateQueries({ queryKey: ['admin', 'mcp'] });
+        queryClient.invalidateQueries({ queryKey: ['admin', 'skills'] });
+        alert(`Toolsets updated! ${data.tools_registered} tools registered.`);
+      } else {
+        const err = await res.json().catch(() => ({ detail: 'Failed' }));
+        alert(err.detail || 'Failed to update toolsets');
+      }
+    } catch {
+      alert('Network error');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
-      <div className="text-sm text-slate-400">{connections.length} MCP server{connections.length !== 1 ? 's' : ''} configured</div>
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-slate-400">{connections.length} MCP server{connections.length !== 1 ? 's' : ''} configured</div>
+        {updating && (
+          <div className="flex items-center gap-1.5 text-xs text-blue-400">
+            <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Updating toolsets...
+          </div>
+        )}
+      </div>
 
       {connections.length === 0 ? (
         <div className="bg-slate-900 border border-slate-800 rounded-lg p-8 text-center">
@@ -652,7 +697,7 @@ function MCPTab() {
         <div className="space-y-3">
           {connections.map((conn: Record<string, unknown>, i: number) => {
             const tools = (conn.tools as string[]) || [];
-            const toolsets = (conn.toolsets as string[]) || [];
+            const enabledToolsets = (conn.toolsets as string[]) || [];
             const expanded = expandedServer === i;
 
             return (
@@ -673,26 +718,54 @@ function MCPTab() {
                     </div>
                   </div>
                   <div className="text-xs text-slate-500 mt-1 font-mono">{String(conn.url)}</div>
-                  {toolsets.length > 0 && (
-                    <div className="flex gap-1 mt-2">
-                      {toolsets.map((ts) => (
-                        <span key={ts} className="text-[10px] px-1.5 py-0.5 bg-blue-900/20 text-blue-400 rounded border border-blue-800/30">{ts}</span>
-                      ))}
-                    </div>
-                  )}
                   {Boolean(conn.error) && <div className="text-[10px] text-red-400 mt-2">{String(conn.error)}</div>}
                 </button>
 
-                {expanded && tools.length > 0 && (
-                  <div className="border-t border-slate-800 px-4 py-3">
-                    <h4 className="text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-2">Available Tools</h4>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                      {tools.map((tool) => (
-                        <div key={tool} className="text-[11px] font-mono text-slate-300 bg-slate-800/50 rounded px-2 py-1 truncate" title={tool}>
-                          {tool}
-                        </div>
-                      ))}
+                {expanded && (
+                  <div className="border-t border-slate-800">
+                    {/* Toolset toggles */}
+                    <div className="px-4 py-3 border-b border-slate-800/50">
+                      <h4 className="text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-2">Toolsets</h4>
+                      <p className="text-[10px] text-slate-500 mb-3">Toggle toolsets to add or remove capabilities. The MCP server will restart.</p>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {availableToolsets.map((ts) => {
+                          const enabled = enabledToolsets.includes(ts);
+                          return (
+                            <button
+                              key={ts}
+                              disabled={updating || (enabled && enabledToolsets.length <= 1)}
+                              onClick={(e) => { e.stopPropagation(); toggleToolset(ts, enabledToolsets); }}
+                              className={cn(
+                                'flex items-center justify-between px-2.5 py-1.5 text-[11px] rounded-md border transition-colors',
+                                enabled
+                                  ? 'bg-blue-900/30 text-blue-300 border-blue-700/50 hover:bg-blue-900/50'
+                                  : 'bg-slate-800/50 text-slate-500 border-slate-700/30 hover:bg-slate-800 hover:text-slate-300',
+                                updating && 'opacity-50 cursor-not-allowed',
+                              )}
+                            >
+                              <span className="font-medium">{ts}</span>
+                              {enabled && <CheckCircle2 className="w-3 h-3 text-blue-400" />}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
+
+                    {/* Tool list */}
+                    {tools.length > 0 && (
+                      <div className="px-4 py-3">
+                        <h4 className="text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-2">
+                          Registered Tools ({tools.length})
+                        </h4>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                          {tools.map((tool) => (
+                            <div key={tool} className="text-[11px] font-mono text-slate-300 bg-slate-800/50 rounded px-2 py-1 truncate" title={tool}>
+                              {tool}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
