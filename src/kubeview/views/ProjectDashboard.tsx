@@ -99,6 +99,12 @@ export default function ProjectDashboard() {
             color={CHART_COLORS.amber}
             thresholds={{ warning: 5, critical: 20 }}
           />
+          <MetricCard
+            title="Network Received"
+            query={`sum(rate(container_network_receive_bytes_total{namespace="${safeNs}"}[5m])) / 1024`}
+            unit=" KB/s"
+            color={CHART_COLORS.cyan}
+          />
         </MetricGrid>
 
         {/* Time-series metrics */}
@@ -208,7 +214,7 @@ export default function ProjectDashboard() {
 
 function NamespaceCharts({ namespace }: { namespace: string }) {
   const [timeRange, setTimeRange] = useState<'1h' | '6h' | '24h'>('6h');
-  const [hoverTime, setHoverTime] = useState<number | null>(null);
+  // Each chart manages its own hover state independently
 
   const rangeSeconds = { '1h': 3600, '6h': 21600, '24h': 86400 }[timeRange];
   const end = Math.floor(Date.now() / 1000);
@@ -261,8 +267,6 @@ function NamespaceCharts({ namespace }: { namespace: string }) {
             start={start}
             end={end}
             step={step}
-            hoverTime={hoverTime}
-            onHover={setHoverTime}
           />
         ))}
       </div>
@@ -270,9 +274,9 @@ function NamespaceCharts({ namespace }: { namespace: string }) {
   );
 }
 
-function NsMetricPanel({ query, title, yAxisLabel, yAxisFormat, colorIndex, start, end, step, hoverTime, onHover }: {
+function NsMetricPanel({ query, title, yAxisLabel, yAxisFormat, colorIndex, start, end, step }: {
   query: string; title: string; yAxisLabel: string; yAxisFormat: string; colorIndex: number;
-  start: number; end: number; step: number; hoverTime: number | null; onHover: (t: number | null) => void;
+  start: number; end: number; step: number;
 }) {
   const { data, isLoading } = useQuery({
     queryKey: ['prometheus', query, start, end, step],
@@ -302,6 +306,8 @@ function NsMetricPanel({ query, title, yAxisLabel, yAxisFormat, colorIndex, star
     return <div className="h-48 flex items-center justify-center"><div className="kv-skeleton w-6 h-6 rounded-full" /></div>;
   }
 
+  const [localHover, setLocalHover] = useState<number | null>(null);
+
   return (
     <div className="h-48">
       <MetricsChart
@@ -311,8 +317,8 @@ function NsMetricPanel({ query, title, yAxisLabel, yAxisFormat, colorIndex, star
         yAxisLabel={yAxisLabel}
         yAxisFormat={(v: number) => formatYAxisValue(v, yAxisFormat)}
         showLegend={series.length > 1 && series.length <= 5}
-        hoverTimestamp={hoverTime}
-        onHover={onHover}
+        hoverTimestamp={localHover}
+        onHover={setLocalHover}
       />
       <div className="text-[11px] text-slate-500 text-center mt-1">{title}</div>
     </div>
