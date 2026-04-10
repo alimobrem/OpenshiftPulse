@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Send, StopCircle, Bot, Loader2, Wrench, Brain, AlertTriangle, Trash2, Shield, Download } from 'lucide-react';
+import { Send, StopCircle, Bot, Loader2, Wrench, Brain, AlertTriangle, Trash2, Shield, Download, History, MessageSquare, Plus, X } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigateTab } from '../../hooks/useNavigateTab';
 import type { ComponentSpec } from '../../engine/agentComponents';
 import { useAgentStore } from '../../store/agentStore';
@@ -15,6 +16,150 @@ import { ConfirmationCard } from './ConfirmationCard';
 import { ConfirmDialog } from '../feedback/ConfirmDialog';
 import { PromptPill } from './AIBranding';
 import { cn } from '@/lib/utils';
+import { formatRelativeTime } from '../../engine/formatters';
+
+/* ---- Chat History Types ---- */
+interface ChatSession {
+  id: string;
+  title: string;
+  agent_mode: string;
+  message_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ChatSessionMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  components?: ComponentSpec[];
+  timestamp: string;
+}
+
+const AGENT_BASE = '/api/agent';
+
+async function fetchSessions(): Promise<ChatSession[]> {
+  const res = await fetch(`${AGENT_BASE}/chat/sessions`);
+  if (!res.ok) throw new Error('Failed to fetch sessions');
+  const data = await res.json();
+  return data.sessions ?? [];
+}
+
+async function fetchSessionMessages(sessionId: string): Promise<ChatSessionMessage[]> {
+  const res = await fetch(`${AGENT_BASE}/chat/sessions/${sessionId}/messages`);
+  if (!res.ok) throw new Error('Failed to fetch messages');
+  const data = await res.json();
+  return data.messages ?? [];
+}
+
+async function deleteSession(sessionId: string): Promise<void> {
+  const res = await fetch(`${AGENT_BASE}/chat/sessions/${sessionId}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to delete session');
+}
+
+async function renameSession(sessionId: string, title: string): Promise<void> {
+  const res = await fetch(`${AGENT_BASE}/chat/sessions/${sessionId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title }),
+  });
+  if (!res.ok) throw new Error('Failed to rename session');
+}
+
+/* ---- Chat History Panel ---- */
+
+function ChatHistoryPanel({
+  onLoadSession,
+  onNewChat,
+  onClose,
+  activeSessionId,
+}: {
+  onLoadSession: (id: string) => void;
+  onNewChat: () => void;
+  onClose: () => void;
+  activeSessionId: string | null;
+}) {
+  const queryClient = useQueryClient();
+  const { data: sessions = [], isLoading } = useQuery({
+    queryKey: ['chat', 'sessions'],
+    queryFn: fetchSessions,
+    staleTime: 15_000,
+  });
+
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    await deleteSession(id);
+    queryClient.invalidateQueries({ queryKey: ['chat', 'sessions'] });
+  };
+
+  return (
+    <div
+      className="absolute left-0 top-0 bottom-0 w-[280px] bg-slate-900 border-r border-slate-700 z-20 flex flex-col animate-in slide-in-from-left duration-200"
+      data-testid="chat-history-panel"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-700">
+        <span className="text-xs font-medium text-slate-300">Chat History</span>
+        <button
+          onClick={onClose}
+          className="p-1 text-slate-500 hover:text-slate-300 transition-colors"
+          aria-label="Close history panel"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {/* New chat button */}
+      <button
+        onClick={() => { onNewChat(); onClose(); }}
+        className="flex items-center gap-2 mx-2 mt-2 mb-1 px-3 py-1.5 text-xs text-blue-400 bg-blue-950/30 border border-blue-800/40 rounded hover:bg-blue-900/40 transition-colors"
+      >
+        <Plus className="h-3 w-3" />
+        New Chat
+      </button>
+
+      {/* Session list */}
+      <div className="flex-1 overflow-y-auto px-2 py-1 space-y-0.5">
+        {isLoading && (
+          <div className="flex items-center justify-center py-8 text-xs text-slate-500">
+            <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />
+            Loading...
+          </div>
+        )}
+        {!isLoading && sessions.length === 0 && (
+          <div className="text-xs text-slate-500 text-center py-8">No saved sessions</div>
+        )}
+        {sessions.map((session) => (
+          <button
+            key={session.id}
+            onClick={() => { onLoadSession(session.id); onClose(); }}
+            className={cn(
+              'group w-full flex items-start gap-2 px-2 py-1.5 rounded text-left transition-colors',
+              activeSessionId === session.id
+                ? 'bg-blue-950/40 border border-blue-800/50'
+                : 'hover:bg-slate-800/60 border border-transparent',
+            )}
+          >
+            <MessageSquare className="h-3 w-3 mt-0.5 shrink-0 text-slate-500" />
+            <div className="flex-1 min-w-0">
+              <div className="text-xs text-slate-300 truncate">{session.title || 'Untitled'}</div>
+              <div className="flex items-center gap-2 text-[10px] text-slate-500 mt-0.5">
+                <span>{formatRelativeTime(new Date(session.updated_at).getTime())}</span>
+                <span className="bg-slate-800 px-1.5 py-0.5 rounded-full">{session.message_count} msg{session.message_count !== 1 ? 's' : ''}</span>
+              </div>
+            </div>
+            <button
+              onClick={(e) => handleDelete(e, session.id)}
+              className="p-0.5 opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 transition-all"
+              aria-label={`Delete session ${session.title}`}
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 /**
  * DockAgentPanel — compact agent conversation for the dock panel.
@@ -34,10 +179,46 @@ export function DockAgentPanel() {
   const monitorCritical = monitorFindings.filter((f) => f.severity === 'critical').length;
   const navigate = useNavigate();
   const go = useNavigateTab();
+  const queryClient = useQueryClient();
   const [input, setInput] = useState('');
   const [confirmClear, setConfirmClear] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Invalidate sessions list when messages change (new messages sent)
+  const messageCount = messages.length;
+  const prevMessageCount = useRef(messageCount);
+  useEffect(() => {
+    if (messageCount > prevMessageCount.current) {
+      queryClient.invalidateQueries({ queryKey: ['chat', 'sessions'] });
+    }
+    prevMessageCount.current = messageCount;
+  }, [messageCount, queryClient]);
+
+  const handleLoadSession = useCallback(async (sessionId: string) => {
+    try {
+      const msgs = await fetchSessionMessages(sessionId);
+      const agentMessages = msgs.map((m, i) => ({
+        id: `hist-${i}`,
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+        timestamp: new Date(m.timestamp).getTime(),
+        components: m.components,
+      }));
+      // Replace current messages via store
+      useAgentStore.setState({ messages: agentMessages, error: null });
+      setActiveSessionId(sessionId);
+    } catch {
+      // Silently fail — user can retry
+    }
+  }, []);
+
+  const handleNewChat = useCallback(() => {
+    clearChat();
+    setActiveSessionId(null);
+  }, [clearChat]);
 
   const handleAddToView = useCallback(async (spec: ComponentSpec) => {
     const viewId = await useCustomViewStore.getState().createAndAddWidget(spec);
@@ -97,7 +278,17 @@ export function DockAgentPanel() {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
+      {/* Chat history panel */}
+      {showHistory && (
+        <ChatHistoryPanel
+          onLoadSession={handleLoadSession}
+          onNewChat={handleNewChat}
+          onClose={() => setShowHistory(false)}
+          activeSessionId={activeSessionId}
+        />
+      )}
+
       {/* Monitor status bar */}
       <button
         onClick={() => go('/incidents', 'Incidents')}
@@ -199,6 +390,18 @@ export function DockAgentPanel() {
         )}>
           {mode.toUpperCase()} · L{trustLevel}
         </div>
+        <button
+          onClick={() => setShowHistory(!showHistory)}
+          className={cn(
+            'p-1 transition-colors',
+            showHistory ? 'text-blue-400 hover:text-blue-300' : 'text-slate-500 hover:text-slate-300',
+          )}
+          title="Chat history"
+          aria-label="Toggle chat history"
+          data-testid="chat-history-toggle"
+        >
+          <History className="h-3 w-3" />
+        </button>
         {messages.length > 0 && !streaming && (
           <>
             <button
