@@ -237,7 +237,7 @@ function UsageTab() {
       </div>
 
       {/* Table */}
-      {usageLoading ? (
+      {usageLoading && !usage ? (
         <div className="flex justify-center py-12"><div className="kv-skeleton w-8 h-8 rounded-full" /></div>
       ) : usage && usage.entries.length > 0 ? (
         <div className="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
@@ -353,7 +353,7 @@ function StatsTab() {
 
   useEffect(() => { loadStats(); loadChains(); loadTools(); const iv = setInterval(() => { loadStats(); loadChains(); }, 10000); return () => clearInterval(iv); }, [loadStats, loadChains, loadTools]);
 
-  if (statsLoading) {
+  if (statsLoading && !stats) {
     return <div className="flex justify-center py-12"><div className="kv-skeleton w-8 h-8 rounded-full" /></div>;
   }
 
