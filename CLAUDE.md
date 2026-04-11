@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-OpenShift Pulse — a React/TypeScript dashboard for OpenShift Day-2 operations. All data comes from live Kubernetes APIs (no mock data in production code). v5.18.0, ~190 source files, 1778 unit tests + 28 E2E scenarios.
+OpenShift Pulse — a React/TypeScript dashboard for OpenShift Day-2 operations. All data comes from live Kubernetes APIs (no mock data in production code). v5.21.0, ~200 source files, 1934 unit tests + 53 E2E scenarios.
 
 ## Commands
 
@@ -56,19 +56,22 @@ PULSE_URL=https://... PULSE_USER=cluster-admin PULSE_PASS=... pnpm exec tsx scri
 Cluster:        Pulse, Workloads (+Builds tab), Networking, Compute, Storage
 Operations:     Incident Center (Now/Investigate/Actions/History/Alerts), Security, GitOps, Fleet
 Administration: Admin (7 tabs), Identity & Access, Production Readiness
-Agent:          Agent Settings (Settings/Memory/Views tabs)
+Agent:          Agent Settings (Settings/Scanners/Memory/Views/Evals), Toolbox (Catalog/Skills/Connections/Components/Usage/Analytics)
 ```
 
 **Key routes:**
 - `/welcome` — launchpad with quick stats, AI briefing, 8-card nav grid
 - `/pulse` — health overview with topology map, insights rail, overnight activity
 - `/incidents` — unified incident triage (5 tabs: Now, Investigate, Actions, History, Alerts)
-- `/agent` — consolidated agent config (trust level, monitoring, memory, views management)
+- `/agent` — agent config (trust level, scanners, memory, views, evals)
+- `/toolbox` — tools catalog, skills management, MCP connections, component registry, usage log, analytics
 - `/identity` — merged Users + Groups + RBAC + Impersonation
 - `/readiness` — production readiness wizard (30 gates, 6 categories)
 - `/custom/:viewId` — AI-generated custom views (auto-saved, drag-drop grid layout)
 
 **Merged/redirect routes:**
+- `/tools` → `/toolbox`
+- `/extensions` → `/toolbox?tab=skills`
 - `/alerts` → `/incidents?tab=alerts`
 - `/builds` → `/workloads?tab=builds`
 - `/crds` → `/admin?tab=crds`
@@ -125,9 +128,11 @@ Agent:          Agent Settings (Settings/Memory/Views tabs)
 - **Confirmation flow**: `confirm_request` with nonce → UI shows dialog → `confirm_response` with nonce echoed back
 - **Degraded mode**: `engine/degradedMode.ts` — 5 failure reasons, displayed via `DegradedBanner`
 - **Auto-fix**: at trust level 3/4, monitor fixes crashloop (pod delete) and workloads (deployment restart) WITHOUT confirmation gate. Has safety guardrails: max 3/scan, 5min cooldown, no bare pods.
-- **Agent version**: v1.13.1 (Protocol v2, 72 tools, 11 scanners + 5 audit scanners)
+- **Agent version**: v1.16.0 (Protocol v2, 106 tools [75 native + 31 MCP], 17 scanners)
+- **MCP integration**: OpenShift MCP server with 11 toolsets, 31 tools including Prometheus queries and Helm management
+- **Skills**: 4 skill packages (sre, security, view_designer, capacity_planner) with hot reload, routing, and version history
 - **Custom views**: auto-saved to PostgreSQL on `create_dashboard`, user-scoped via OAuth token
-- **10 component types**: data_table, info_card_grid, chart, status_list, badge_list, key_value, relationship_tree, tabs, grid, section
+- **19 component types**: data_table, info_card_grid, chart, status_list, badge_list, key_value, relationship_tree, tabs, grid, section, log_viewer, yaml_viewer, metric_card, node_map, resource_counts, bar_list, progress_list, donut_chart, summary_bar
 
 ### Incident Center (`/incidents`) — 5 tabs
 - **Now**: unified feed from `useIncidentFeed` hook (findings + alerts + errors), silence management
@@ -136,10 +141,20 @@ Agent:          Agent Settings (Settings/Memory/Views tabs)
 - **History**: chronological stream + fix history
 - **Alerts**: Prometheus alert rules, silences, firing alerts (merged from standalone `/alerts` view)
 
-### Agent Settings (`/agent`) — 3 tabs
-- **Settings**: trust level (0-4), monitoring toggle, scan now, auto-fix categories, communication style, eval score
-- **Memory**: agent's learned runbooks, detected patterns, incident history (embedded MemoryView)
-- **Views**: manage AI-generated custom dashboards (embedded ViewsManagement)
+### Agent Settings (`/agent`) — 5 tabs
+- **Settings**: trust level (0-4), monitoring toggle, scan now, auto-fix categories, communication style
+- **Scanners**: scanner configuration panel
+- **Memory**: agent's learned runbooks, detected patterns, incident history
+- **Views**: manage AI-generated custom dashboards
+- **Evals**: quality gates, suite scores, dimension breakdown, prompt audit
+
+### Toolbox (`/toolbox`) — 6 tabs
+- **Catalog**: all tools (native + MCP) with source badges, search, mode/source filter
+- **Skills**: skill packages with editor, version history, diff viewer, routing tester
+- **Connections**: MCP server management with 11 toolset toggles
+- **Components**: 19 component kinds by category with mutation support
+- **Usage**: tool invocation audit log with source (native/mcp) column
+- **Analytics**: merged tool stats + skill usage + by-source breakdown + handoffs
 
 ### Enhanced Pulse (`/pulse`)
 - **Briefing**: `fetchBriefing(12)` via TanStack Query, shows current state ("Right now: N incidents, N findings")
@@ -174,14 +189,14 @@ Agent:          Agent Settings (Settings/Memory/Views tabs)
 - **Cluster**: Pulse (briefing + map + insights), Workloads (+Builds tab), Networking, Compute, Storage
 - **Operations**: Incident Center (5 tabs: Now/Investigate/Actions/History/Alerts), Security, GitOps (ArgoCD), Fleet
 - **Administration**: Admin (7 tabs), Identity (4 tabs), Production Readiness
-- **Agent**: Agent Settings (Settings/Memory/Views), Custom Views
+- **Agent**: Agent Settings (5 tabs), Toolbox (6 tabs), Custom Views
 
 ### Testing
 - **Framework**: vitest + jsdom + @testing-library/react
 - **Config**: `vitest.config.ts` — excludes `.claude/worktrees/**` and `e2e/`
 - **Coverage thresholds**: 40% statements, 30% branches, 35% functions, 40% lines (enforced in vitest.config.ts)
 - **Setup**: `src/kubeview/__tests__/setup.tsx` — factories, mock server, renderWithProviders
-- **1,882 unit tests** across 161 files (~9s)
+- **1,934 unit tests** across 162 files (~9s)
 - **E2E**: Playwright (53 test cases across 6 specs) — `npm run e2e` auto-starts mock K8s + agent (podman) + dev server, tears down containers after
 - **E2E config**: `e2e/playwright.config.ts`, mock K8s in `e2e/mock-k8s-server.mjs`, agent+pg in `e2e/docker-compose.agent.yml`
 - **E2E agent stack**: `e2e/start-agent.sh` / `e2e/stop-agent.sh` — starts real agent + PostgreSQL in podman containers
