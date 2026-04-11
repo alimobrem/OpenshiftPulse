@@ -62,6 +62,9 @@ vi.mock('../../hooks', () => ({
   useKeyboardShortcuts: vi.fn(),
   useDiscovery: vi.fn(),
 }));
+vi.mock('../../hooks/useCapabilityDetection', () => ({
+  useCapabilityDetection: vi.fn(),
+}));
 vi.mock('../../engine/enhancers/register', () => ({
   registerBuiltinEnhancers: vi.fn(),
 }));

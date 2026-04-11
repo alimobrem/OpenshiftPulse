@@ -9,6 +9,7 @@ import { ToastContainer } from './feedback/Toast';
 import { ErrorBoundary, CssHealthCheck } from './ErrorBoundary';
 import { SaveViewWatcher } from './agent/SaveViewWatcher';
 import { useKeyboardShortcuts, useDiscovery } from '../hooks';
+import { useCapabilityDetection } from '../hooks/useCapabilityDetection';
 import { useUIStore } from '../store/uiStore';
 import { useCustomViewStore } from '../store/customViewStore';
 import { registerBuiltinEnhancers } from '../engine/enhancers/register';
@@ -25,6 +26,9 @@ export function Shell() {
 
   // Trigger API discovery on mount
   useDiscovery();
+
+  // Detect agent capability changes (new tools/skills) and toast
+  useCapabilityDetection();
 
   // Start background agent notifications
   useEffect(() => {

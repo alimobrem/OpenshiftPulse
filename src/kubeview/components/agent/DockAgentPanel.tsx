@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigateTab } from '../../hooks/useNavigateTab';
 import type { ComponentSpec } from '../../engine/agentComponents';
+import type { AgentVersionInfo } from '../../hooks/useCapabilityDetection';
 import { useAgentStore } from '../../store/agentStore';
 import { useCustomViewStore } from '../../store/customViewStore';
 import { useUIStore } from '../../store/uiStore';
@@ -228,6 +229,17 @@ export function DockAgentPanel() {
 
   const trustLevel = useTrustStore((s) => s.trustLevel);
   const smartPrompts = useSmartPrompts();
+
+  // Fetch agent version info for welcome message
+  const { data: agentVersionInfo } = useQuery<AgentVersionInfo>({
+    queryKey: ['agent', 'version'],
+    queryFn: async () => {
+      const res = await fetch(`${AGENT_BASE}/version`);
+      if (!res.ok) throw new Error('Agent version fetch failed');
+      return res.json();
+    },
+    staleTime: 300_000,
+  });
   const monitorConnected = useMonitorStore((s) => s.connected);
   const monitorFindings = useMonitorStore((s) => s.findings);
   const monitorCritical = monitorFindings.filter((f) => f.severity === 'critical').length;
@@ -311,6 +323,24 @@ export function DockAgentPanel() {
   const handleSend = () => {
     const text = input.trim();
     if (!text || streaming || !connected) return;
+
+    // Inject a one-time welcome message on first interaction
+    if (messages.length === 0 && agentVersionInfo) {
+      const tools = agentVersionInfo.tools ?? 0;
+      const skills = agentVersionInfo.skills ?? 0;
+      const parts: string[] = [];
+      if (skills > 0) parts.push(`${skills} skill${skills !== 1 ? 's' : ''}`);
+      parts.push(`${tools} tool${tools !== 1 ? 's' : ''}`);
+
+      const welcomeMsg = {
+        id: 'welcome-system',
+        role: 'assistant' as const,
+        content: `I'm your SRE agent with ${parts.join(' and ')}. Ask "what can you do?" to explore my capabilities.`,
+        timestamp: Date.now() - 1, // ensure it sorts before user message
+      };
+      useAgentStore.setState((s) => ({ messages: [welcomeMsg, ...s.messages] }));
+    }
+
     const ctx = currentViewId ? { kind: 'custom_view', name: '', viewId: currentViewId } : undefined;
     sendMessage(text, ctx);
     setInput('');
