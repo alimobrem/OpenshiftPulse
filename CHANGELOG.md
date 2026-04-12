@@ -1,5 +1,27 @@
 # Changelog
 
+## [5.21.0] - 2026-04-10
+
+### Added
+- **Toolbox page** (`/toolbox`) — consolidated hub replacing `/tools` with 6 tabs: Catalog (all 111 tools with native/MCP source badges and search), Skills (4 skill packages with inline editor, version history, diff viewer, routing tester), Connections (MCP server management with 11 toolset toggles), Components (19 component kinds by category with mutation support), Usage (tool invocation audit log with source column), Analytics (merged tool + skill + handoff stats)
+- **Skills system** — 4 skill packages (sre, security, view_designer, capacity_planner) with hot reload, intent-based routing, version history, clone, and REST API (`GET /skills`, `GET /skills/{name}`, `PUT /admin/skills/{name}`, `DELETE /admin/skills/{name}`, `POST /admin/skills/{name}/clone`, `POST /admin/skills/test`, `GET /admin/skills/{name}/versions`, `GET /admin/skills/{name}/diff`)
+- **MCP integration** — OpenShift MCP server with 11 toolsets, 36 tools including Prometheus queries and Helm management; `POST /admin/mcp/toolsets` for toggling toolsets on/off
+- **Component registry** — `GET /components` endpoint listing all 19 component kinds with schemas; Components tab in Toolbox for browsing and editing
+- **Follow-up suggestions** — agent provides contextual follow-up suggestions after each response
+- **Welcome message** — agent sends a welcome message on first connect with capability overview
+- **Capability change toasts** — toast notifications when agent capabilities change (new tools, skills, or MCP connections)
+- **Agent Settings tabs** — expanded to 5 tabs: Settings, Scanners, Memory, Views, Evals
+
+### Changed
+- **Tool count** — 111 tools total (75 native + 36 MCP), up from 102
+- **`/tools` route** redirects to `/toolbox`; `/extensions` redirects to `/toolbox?tab=skills`
+
+### Stats
+- **1,934 tests** across 162 test files (+52 new tests)
+- **0 npm CVEs**, all Red Hat UBI images
+
+---
+
 ## [5.8.0] - 2026-03-26
 
 ### Fixed

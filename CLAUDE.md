@@ -128,8 +128,8 @@ Agent:          Agent Settings (Settings/Scanners/Memory/Views/Evals), Toolbox (
 - **Confirmation flow**: `confirm_request` with nonce → UI shows dialog → `confirm_response` with nonce echoed back
 - **Degraded mode**: `engine/degradedMode.ts` — 5 failure reasons, displayed via `DegradedBanner`
 - **Auto-fix**: at trust level 3/4, monitor fixes crashloop (pod delete) and workloads (deployment restart) WITHOUT confirmation gate. Has safety guardrails: max 3/scan, 5min cooldown, no bare pods.
-- **Agent version**: v1.16.0 (Protocol v2, 106 tools [75 native + 31 MCP], 17 scanners)
-- **MCP integration**: OpenShift MCP server with 11 toolsets, 31 tools including Prometheus queries and Helm management
+- **Agent version**: v1.16.0 (Protocol v2, 111 tools [75 native + 36 MCP], 17 scanners)
+- **MCP integration**: OpenShift MCP server with 11 toolsets, 36 tools including Prometheus queries and Helm management
 - **Skills**: 4 skill packages (sre, security, view_designer, capacity_planner) with hot reload, routing, and version history
 - **Custom views**: auto-saved to PostgreSQL on `create_dashboard`, user-scoped via OAuth token
 - **19 component types**: data_table, info_card_grid, chart, status_list, badge_list, key_value, relationship_tree, tabs, grid, section, log_viewer, yaml_viewer, metric_card, node_map, resource_counts, bar_list, progress_list, donut_chart, summary_bar

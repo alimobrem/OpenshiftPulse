@@ -27,6 +27,16 @@ Defines the REST and WebSocket protocol between the Pulse UI and Pulse Agent. Bo
 | `POST` | `/monitor/pause` | token | Emergency kill switch — pause all auto-fix actions |
 | `POST` | `/monitor/resume` | token | Resume auto-fix actions after a pause |
 | `GET` | `/context` | token | View recent shared context bus entries across all agents |
+| `GET` | `/skills` | token | List all skills with routing rules and metadata |
+| `GET` | `/skills/{name}` | token | Get skill detail (prompt, tools, routing, versions) |
+| `PUT` | `/admin/skills/{name}` | token | Edit skill (prompt, tools, routing rules) |
+| `DELETE` | `/admin/skills/{name}` | token | Delete a skill |
+| `POST` | `/admin/skills/{name}/clone` | token | Clone a skill with a new name |
+| `POST` | `/admin/skills/test` | token | Test routing — returns which skill matches a given query |
+| `GET` | `/admin/skills/{name}/versions` | token | Version history for a skill |
+| `GET` | `/admin/skills/{name}/diff` | token | Diff between two skill versions |
+| `POST` | `/admin/mcp/toolsets` | token | Toggle MCP toolsets on/off |
+| `GET` | `/components` | token | Component registry — list all 19 component kinds with schemas |
 
 **Authentication:** Token-authenticated endpoints accept `Authorization: Bearer <token>` header or `?token=<token>` query parameter. The token is `PULSE_AGENT_WS_TOKEN`. Unauthenticated requests return 401.
 
@@ -519,7 +529,8 @@ The UI sends a `GET /version` request before connecting. If the agent's `protoco
 
 | UI Version | Agent Version | Protocol | Status |
 |------------|--------------|----------|--------|
-| v5.13.0 | v1.5.0 | 2 | Current |
+| v5.21.0 | v1.16.0 | 2 | Current |
+| v5.13.0 | v1.5.0 | 2 | Compatible |
 | v5.12.0 | v1.4.0 | 2 | Compatible |
 | v5.11.0 | v1.3.0 | 1 | Compatible |
 | v5.10.0 | v1.3.0 | 1 | Compatible |
