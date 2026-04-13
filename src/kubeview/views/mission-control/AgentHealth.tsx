@@ -2,9 +2,16 @@ import { CheckCircle2, XCircle, Shield, ChevronRight, Brain, TrendingUp, Trendin
 import { cn } from '@/lib/utils';
 import { Card } from '../../components/primitives/Card';
 import type { FixHistorySummary, ScannerCoverage, ConfidenceCalibration, CostStats, ReadinessSummary } from '../../engine/analyticsApi';
+import type { AgentEvalStatus } from '../../engine/evalStatus';
+
+function gateColor(passed: boolean | undefined): string {
+  if (passed === true) return 'text-emerald-400';
+  if (passed === false) return 'text-red-400';
+  return 'text-slate-400';
+}
 
 interface AgentHealthProps {
-  evalStatus: any | null;
+  evalStatus: AgentEvalStatus | null | undefined;
   coverage: ScannerCoverage | null;
   fixSummary: FixHistorySummary | null;
   confidence: ConfidenceCalibration | null;
@@ -39,7 +46,7 @@ export function AgentHealth({
   );
 }
 
-function QualityCard({ evalStatus, confidence, onClick }: { evalStatus: any | null; confidence: ConfidenceCalibration | null; onClick: () => void }) {
+function QualityCard({ evalStatus, confidence, onClick }: { evalStatus: AgentEvalStatus | null | undefined; confidence: ConfidenceCalibration | null; onClick: () => void }) {
   const passed = evalStatus?.quality_gate_passed;
   const avgScore = evalStatus?.release?.average_overall;
   const dims = evalStatus?.release?.dimension_averages || {};
@@ -55,7 +62,7 @@ function QualityCard({ evalStatus, confidence, onClick }: { evalStatus: any | nu
         <div className="flex items-center gap-2">
           {passed === true && <CheckCircle2 className="w-5 h-5 text-emerald-400" />}
           {passed === false && <XCircle className="w-5 h-5 text-red-400" />}
-          <span className={cn('text-2xl font-bold', passed ? 'text-emerald-400' : passed === false ? 'text-red-400' : 'text-slate-400')}>
+          <span className={cn('text-2xl font-bold', gateColor(passed))}>
             {avgScore != null ? `${Math.round(avgScore * 100)}%` : '\u2014'}
           </span>
         </div>
@@ -135,9 +142,6 @@ function OutcomesCard({
   memoryPatternCount: number;
   onMemoryClick: () => void;
 }) {
-  const trend = fixSummary?.trend;
-  const trendDir = trend && trend.delta > 0 ? 'up' : trend && trend.delta < 0 ? 'down' : 'flat';
-
   return (
     <Card>
       <div className="p-4 space-y-3">

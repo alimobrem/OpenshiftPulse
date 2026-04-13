@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react';
-import { HeartPulse, ArrowRight, Bell, GitPullRequest, Shield, Bot } from 'lucide-react';
+import { HeartPulse, ArrowRight, Bell, GitPullRequest, Shield } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import type { K8sResource } from '../engine/renderers';

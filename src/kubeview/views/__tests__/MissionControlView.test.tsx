@@ -37,6 +37,8 @@ vi.mock('../../engine/analyticsApi', () => ({
   fetchCostStats: vi.fn().mockResolvedValue({ avg_tokens_per_incident: 12000, trend: { current: 12000, previous: 14000, delta_pct: -14.3 }, by_mode: [], total_tokens: 0, total_incidents: 0 }),
   fetchRecommendations: vi.fn().mockResolvedValue({ recommendations: [] }),
   fetchReadinessSummary: vi.fn().mockResolvedValue({ total_gates: 30, passed: 28, failed: 1, attention: 1, pass_rate: 0.93, attention_items: [] }),
+  fetchCapabilities: vi.fn().mockResolvedValue({ max_trust_level: 4 }),
+  fetchAgentVersion: vi.fn().mockResolvedValue({ agent: '2.0.0', protocol: 2, tools: 111 }),
 }));
 
 vi.mock('../../engine/evalStatus', () => ({

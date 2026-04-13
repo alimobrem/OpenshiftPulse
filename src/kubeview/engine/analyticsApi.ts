@@ -127,3 +127,25 @@ export const fetchRecommendations = () =>
 
 export const fetchReadinessSummary = () =>
   get<ReadinessSummary>(`${AGENT_BASE}/analytics/readiness`);
+
+export interface AgentCapabilities {
+  max_trust_level: number;
+}
+
+export interface AgentVersionInfo {
+  agent: string;
+  protocol: number;
+  tools: number;
+}
+
+export const fetchCapabilities = async (): Promise<AgentCapabilities> => {
+  const res = await fetch(`${AGENT_BASE}/monitor/capabilities`);
+  if (!res.ok) return { max_trust_level: 4 };
+  return res.json();
+};
+
+export const fetchAgentVersion = async (): Promise<AgentVersionInfo | null> => {
+  const res = await fetch(`${AGENT_BASE}/version`);
+  if (!res.ok) return null;
+  return res.json();
+};

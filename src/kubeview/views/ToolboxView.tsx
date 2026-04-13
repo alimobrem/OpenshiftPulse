@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToolUsageStore } from '../store/toolUsageStore';
-import { fetchIntelligenceSections, fetchPromptStats, type IntelligenceSections, type PromptAnalytics } from '../engine/analyticsApi';
+import { fetchIntelligenceSections, fetchPromptStats } from '../engine/analyticsApi';
 import type { ToolInfo, ToolUsageEntry } from '../store/toolUsageStore';
 
 type ToolboxTab = 'catalog' | 'skills' | 'connections' | 'components' | 'usage' | 'analytics';

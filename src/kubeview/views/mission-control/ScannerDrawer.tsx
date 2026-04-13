@@ -1,19 +1,13 @@
-import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useQuery } from '@tanstack/react-query';
-import { fetchScannerCoverage } from '../../engine/analyticsApi';
+import { DrawerShell } from '../../components/primitives/DrawerShell';
+import type { ScannerCoverage } from '../../engine/analyticsApi';
 
 interface ScannerDrawerProps {
+  coverage: ScannerCoverage | null;
   onClose: () => void;
 }
 
-export function ScannerDrawer({ onClose }: ScannerDrawerProps) {
-  const { data: coverage } = useQuery({
-    queryKey: ['agent', 'scanner-coverage-detail'],
-    queryFn: () => fetchScannerCoverage(30),
-    staleTime: 60_000,
-  });
-
+export function ScannerDrawer({ coverage, onClose }: ScannerDrawerProps) {
   return (
     <DrawerShell title="Scanner Coverage" onClose={onClose}>
       <div className="space-y-4">
@@ -39,32 +33,5 @@ export function ScannerDrawer({ onClose }: ScannerDrawerProps) {
         )}
       </div>
     </DrawerShell>
-  );
-}
-
-function DrawerShell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex justify-end"
-      onClick={onClose}
-      onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-    >
-      <div className="absolute inset-0 bg-black/50" />
-      <div
-        className="relative w-full max-w-2xl bg-slate-950 border-l border-slate-800 h-full overflow-auto shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="sticky top-0 z-10 bg-slate-950 border-b border-slate-800 px-5 py-4 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-slate-100">{title}</h2>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-300">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        <div className="p-5">{children}</div>
-      </div>
-    </div>
   );
 }

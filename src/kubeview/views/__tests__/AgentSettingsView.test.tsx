@@ -37,6 +37,8 @@ vi.mock('../../engine/analyticsApi', () => ({
   fetchCostStats: vi.fn().mockResolvedValue(null),
   fetchRecommendations: vi.fn().mockResolvedValue({ recommendations: [] }),
   fetchReadinessSummary: vi.fn().mockResolvedValue(null),
+  fetchCapabilities: vi.fn().mockResolvedValue({ max_trust_level: 4 }),
+  fetchAgentVersion: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock('../../engine/evalStatus', () => ({
