@@ -207,7 +207,7 @@ podman login quay.io                         # Container registry
 
 | Feature | Details |
 |---------|---------|
-| **AI Agent** | Chat with Claude-powered SRE/Security agent (111 tools, 4 skills, 73 PromQL recipes, 19 component types). "Ask Agent" from any resource. Streaming, tool execution indicators, confirmation gates. Follow-up suggestions after each response, welcome message on first connect, capability change toast notifications. Agent Settings at `/agent` with Settings/Scanners/Memory/Views/Evals tabs. |
+| **AI Agent** | Chat with Claude-powered SRE/Security agent (111 tools, 4 skills, 73 PromQL recipes, 19 component types). "Ask Agent" from any resource. Streaming, tool execution indicators, confirmation gates. Follow-up suggestions after each response, welcome message on first connect, capability change toast notifications. Mission Control at `/agent` with Trust Policy, Agent Health, Agent Accuracy, and Capability Discovery sections. |
 | **Ask Pulse** | Natural language queries in Cmd+K: type a question in the Command Palette, get AI-powered answers with action buttons. "Open in Agent" for full conversations. |
 | **Incident Actions** | PR-style review of AI-proposed changes merged into Incident Center: YAML diffs, risk badges, business impact, approve/reject. Live data from monitor WebSocket. |
 | **Native AI UX** | Unified violet-branded intelligence layer: `?` in Command Palette sends to agent, smart prompts adapt to cluster state, "Ask AI" on PulseView attention items, auto-expand InlineAgent for unhealthy resources, AI empty state suggestions, first-run onboarding card, dock agent notification dot. |

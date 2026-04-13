@@ -56,7 +56,7 @@ PULSE_URL=https://... PULSE_USER=cluster-admin PULSE_PASS=... pnpm exec tsx scri
 Cluster:        Pulse, Workloads (+Builds tab), Networking, Compute, Storage
 Operations:     Incident Center (Now/Investigate/Actions/History/Alerts), Security, GitOps, Fleet
 Administration: Admin (7 tabs), Identity & Access, Production Readiness
-Agent:          Agent Settings (Settings/Scanners/Memory/Views/Evals), Toolbox (Catalog/Skills/Connections/Components/Usage/Analytics)
+Agent:          Mission Control (Trust Policy/Agent Health/Agent Accuracy/Capability Discovery), Toolbox (Catalog/Skills/Connections/Components/Usage/Analytics)
 ```
 
 **Key routes:**
@@ -141,12 +141,12 @@ Agent:          Agent Settings (Settings/Scanners/Memory/Views/Evals), Toolbox (
 - **History**: chronological stream + fix history
 - **Alerts**: Prometheus alert rules, silences, firing alerts (merged from standalone `/alerts` view)
 
-### Agent Settings (`/agent`) — 5 tabs
-- **Settings**: trust level (0-4), monitoring toggle, scan now, auto-fix categories, communication style
-- **Scanners**: scanner configuration panel
-- **Memory**: agent's learned runbooks, detected patterns, incident history
-- **Views**: manage AI-generated custom dashboards
-- **Evals**: quality gates, suite scores, dimension breakdown, prompt audit
+### Mission Control (`/agent`) — single page, 4 sections + 3 drawers
+- **Trust Policy**: trust level slider (0-4), impact preview, auto-fix categories, communication style
+- **Agent Health**: quality gate card, scanner coverage card, outcomes card (click to open detail drawers)
+- **Agent Accuracy**: quality trend, override rate, recurring issues, learning activity (collapsible)
+- **Capability Discovery**: contextual recommendations with dismiss + inline actions
+- **Drawers**: Scanner detail, Eval suite breakdown, Agent Memory (slide-over panels)
 
 ### Toolbox (`/toolbox`) — 6 tabs
 - **Catalog**: all tools (native + MCP) with source badges, search, mode/source filter
@@ -189,7 +189,7 @@ Agent:          Agent Settings (Settings/Scanners/Memory/Views/Evals), Toolbox (
 - **Cluster**: Pulse (briefing + map + insights), Workloads (+Builds tab), Networking, Compute, Storage
 - **Operations**: Incident Center (5 tabs: Now/Investigate/Actions/History/Alerts), Security, GitOps (ArgoCD), Fleet
 - **Administration**: Admin (7 tabs), Identity (4 tabs), Production Readiness
-- **Agent**: Agent Settings (5 tabs), Toolbox (6 tabs), Custom Views
+- **Agent**: Mission Control (4 sections + 3 drawers), Toolbox (6 tabs), Custom Views
 
 ### Testing
 - **Framework**: vitest + jsdom + @testing-library/react

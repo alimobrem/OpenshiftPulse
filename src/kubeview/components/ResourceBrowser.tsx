@@ -168,7 +168,7 @@ export function ResourceBrowser() {
             {
               section: 'AGENT',
               items: [
-                { label: 'Agent Settings', icon: Settings, path: '/agent', color: 'text-violet-400' },
+                { label: 'Mission Control', icon: Settings, path: '/agent', color: 'text-violet-400' },
               ],
             },
           ] as const).map((group) => (

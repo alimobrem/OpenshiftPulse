@@ -33,7 +33,7 @@ export const NAV_ITEMS: NavItem[] = [
   { id: 'readiness', label: 'Production Readiness', icon: 'Rocket', path: '/readiness', group: 'administration', subtitle: 'Readiness wizard — security, reliability, observability gates', color: 'text-amber-400' },
 
   // Agent
-  { id: 'agent', label: 'Agent Settings', icon: 'Bot', path: '/agent', group: 'agent', subtitle: 'Trust level, monitoring, memory, views management', color: 'text-violet-400' },
+  { id: 'agent', label: 'Mission Control', icon: 'Bot', path: '/agent', group: 'agent', subtitle: 'Agent policy, health, accuracy, capability discovery', color: 'text-violet-400' },
   { id: 'toolbox', label: 'Toolbox', icon: 'Wrench', path: '/toolbox', group: 'agent', subtitle: 'Tools, skills, connections, and analytics', color: 'text-fuchsia-400' },
 ];
 

@@ -171,12 +171,12 @@ export default function WelcomeView() {
 
         {/* ── Agent Preferences (collapsed) ── */}
         <button
-          onClick={() => go('/agent', 'Agent Settings')}
+          onClick={() => go('/agent', 'Mission Control')}
           className="flex items-center justify-between px-4 py-2.5 rounded-lg border border-slate-800 bg-slate-900 hover:bg-slate-800/50 transition-colors w-full text-left"
         >
           <div className="flex items-center gap-2">
             <Settings className="w-4 h-4 text-slate-500" />
-            <span className="text-xs font-medium text-slate-400">Agent Settings</span>
+            <span className="text-xs font-medium text-slate-400">Mission Control</span>
           </div>
           <ChevronDown className="w-3.5 h-3.5 text-slate-600 -rotate-90" />
         </button>
