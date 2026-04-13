@@ -140,7 +140,7 @@ export interface AgentVersionInfo {
 
 export const fetchCapabilities = async (): Promise<AgentCapabilities> => {
   const res = await fetch(`${AGENT_BASE}/monitor/capabilities`);
-  if (!res.ok) return { max_trust_level: 4 };
+  if (!res.ok) return { max_trust_level: 0 };
   return res.json();
 };
 

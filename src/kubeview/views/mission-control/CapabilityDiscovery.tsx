@@ -61,12 +61,12 @@ export function CapabilityDiscovery({ recommendations }: CapabilityDiscoveryProp
               </div>
               <p className="text-xs text-slate-400 leading-relaxed">{rec.description}</p>
               {rec.action.kind === 'enable_scanner' && (
-                <button className="text-xs text-blue-400 hover:text-blue-300 font-medium">
+                <button disabled className="text-xs text-blue-400/50 font-medium cursor-not-allowed" aria-label="Enable scanner (coming soon)">
                   Enable scanner &rarr;
                 </button>
               )}
               {rec.action.kind === 'chat_prompt' && (
-                <button className="text-xs text-violet-400 hover:text-violet-300 font-medium">
+                <button disabled className="text-xs text-violet-400/50 font-medium cursor-not-allowed" aria-label="Try in chat (coming soon)">
                   Try in chat &rarr;
                 </button>
               )}

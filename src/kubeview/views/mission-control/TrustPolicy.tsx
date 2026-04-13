@@ -219,7 +219,7 @@ function buildImpactPreview(current: TrustLevel, target: TrustLevel, fixSummary:
 
   if (target > current) {
     const newCats = LEVEL_CATEGORIES[target]?.filter((c) => !(LEVEL_CATEGORIES[current] || []).includes(c)) || [];
-    const additionalFixes = fixSummary.by_category
+    const additionalFixes = (fixSummary.by_category ?? [])
       .filter((c) => newCats.includes(c.category))
       .reduce((sum, c) => sum + c.confirmation_required, 0);
 

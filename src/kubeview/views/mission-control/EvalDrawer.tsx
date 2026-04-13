@@ -20,7 +20,7 @@ export function EvalDrawer({ evalStatus, onClose }: EvalDrawerProps) {
               return (
                 <div key={suite} className="bg-slate-900 rounded-lg border border-slate-800 p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-medium text-slate-200 capitalize">{suite.replace('_', ' ')}</h3>
+                    <h3 className="font-medium text-slate-200 capitalize">{suite.replace(/_/g, ' ')}</h3>
                     <span className={s.gate_passed ? 'text-emerald-400' : 'text-red-400'}>
                       {s.gate_passed ? 'PASS' : 'FAIL'}
                     </span>
