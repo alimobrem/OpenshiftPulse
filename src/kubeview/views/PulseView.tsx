@@ -1,5 +1,5 @@
-import React, { lazy, Suspense } from 'react';
-import { HeartPulse, ArrowRight, Bell, GitPullRequest, Shield } from 'lucide-react';
+import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
+import { HeartPulse, ArrowRight, Bell, GitPullRequest, Shield, Activity } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import type { K8sResource } from '../engine/renderers';
@@ -37,7 +37,7 @@ export default function PulseView() {
   const { data: events = [] } = useK8sListWatch({ apiPath: '/api/v1/events', namespace: nsFilter });
 
   const isLoading = nodesLoading || podsLoading || deploysLoading || pvcsLoading || opsLoading;
-  const { pendingReviews, monitorConnected, activeSkill, monitorEnabled, setMonitorEnabled, triggerScan, findings } =
+  const { pendingReviews, monitorConnected, activeSkill, monitorEnabled, setMonitorEnabled, triggerScan, findings, lastScanTime } =
     useMonitorStore(useShallow((s) => ({
       pendingReviews: s.pendingActions.length,
       monitorConnected: s.connected,
@@ -46,9 +46,33 @@ export default function PulseView() {
       setMonitorEnabled: s.setMonitorEnabled,
       triggerScan: s.triggerScan,
       findings: s.findings,
+      lastScanTime: s.lastScanTime,
     })));
   const trustLevel = useTrustStore((s) => s.trustLevel);
   const { counts: incidentCounts } = useIncidentFeed({ limit: 0 });
+
+  const [scanning, setScanning] = useState(false);
+  const scanTimeRef = useRef(lastScanTime);
+  const handleScanNow = () => {
+    scanTimeRef.current = lastScanTime;
+    setScanning(true);
+    triggerScan();
+    setTimeout(() => setScanning(false), 15_000);
+  };
+  useEffect(() => {
+    if (scanning && lastScanTime !== scanTimeRef.current) {
+      setScanning(false);
+      const f = useMonitorStore.getState().findings;
+      useUIStore.getState().addToast({
+        type: f.length > 0 ? 'warning' : 'success',
+        title: 'Scan complete',
+        detail: f.length > 0
+          ? `Found ${f.length} issue${f.length !== 1 ? 's' : ''}.`
+          : 'No issues found — cluster looks healthy.',
+        duration: 5000,
+      });
+    }
+  }, [lastScanTime, scanning]);
 
   const { data: briefing } = useQuery<BriefingResponse>({
     queryKey: ['briefing'],
@@ -112,11 +136,11 @@ export default function PulseView() {
               {activeSkill && <span className="text-violet-400">&middot; {activeSkill}</span>}
             </button>
             <button
-              onClick={triggerScan}
-              disabled={!monitorConnected}
-              className="px-2.5 py-1 rounded bg-violet-500/10 text-xs text-violet-400 hover:bg-violet-500/20 disabled:opacity-40"
+              onClick={handleScanNow}
+              disabled={!monitorConnected || scanning}
+              className="px-2.5 py-1 rounded bg-violet-500/10 text-xs text-violet-400 hover:bg-violet-500/20 disabled:opacity-40 flex items-center gap-1"
             >
-              Scan Now
+              {scanning ? <><Activity className="w-3 h-3 animate-spin" />Scanning...</> : 'Scan Now'}
             </button>
             <button
               onClick={() => setMonitorEnabled(!monitorEnabled)}
