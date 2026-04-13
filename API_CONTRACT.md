@@ -529,7 +529,7 @@ The UI sends a `GET /version` request before connecting. If the agent's `protoco
 
 | UI Version | Agent Version | Protocol | Status |
 |------------|--------------|----------|--------|
-| v6.1.0 | v2.1.0 | 2 | Current |
+| v6.1.0 | v2.2.0 | 2 | Current |
 | v6.0.0 | v2.0.0 | 2 | Compatible |
 | v5.21.0 | v1.16.0 | 2 | Compatible |
 | v5.13.0 | v1.5.0 | 2 | Compatible |

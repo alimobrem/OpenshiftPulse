@@ -197,7 +197,7 @@ kube_deployment_status_replicas{deployment="nginx",namespace="default"}
 ## Testing
 
 ```bash
-npm test -- src/kubeview/components/metrics
+pnpm test -- src/kubeview/components/metrics
 ```
 
 Coverage:

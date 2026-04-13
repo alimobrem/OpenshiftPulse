@@ -298,7 +298,7 @@ test('renders editor', () => {
 
 Run tests:
 ```bash
-npm test -- yaml
+pnpm test -- yaml
 ```
 
 ## Common Issues

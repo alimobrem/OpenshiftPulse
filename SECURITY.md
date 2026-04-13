@@ -135,7 +135,7 @@ A comprehensive security audit was performed covering authentication, injection 
 
 ### npm Packages
 - All packages sourced from the official npm registry (`registry.npmjs.org`)
-- `npm audit` reports **0 vulnerabilities** (as of v4.2.0)
+- `pnpm audit` reports **0 vulnerabilities** (as of v6.1.0)
 - No custom `.npmrc` overriding the registry
 - No deprecated packages in production dependencies
 

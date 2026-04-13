@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-OpenShift Pulse — a React/TypeScript dashboard for OpenShift Day-2 operations. All data comes from live Kubernetes APIs (no mock data in production code). v6.0.0, ~200 source files, 1934 unit tests + 53 E2E scenarios.
+OpenShift Pulse — a React/TypeScript dashboard for OpenShift Day-2 operations. All data comes from live Kubernetes APIs (no mock data in production code). v6.1.0, ~200 source files, 1953 unit tests + 53 E2E scenarios.
 
 ## Commands
 
@@ -16,7 +16,7 @@ pnpm dev                 # rspack dev server on port 9000
 pnpm build               # production build (~1s)
 
 # Tests
-pnpm exec vitest --run   # run all unit tests (~9s, 1882 tests)
+pnpm exec vitest --run   # run all unit tests (~9s, 1953 tests)
 pnpm exec vitest --run src/kubeview/views/__tests__/WorkloadsView.test.tsx  # single file
 pnpm exec vitest --run -t "test name pattern"  # single test by name
 
@@ -128,9 +128,9 @@ Agent:          Mission Control (Trust Policy/Agent Health/Agent Accuracy/Capabi
 - **Confirmation flow**: `confirm_request` with nonce → UI shows dialog → `confirm_response` with nonce echoed back
 - **Degraded mode**: `engine/degradedMode.ts` — 5 failure reasons, displayed via `DegradedBanner`
 - **Auto-fix**: at trust level 3/4, monitor fixes crashloop (pod delete) and workloads (deployment restart) WITHOUT confirmation gate. Has safety guardrails: max 3/scan, 5min cooldown, no bare pods.
-- **Agent version**: v2.1.0 (Protocol v2, 111 tools [75 native + 36 MCP], 17 scanners)
+- **Agent version**: v2.2.0 (Protocol v2, 111 tools [75 native + 36 MCP], 17 scanners)
 - **MCP integration**: OpenShift MCP server with 11 toolsets, 36 tools including Prometheus queries and Helm management
-- **Skills**: 4 skill packages (sre, security, view_designer, capacity_planner) with hot reload, routing, and version history
+- **Skills**: 5 skill packages (sre, security, view_designer, capacity_planner, postgres_troubleshooter) with hot reload, routing, and version history
 - **Custom views**: auto-saved to PostgreSQL on `create_dashboard`, user-scoped via OAuth token
 - **19 component types**: data_table, info_card_grid, chart, status_list, badge_list, key_value, relationship_tree, tabs, grid, section, log_viewer, yaml_viewer, metric_card, node_map, resource_counts, bar_list, progress_list, donut_chart, summary_bar
 
@@ -196,8 +196,8 @@ Agent:          Mission Control (Trust Policy/Agent Health/Agent Accuracy/Capabi
 - **Config**: `vitest.config.ts` — excludes `.claude/worktrees/**` and `e2e/`
 - **Coverage thresholds**: 40% statements, 30% branches, 35% functions, 40% lines (enforced in vitest.config.ts)
 - **Setup**: `src/kubeview/__tests__/setup.tsx` — factories, mock server, renderWithProviders
-- **1,934 unit tests** across 162 files (~9s)
-- **E2E**: Playwright (53 test cases across 6 specs) — `npm run e2e` auto-starts mock K8s + agent (podman) + dev server, tears down containers after
+- **1,953 unit tests** across 164 files (~9s)
+- **E2E**: Playwright (53 test cases across 6 specs) — `pnpm e2e` auto-starts mock K8s + agent (podman) + dev server, tears down containers after
 - **E2E config**: `e2e/playwright.config.ts`, mock K8s in `e2e/mock-k8s-server.mjs`, agent+pg in `e2e/docker-compose.agent.yml`
 - **E2E agent stack**: `e2e/start-agent.sh` / `e2e/stop-agent.sh` — starts real agent + PostgreSQL in podman containers
 - Do not use `sed` to edit test files — use the Edit tool instead. Sed commands have repeatedly mangled test files requiring manual cleanup.

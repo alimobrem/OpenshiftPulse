@@ -186,7 +186,7 @@ For real K8s API integration, update these areas:
 
 Run tests:
 ```bash
-npm test -- yaml
+pnpm test -- yaml
 ```
 
 ## Usage Examples

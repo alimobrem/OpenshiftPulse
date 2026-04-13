@@ -311,7 +311,7 @@ function AdvancedLogViewer() {
 Run tests with:
 
 ```bash
-npm test -- src/kubeview/components/logs/
+pnpm test -- src/kubeview/components/logs/
 ```
 
 Test files:

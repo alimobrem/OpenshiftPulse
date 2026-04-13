@@ -188,7 +188,7 @@ Tests are located in `__tests__/metrics.test.tsx` covering:
 
 Run tests with:
 ```bash
-npm test -- src/kubeview/components/metrics
+pnpm test -- src/kubeview/components/metrics
 ```
 
 ## Integration
