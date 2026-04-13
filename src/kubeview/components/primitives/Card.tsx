@@ -11,6 +11,9 @@ export function Card({ children, className, onClick }: CardProps) {
   return (
     <div
       onClick={onClick}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
       className={cn(
         'bg-slate-900 rounded-lg border border-slate-800',
         onClick && 'cursor-pointer hover:border-slate-600 transition-colors',

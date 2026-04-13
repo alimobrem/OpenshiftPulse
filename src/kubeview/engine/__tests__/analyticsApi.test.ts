@@ -9,6 +9,8 @@ import {
   fetchPromptStats,
   fetchRecommendations,
   fetchReadinessSummary,
+  fetchCapabilities,
+  fetchAgentVersion,
 } from '../analyticsApi';
 
 const mockFetch = vi.fn();
@@ -89,5 +91,29 @@ describe('analyticsApi', () => {
   it('throws on non-ok response', async () => {
     mockFetch.mockResolvedValueOnce({ ok: false, status: 500 });
     await expect(fetchFixHistorySummary()).rejects.toThrow();
+  });
+
+  it('fetchCapabilities returns data on success', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ max_trust_level: 3 }) });
+    const result = await fetchCapabilities();
+    expect(result.max_trust_level).toBe(3);
+  });
+
+  it('fetchCapabilities falls back to max_trust_level 0 on error', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 500 });
+    const result = await fetchCapabilities();
+    expect(result.max_trust_level).toBe(0);
+  });
+
+  it('fetchAgentVersion returns data on success', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ agent: '2.0.0', protocol: 2, tools: 111 }) });
+    const result = await fetchAgentVersion();
+    expect(result?.agent).toBe('2.0.0');
+  });
+
+  it('fetchAgentVersion returns null on error', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 500 });
+    const result = await fetchAgentVersion();
+    expect(result).toBeNull();
   });
 });

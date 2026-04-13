@@ -196,7 +196,7 @@ function DimensionBar({ label, score }: { label: string; score: number }) {
   return (
     <div className="flex items-center gap-2">
       <span className="text-[10px] text-slate-500 w-20 truncate capitalize">{label.replace(/_/g, ' ')}</span>
-      <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+      <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={label}>
         <div
           className={cn('h-full rounded-full', pct >= 80 ? 'bg-emerald-500' : pct >= 60 ? 'bg-amber-500' : 'bg-red-500')}
           style={{ width: `${pct}%` }}

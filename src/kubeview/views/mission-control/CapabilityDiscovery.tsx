@@ -19,16 +19,17 @@ export function CapabilityDiscovery({ recommendations }: CapabilityDiscoveryProp
     }
   });
 
-  const dismiss = useCallback((title: string) => {
+  const dismiss = useCallback((key: string) => {
     setDismissed((prev) => {
       const next = new Set(prev);
-      next.add(title);
+      next.add(key);
       localStorage.setItem(DISMISSED_KEY, JSON.stringify([...next]));
       return next;
     });
   }, []);
 
-  const visible = recommendations.filter((r) => !dismissed.has(r.title));
+  const recKey = (r: Recommendation) => `${r.type}:${r.title}`;
+  const visible = recommendations.filter((r) => !dismissed.has(recKey(r)));
 
   if (visible.length === 0) return null;
 
@@ -40,7 +41,7 @@ export function CapabilityDiscovery({ recommendations }: CapabilityDiscoveryProp
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {visible.slice(0, 4).map((rec) => (
-          <Card key={rec.title}>
+          <Card key={recKey(rec)}>
             <div className="p-4 space-y-2">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2">
@@ -52,7 +53,7 @@ export function CapabilityDiscovery({ recommendations }: CapabilityDiscoveryProp
                   <h3 className="text-sm font-medium text-slate-200">{rec.title}</h3>
                 </div>
                 <button
-                  onClick={() => dismiss(rec.title)}
+                  onClick={() => dismiss(recKey(rec))}
                   className="text-slate-600 hover:text-slate-400 p-0.5"
                   aria-label="Dismiss"
                 >

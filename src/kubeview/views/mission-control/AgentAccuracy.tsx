@@ -76,8 +76,8 @@ export function AgentAccuracy({ accuracy, onOpenMemoryDrawer }: AgentAccuracyPro
             </div>
             {hasAntiPatterns ? (
               <div className="space-y-1">
-                {accuracy.anti_patterns.map((ap, i) => (
-                  <div key={i} className="text-xs text-amber-300/80 bg-amber-500/5 rounded px-3 py-1.5 border border-amber-500/10">
+                {accuracy.anti_patterns.map((ap) => (
+                  <div key={`${ap.error_type}-${ap.namespace}`} className="text-xs text-amber-300/80 bg-amber-500/5 rounded px-3 py-1.5 border border-amber-500/10">
                     {ap.description} &mdash; {ap.count} incidents this month
                   </div>
                 ))}
