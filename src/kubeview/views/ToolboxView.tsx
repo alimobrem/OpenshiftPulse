@@ -7,7 +7,7 @@ import {
   AlertTriangle, CheckCircle2, Clock, Database, Bot, Shield, Palette, ArrowRight,
   Puzzle, Server, Layers, RefreshCw, XCircle,
   Play, X, FileText, ChevronDown, Save, GitCompareArrows, Check,
-  Cable, Trash2, Copy, Hash, TrendingUp, Target,
+  Cable, Trash2, Copy, Hash, TrendingUp, Target, LayoutDashboard,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToolUsageStore } from '../store/toolUsageStore';
@@ -15,6 +15,19 @@ import { fetchIntelligenceSections, fetchPromptStats } from '../engine/analytics
 import type { ToolInfo, ToolUsageEntry } from '../store/toolUsageStore';
 
 type ToolboxTab = 'catalog' | 'skills' | 'connections' | 'components' | 'usage' | 'analytics';
+
+const SKILL_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  Wrench, Shield, LayoutDashboard, TrendingUp, Puzzle, Bot, Database, Target,
+};
+
+function sortSkills(skills: Record<string, unknown>[]): Record<string, unknown>[] {
+  return [...skills].sort((a, b) => {
+    const aBuiltin = a.builtin !== false;
+    const bBuiltin = b.builtin !== false;
+    if (aBuiltin !== bBuiltin) return aBuiltin ? -1 : 1;
+    return String(a.display_name || a.name).localeCompare(String(b.display_name || b.name));
+  });
+}
 
 const MODE_ICONS: Record<string, React.ReactNode> = {
   sre: <Bot className="w-4 h-4 text-violet-400" />,
@@ -330,38 +343,44 @@ function SkillsTab() {
         <div className="flex justify-center py-12"><div className="kv-skeleton w-8 h-8 rounded-full" /></div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {skills.map((skill: Record<string, unknown>) => (
-            <button
-              key={String(skill.name)}
-              onClick={() => setSelectedSkill(String(skill.name))}
-              className={cn(
-                'bg-slate-900 border rounded-lg p-4 space-y-2 text-left transition-colors hover:border-blue-700/50 hover:bg-slate-900/80 cursor-pointer',
-                skill.degraded ? 'border-amber-800/50' : 'border-slate-800',
-              )}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  {skill.degraded
-                    ? <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-                    : <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
-                  <span className="text-sm font-medium text-slate-100 truncate">{String(skill.name)}</span>
-                  <span className="text-[10px] px-1.5 py-0.5 bg-slate-800 rounded text-slate-500 shrink-0">v{Number(skill.version)}</span>
-                </div>
-                {Boolean(skill.write_tools) && (
-                  <span className="text-[10px] px-1.5 py-0.5 bg-amber-900/30 text-amber-400 rounded border border-amber-800/30">write</span>
+          {sortSkills(skills).map((skill: Record<string, unknown>) => {
+            const SkillIcon = SKILL_ICON_MAP[String(skill.icon)] || Puzzle;
+            return (
+              <button
+                key={String(skill.name)}
+                onClick={() => setSelectedSkill(String(skill.name))}
+                className={cn(
+                  'bg-slate-900 border rounded-lg p-4 space-y-2 text-left transition-colors hover:border-blue-700/50 hover:bg-slate-900/80 cursor-pointer',
+                  skill.degraded ? 'border-amber-800/50' : 'border-slate-800',
                 )}
-              </div>
-              <p className="text-xs text-slate-400">{String(skill.description)}</p>
-              <div className="flex items-center gap-3 text-xs text-slate-500">
-                <span>{(skill.keywords as string[])?.length || 0} keywords</span>
-                <span>{(skill.categories as string[])?.length || 0} categories</span>
-                <span>{Number(skill.prompt_length)} chars</span>
-              </div>
-              {Boolean(skill.degraded) && (
-                <div className="text-xs text-amber-400">{String(skill.degraded_reason)}</div>
-              )}
-            </button>
-          ))}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <SkillIcon className={cn('w-4 h-4 shrink-0', skill.degraded ? 'text-amber-400' : 'text-violet-400')} />
+                    <span className="text-sm font-medium text-slate-100 truncate">{String(skill.display_name || skill.name)}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 bg-slate-800 rounded text-slate-500 shrink-0">v{Number(skill.version)}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {!skill.builtin && (
+                      <span className="text-[10px] px-1.5 py-0.5 bg-violet-900/30 text-violet-400 rounded border border-violet-800/30">custom</span>
+                    )}
+                    {Boolean(skill.write_tools) && (
+                      <span className="text-[10px] px-1.5 py-0.5 bg-amber-900/30 text-amber-400 rounded border border-amber-800/30">write</span>
+                    )}
+                  </div>
+                </div>
+                <p className="text-xs text-slate-400">{String(skill.description)}</p>
+                <div className="flex items-center gap-3 text-xs text-slate-500">
+                  <span>{(skill.keywords as string[])?.length || 0} keywords</span>
+                  <span>{(skill.categories as string[])?.length || 0} categories</span>
+                  <span>{Number(skill.prompt_length)} chars</span>
+                </div>
+                {Boolean(skill.degraded) && (
+                  <div className="text-xs text-amber-400">{String(skill.degraded_reason)}</div>
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
 
