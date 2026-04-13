@@ -111,7 +111,10 @@ export function TrustPolicy({ maxTrustLevel, scannerCount, fixSummary }: TrustPo
         {/* Auto-fix Categories */}
         <div className={cn('space-y-2', trustLevel < 2 && 'opacity-40')}>
           <h3 className="text-xs font-medium text-slate-400 uppercase tracking-wider">Auto-fix categories</h3>
-          <div className="flex flex-wrap gap-2">
+          <p className="text-[11px] text-slate-500 leading-relaxed">
+            When the monitor detects these issues, the agent will automatically apply fixes without asking. Each fix is recorded with a before-state snapshot for rollback. Toggle categories to control what gets auto-fixed.
+          </p>
+          <div className="space-y-1.5">
             {AUTOFIX_CATEGORIES.map((cat) => {
               const enabled = autoFixCategories.includes(cat.id);
               const disabled = trustLevel < 2;
@@ -128,15 +131,18 @@ export function TrustPolicy({ maxTrustLevel, scannerCount, fixSummary }: TrustPo
                     );
                   }}
                   className={cn(
-                    'px-3 py-1.5 rounded-md text-xs border transition-colors',
+                    'flex items-start gap-3 w-full rounded-md px-3 py-2 text-left text-xs border transition-colors',
                     enabled && !disabled
-                      ? 'bg-violet-500/20 border-violet-500/50 text-violet-300'
-                      : 'border-slate-700 text-slate-500',
+                      ? 'bg-violet-500/10 border-violet-500/40 text-violet-300'
+                      : 'border-slate-700/50 text-slate-500',
                     !disabled && 'hover:border-slate-500 cursor-pointer',
                   )}
-                  title={cat.description}
                 >
-                  {cat.label}
+                  <div className={cn('mt-0.5 w-3 h-3 rounded border shrink-0', enabled && !disabled ? 'bg-violet-500 border-violet-400' : 'border-slate-600')} />
+                  <div>
+                    <div className="font-medium">{cat.label}</div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">{cat.description}</div>
+                  </div>
                 </button>
               );
             })}
