@@ -393,6 +393,7 @@ function getCommandItems(
       { type: 'nav', id: 'admin', title: 'Administration', subtitle: 'Operators, config, updates, quotas, certificates, CRDs', icon: 'Settings', path: '/admin' },
       { type: 'nav', id: 'readiness', title: 'Production Readiness', subtitle: 'Readiness wizard — security, reliability, observability gates', icon: 'Shield', path: '/readiness' },
       { type: 'nav', id: 'agent', title: 'Mission Control', subtitle: 'Agent policy, health, accuracy, capability discovery', icon: 'Bot', path: '/agent' },
+      { type: 'nav', id: 'views', title: 'Custom Views', subtitle: 'AI-generated dashboards — manage, share, version history', icon: 'LayoutDashboard', path: '/views' },
       { type: 'nav', id: 'toolbox', title: 'Toolbox', subtitle: 'Tools, skills, connections, and analytics', icon: 'Wrench', path: '/toolbox' },
     ];
 

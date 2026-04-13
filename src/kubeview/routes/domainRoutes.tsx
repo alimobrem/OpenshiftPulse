@@ -20,6 +20,7 @@ const DriftDetectorView = lazy(() => import('../views/fleet/DriftDetectorView').
 const IncidentCenterView = lazy(() => import('../views/IncidentCenterView'));
 const OnboardingView = lazy(() => import('../views/OnboardingView'));
 const MissionControlView = lazy(() => import('../views/MissionControlView'));
+const ViewsManagement = lazy(() => import('../views/ViewsManagement'));
 const ToolsView = lazy(() => import('../views/ToolsView'));
 const AdminExtensionsView = lazy(() => import('../views/AdminExtensionsView'));
 const ToolboxView = lazy(() => import('../views/ToolboxView'));
@@ -87,8 +88,8 @@ export function domainRoutes() {
       <Route path="readiness" element={<Lazy>{isFeatureEnabled('onboarding') ? <OnboardingView /> : <CatchFallback />}</Lazy>} />
       <Route path="onboarding" element={<Navigate to="/readiness" replace />} />
       <Route path="reviews" element={<Navigate to="/incidents?tab=actions" replace />} />
-      <Route path="memory" element={<Navigate to="/agent?tab=memory" replace />} />
-      <Route path="views" element={<Navigate to="/agent?tab=views" replace />} />
+      <Route path="memory" element={<Navigate to="/agent" replace />} />
+      <Route path="views" element={<Lazy><ViewsManagement /></Lazy>} />
       <Route path="agent" element={<Lazy><MissionControlView /></Lazy>} />
       <Route path="toolbox" element={<Lazy><ToolboxView /></Lazy>} />
       <Route path="tools" element={<Navigate to="/toolbox" replace />} />

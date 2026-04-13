@@ -34,6 +34,7 @@ export const NAV_ITEMS: NavItem[] = [
 
   // Agent
   { id: 'agent', label: 'Mission Control', icon: 'Bot', path: '/agent', group: 'agent', subtitle: 'Agent policy, health, accuracy, capability discovery', color: 'text-violet-400' },
+  { id: 'views', label: 'Custom Views', icon: 'LayoutDashboard', path: '/views', group: 'agent', subtitle: 'AI-generated dashboards — manage, share, version history', color: 'text-emerald-400' },
   { id: 'toolbox', label: 'Toolbox', icon: 'Wrench', path: '/toolbox', group: 'agent', subtitle: 'Tools, skills, connections, and analytics', color: 'text-fuchsia-400' },
 ];
 
