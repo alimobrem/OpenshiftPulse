@@ -126,7 +126,6 @@ const DEFAULT_TABS: Tab[] = [
   { id: 'welcome', title: 'Welcome', icon: 'Home', path: '/welcome', pinned: true, closable: true },
   { id: 'pulse', title: 'Pulse', icon: 'Activity', path: '/pulse', pinned: true, closable: true },
   { id: 'admin', title: 'Admin', icon: 'Settings', path: '/admin', pinned: true, closable: true },
-  { id: 'incidents', title: 'Incidents', icon: 'Shield', path: '/incidents', pinned: false, closable: true },
 ];
 
 // Default toast durations (ms)

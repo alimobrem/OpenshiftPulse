@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Search, ChevronRight, ChevronDown, Activity, Package, Globe, Server, HardDrive, Shield, Bell, Settings, LayoutDashboard, ShieldCheck, GitBranch, Layers, Rocket } from 'lucide-react';
 import { useUIStore } from '../store/uiStore';
 import { useClusterStore } from '../store/clusterStore';
@@ -25,6 +25,7 @@ function getIcon(iconName: string) {
 
 export function ResourceBrowser() {
   const navigate = useNavigate();
+  const location = useLocation();
   const closeBrowser = useUIStore((s) => s.closeBrowser);
   const addTab = useUIStore((s) => s.addTab);
   const resourceRegistry = useClusterStore((s) => s.resourceRegistry);
@@ -185,7 +186,7 @@ export function ResourceBrowser() {
                     navigate(page.path);
                     closeBrowser();
                   }}
-                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-slate-300 transition-colors hover:bg-slate-700"
+                  className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm transition-colors ${location.pathname === page.path ? 'bg-slate-700/60 text-white' : 'text-slate-300 hover:bg-slate-700'}`}
                 >
                   <page.icon className={`h-4 w-4 ${page.color}`} />
                   {page.label}
