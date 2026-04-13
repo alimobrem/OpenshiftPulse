@@ -7,7 +7,7 @@ import {
   AlertTriangle, CheckCircle2, Clock, Database, Bot, Shield, Palette, ArrowRight,
   Puzzle, Server, Layers, RefreshCw, XCircle,
   Play, X, FileText, ChevronDown, Save, GitCompareArrows, Check,
-  Cable, Trash2, Copy, Hash, TrendingUp, Target, LayoutDashboard,
+  Cable, Trash2, Copy, Hash, TrendingUp, Target, LayoutDashboard, Plus, Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToolUsageStore } from '../store/toolUsageStore';
@@ -168,35 +168,34 @@ interface McpToolInfo extends ToolInfo {
 function CatalogTab() {
   const { tools, toolsLoading, loadTools } = useToolUsageStore();
   const [search, setSearch] = useState('');
-  const [modeFilter, setModeFilter] = useState<string>('all');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
 
   useEffect(() => { loadTools(); }, [loadTools]);
 
-  const allTools: Array<ToolInfo & { mode: string; source: string; mcp_server?: string }> = [];
+  const allTools: Array<ToolInfo & { source: string; mcp_server?: string }> = [];
   if (tools) {
-    for (const t of tools.sre) allTools.push({ ...t, mode: 'sre', source: (t as unknown as { source?: string }).source || 'native' });
+    for (const t of tools.sre) allTools.push({ ...t, source: (t as unknown as { source?: string }).source || 'native' });
     for (const t of tools.security) {
-      if (!allTools.some((x) => x.name === t.name)) allTools.push({ ...t, mode: 'security', source: (t as unknown as { source?: string }).source || 'native' });
+      if (!allTools.some((x) => x.name === t.name)) allTools.push({ ...t, source: (t as unknown as { source?: string }).source || 'native' });
     }
-    // MCP tools
     const mcpTools = (tools as unknown as { mcp?: McpToolInfo[] }).mcp;
     if (mcpTools) {
       for (const t of mcpTools) {
         if (!allTools.some((x) => x.name === t.name)) {
-          allTools.push({ ...t, mode: 'mcp', source: 'mcp', mcp_server: t.mcp_server });
+          allTools.push({ ...t, source: 'mcp', mcp_server: t.mcp_server });
         }
       }
     }
   }
 
   const filtered = allTools.filter((t) => {
-    if (modeFilter !== 'all' && t.mode !== modeFilter) return false;
     if (sourceFilter !== 'all' && t.source !== sourceFilter) return false;
     if (search && !t.name.toLowerCase().includes(search.toLowerCase()) && !t.description.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
+  const nativeCount = allTools.filter((t) => t.source === 'native').length;
+  const mcpCount = allTools.filter((t) => t.source === 'mcp').length;
   const categories = [...new Set(filtered.map((t) => t.category).filter(Boolean))] as string[];
 
   return (
@@ -214,25 +213,14 @@ function CatalogTab() {
           />
         </div>
         <select
-          aria-label="Filter by agent mode"
-          value={modeFilter}
-          onChange={(e) => setModeFilter(e.target.value)}
-          className="px-2 py-1.5 text-xs bg-slate-900 border border-slate-700 rounded-md text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
-        >
-          <option value="all">All modes</option>
-          <option value="sre">SRE</option>
-          <option value="security">Security</option>
-          <option value="mcp">MCP</option>
-        </select>
-        <select
           aria-label="Filter by source"
           value={sourceFilter}
           onChange={(e) => setSourceFilter(e.target.value)}
           className="px-2 py-1.5 text-xs bg-slate-900 border border-slate-700 rounded-md text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
         >
-          <option value="all">All sources</option>
-          <option value="native">Native</option>
-          <option value="mcp">MCP</option>
+          <option value="all">All sources ({allTools.length})</option>
+          <option value="native">Native ({nativeCount})</option>
+          <option value="mcp">MCP ({mcpCount})</option>
         </select>
         <span className="text-xs text-slate-500">{filtered.length} tools</span>
       </div>
@@ -954,6 +942,8 @@ function ConnectionsTab() {
   const queryClient = useQueryClient();
   const [expandedServer, setExpandedServer] = useState<number | null>(null);
   const [updating, setUpdating] = useState(false);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
 
   const { data: mcpData, isLoading } = useQuery({
     queryKey: ['admin', 'mcp'],
@@ -1002,15 +992,42 @@ function ConnectionsTab() {
     }
   };
 
+  const handleRemoveServer = async () => {
+    if (!confirmRemove) return;
+    setMcpStatus(null);
+    try {
+      const res = await fetch(`/api/agent/admin/mcp/${encodeURIComponent(confirmRemove)}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({ detail: 'Unknown error' }));
+      if (res.ok) {
+        queryClient.invalidateQueries({ queryKey: ['admin', 'mcp'] });
+        setMcpStatus({ type: 'success', message: `Removed server '${confirmRemove}'` });
+      } else {
+        setMcpStatus({ type: 'error', message: data.detail || 'Failed to remove server' });
+      }
+    } catch {
+      setMcpStatus({ type: 'error', message: 'Network error — could not reach agent' });
+    } finally {
+      setConfirmRemove(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="text-sm text-slate-400">{connections.length} MCP server{connections.length !== 1 ? 's' : ''} configured</div>
-        {updating && (
-          <div className="flex items-center gap-1.5 text-xs text-blue-400">
-            <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Updating toolsets (restarting MCP server)...
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {updating && (
+            <div className="flex items-center gap-1.5 text-xs text-blue-400">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Updating toolsets...
+            </div>
+          )}
+          <button
+            onClick={() => setShowAddDialog(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded-md transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" /> Add Server
+          </button>
+        </div>
       </div>
 
       {mcpStatus && (
@@ -1028,20 +1045,46 @@ function ConnectionsTab() {
         </div>
       )}
 
+      {showAddDialog && (
+        <AddMcpServerDialog
+          onClose={() => setShowAddDialog(false)}
+          onAdded={() => {
+            queryClient.invalidateQueries({ queryKey: ['admin', 'mcp'] });
+            setShowAddDialog(false);
+          }}
+        />
+      )}
+
+      <ConfirmDialog
+        open={confirmRemove !== null}
+        onClose={() => setConfirmRemove(null)}
+        onConfirm={handleRemoveServer}
+        title="Remove MCP Server"
+        description={`Disconnect and remove '${confirmRemove}'? Its tools will be unregistered.`}
+        confirmLabel="Remove"
+        variant="danger"
+      />
+
       {isLoading ? (
         <div className="flex justify-center py-12"><div className="kv-skeleton w-8 h-8 rounded-full" /></div>
       ) : connections.length === 0 ? (
         <div className="bg-slate-900 border border-slate-800 rounded-lg p-8 text-center">
           <Server className="w-8 h-8 text-slate-600 mx-auto mb-3" />
           <p className="text-sm text-slate-400 mb-2">No MCP servers connected</p>
-          <p className="text-xs text-slate-500">MCP servers are configured per-skill via mcp.yaml files.</p>
-          <p className="text-xs text-slate-500 mt-1">See the Skill Developer Guide for details.</p>
+          <p className="text-xs text-slate-500 mb-4">Connect to an MCP server to extend the agent with additional tools.</p>
+          <button
+            onClick={() => setShowAddDialog(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded-md transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" /> Add Server
+          </button>
         </div>
       ) : (
         <div className="space-y-3">
           {connections.map((conn: Record<string, unknown>, i: number) => {
             const tools = (conn.tools as string[]) || [];
             const enabledToolsets = (conn.toolsets as string[]) || [];
+            const isStandalone = Boolean(conn.standalone);
             const expanded = expandedServer === i;
 
             return (
@@ -1058,9 +1101,21 @@ function ConnectionsTab() {
                       {conn.connected ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <XCircle className="w-4 h-4 text-red-400" />}
                       <span className="text-sm font-medium text-slate-100">{String(conn.name)}</span>
                       <span className="text-[10px] px-1.5 py-0.5 bg-slate-800 rounded text-slate-500">{String(conn.transport)}</span>
+                      {isStandalone && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-900/30 text-violet-400 border border-violet-800/30">custom</span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-slate-400">{tools.length} tools</span>
+                      {isStandalone && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setConfirmRemove(String(conn.name)); }}
+                          className="p-1 text-slate-500 hover:text-red-400 transition-colors rounded hover:bg-slate-800"
+                          title="Remove server"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                       <ChevronDown className={cn('w-3.5 h-3.5 text-slate-500 transition-transform', expanded && 'rotate-180')} />
                     </div>
                   </div>
@@ -1070,38 +1125,40 @@ function ConnectionsTab() {
 
                 {expanded && (
                   <div className="border-t border-slate-800">
-                    {/* Toolset toggles */}
-                    <div className="px-4 py-3 border-b border-slate-800/50">
-                      <h4 className="text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-2">Toolsets</h4>
-                      <p className="text-xs text-slate-500 mb-3">Toggle toolsets to add or remove capabilities. The MCP server will restart.</p>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        {availableToolsets.map((ts) => {
-                          const enabled = enabledToolsets.includes(ts);
-                          return (
-                            <button
-                              key={ts}
-                              disabled={updating || (enabled && enabledToolsets.length <= 1)}
-                              onClick={(e) => { e.stopPropagation(); toggleToolset(ts, enabledToolsets); }}
-                              className={cn(
-                                'flex items-center justify-between px-2.5 py-1.5 text-[11px] rounded-md border transition-colors',
-                                enabled
-                                  ? 'bg-blue-900/30 text-blue-300 border-blue-700/50 hover:bg-blue-900/50'
-                                  : 'bg-slate-800/50 text-slate-500 border-slate-700/30 hover:bg-slate-800 hover:text-slate-300',
-                                updating && 'opacity-50 cursor-not-allowed',
-                              )}
-                            >
-                              <div className={cn(
-                                'w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0',
-                                enabled ? 'bg-blue-600 border-blue-500' : 'border-slate-600',
-                              )}>
-                                {enabled && <Check className="w-2.5 h-2.5 text-white" />}
-                              </div>
-                              <span className="font-medium">{ts}</span>
-                            </button>
-                          );
-                        })}
+                    {/* Toolset toggles — only for skill-linked servers with toolsets */}
+                    {!isStandalone && enabledToolsets.length > 0 && (
+                      <div className="px-4 py-3 border-b border-slate-800/50">
+                        <h4 className="text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-2">Toolsets</h4>
+                        <p className="text-xs text-slate-500 mb-3">Toggle toolsets to add or remove capabilities. The MCP server will restart.</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          {availableToolsets.map((ts) => {
+                            const enabled = enabledToolsets.includes(ts);
+                            return (
+                              <button
+                                key={ts}
+                                disabled={updating || (enabled && enabledToolsets.length <= 1)}
+                                onClick={(e) => { e.stopPropagation(); toggleToolset(ts, enabledToolsets); }}
+                                className={cn(
+                                  'flex items-center justify-between px-2.5 py-1.5 text-[11px] rounded-md border transition-colors',
+                                  enabled
+                                    ? 'bg-blue-900/30 text-blue-300 border-blue-700/50 hover:bg-blue-900/50'
+                                    : 'bg-slate-800/50 text-slate-500 border-slate-700/30 hover:bg-slate-800 hover:text-slate-300',
+                                  updating && 'opacity-50 cursor-not-allowed',
+                                )}
+                              >
+                                <div className={cn(
+                                  'w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0',
+                                  enabled ? 'bg-blue-600 border-blue-500' : 'border-slate-600',
+                                )}>
+                                  {enabled && <Check className="w-2.5 h-2.5 text-white" />}
+                                </div>
+                                <span className="font-medium">{ts}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* Tool list */}
                     {tools.length > 0 && (
@@ -1125,6 +1182,163 @@ function ConnectionsTab() {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Add MCP Server Dialog                                               */
+/* ------------------------------------------------------------------ */
+
+function AddMcpServerDialog({ onClose, onAdded }: { onClose: () => void; onAdded: () => void }) {
+  const [name, setName] = useState('');
+  const [url, setUrl] = useState('');
+  const [transport, setTransport] = useState<'sse' | 'stdio'>('sse');
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ connected: boolean; tools_count: number; error: string } | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleTest = async () => {
+    setTesting(true);
+    setTestResult(null);
+    setError('');
+    try {
+      const res = await fetch('/api/agent/admin/mcp/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, transport }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setTestResult(data);
+      } else {
+        setError(data.detail || 'Test failed');
+      }
+    } catch {
+      setError('Network error — could not reach agent');
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const handleAdd = async () => {
+    setAdding(true);
+    setError('');
+    try {
+      const res = await fetch('/api/agent/admin/mcp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, url, transport }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        onAdded();
+      } else {
+        setError(data.detail || 'Failed to add server');
+      }
+    } catch {
+      setError('Network error — could not reach agent');
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const canTest = url.trim().length > 0;
+  const canAdd = name.trim().length > 0 && url.trim().length > 0 && !adding;
+
+  return (
+    <div className="bg-slate-900 border border-slate-700 rounded-lg p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium text-slate-100">Add MCP Server</h3>
+        <button onClick={onClose} className="text-slate-500 hover:text-slate-300">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-[11px] text-slate-400 mb-1">Name</label>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. my-mcp-server"
+            className="w-full px-3 py-1.5 text-xs bg-slate-800 border border-slate-700 rounded-md text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label className="block text-[11px] text-slate-400 mb-1">Transport</label>
+          <select
+            value={transport}
+            onChange={(e) => setTransport(e.target.value as 'sse' | 'stdio')}
+            className="w-full px-3 py-1.5 text-xs bg-slate-800 border border-slate-700 rounded-md text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          >
+            <option value="sse">SSE (HTTP)</option>
+            <option value="stdio">stdio (subprocess)</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-[11px] text-slate-400 mb-1">
+          {transport === 'sse' ? 'Server URL' : 'Command'}
+        </label>
+        <input
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder={transport === 'sse' ? 'http://localhost:8081' : 'npx @modelcontextprotocol/server-everything'}
+          className="w-full px-3 py-1.5 text-xs bg-slate-800 border border-slate-700 rounded-md text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+        />
+      </div>
+
+      {testResult && (
+        <div className={cn(
+          'flex items-center gap-2 px-3 py-2 text-xs rounded-md border',
+          testResult.connected
+            ? 'bg-emerald-950/30 border-emerald-800/30 text-emerald-400'
+            : 'bg-red-950/30 border-red-800/30 text-red-400',
+        )}>
+          {testResult.connected ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+          {testResult.connected
+            ? `Connected — ${testResult.tools_count} tools available`
+            : `Connection failed: ${testResult.error}`}
+        </div>
+      )}
+
+      {error && (
+        <div className="flex items-center gap-2 px-3 py-2 text-xs rounded-md border bg-red-950/30 border-red-800/30 text-red-400">
+          <XCircle className="w-3.5 h-3.5" /> {error}
+        </div>
+      )}
+
+      <div className="flex items-center justify-end gap-2 pt-1">
+        <button
+          onClick={handleTest}
+          disabled={!canTest || testing}
+          className={cn(
+            'flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md border transition-colors',
+            canTest && !testing
+              ? 'border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-slate-100'
+              : 'border-slate-700 text-slate-600 cursor-not-allowed',
+          )}
+        >
+          {testing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+          Test Connection
+        </button>
+        <button
+          onClick={handleAdd}
+          disabled={!canAdd}
+          className={cn(
+            'flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md transition-colors',
+            canAdd
+              ? 'bg-blue-600 text-white hover:bg-blue-500'
+              : 'bg-slate-700 text-slate-500 cursor-not-allowed',
+          )}
+        >
+          {adding ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+          Add Server
+        </button>
+      </div>
     </div>
   );
 }
