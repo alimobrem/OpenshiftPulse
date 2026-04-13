@@ -364,13 +364,14 @@ OAuth proxy with per-user auth. Non-root containers, read-only filesystem, CSP h
 ## Development
 
 ```bash
-npm install          # Install dependencies
+pnpm install         # Install dependencies
 cp .env.example .env # Configure cluster URLs (optional)
 oc proxy --port=8001 & # Start API proxy
-npm run dev          # Dev server on port 9000
-npm test             # Run test suite once
-npm run build        # Production build (~1s)
-npm run type-check   # TypeScript checking
+pnpm dev             # Dev server on port 9000
+pnpm test            # Run test suite (1953 tests)
+pnpm build           # Production build (~1s)
+pnpm type-check      # TypeScript checking
+pnpm verify          # Full check: types + lint + test + build
 ```
 
 | Variable | Default | Description |
