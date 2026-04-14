@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Siren, Zap, Search, Clock, Bell, Settings, GitPullRequest,
+  Siren, Zap, Search, Clock, Bell, Settings, GitPullRequest, FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMonitorStore } from '../store/monitorStore';
@@ -12,13 +12,15 @@ import { HistoryTab } from './incidents/HistoryTab';
 
 const AlertsView = lazy(() => import('./AlertsView'));
 const ReviewQueueView = lazy(() => import('./ReviewQueueView'));
+const PostmortemsTab = lazy(() => import('./incidents/PostmortemsTab').then(m => ({ default: m.PostmortemsTab })));
 
-type IncidentTab = 'now' | 'investigate' | 'actions' | 'history' | 'alerts';
+type IncidentTab = 'now' | 'investigate' | 'actions' | 'postmortems' | 'history' | 'alerts';
 
 const TABS = [
   { id: 'now' as IncidentTab, label: 'Active', icon: Zap, color: 'text-amber-400' },
   { id: 'investigate' as IncidentTab, label: 'Timeline', icon: Search, color: 'text-blue-400' },
   { id: 'actions' as IncidentTab, label: 'Review Queue', icon: GitPullRequest, color: 'text-violet-400' },
+  { id: 'postmortems' as IncidentTab, label: 'Postmortems', icon: FileText, color: 'text-teal-400' },
   { id: 'history' as IncidentTab, label: 'History', icon: Clock, color: 'text-slate-400' },
   { id: 'alerts' as IncidentTab, label: 'Alerts', icon: Bell, color: 'text-red-400' },
 ] as const;
@@ -27,7 +29,7 @@ const TABS = [
 export default function IncidentCenterView() {
   const urlTab = new URLSearchParams(window.location.search).get('tab') as IncidentTab | null;
   const [activeTab, setActiveTabState] = useState<IncidentTab>(
-    urlTab && ['now', 'investigate', 'actions', 'history', 'alerts'].includes(urlTab) ? urlTab : 'now',
+    urlTab && ['now', 'investigate', 'actions', 'postmortems', 'history', 'alerts'].includes(urlTab) ? urlTab : 'now',
   );
   const setActiveTab = (tab: IncidentTab) => {
     setActiveTabState(tab);
@@ -121,6 +123,13 @@ export default function IncidentCenterView() {
           <div id="incident-panel-actions" role="tabpanel">
             <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="kv-skeleton w-8 h-8 rounded-full" /></div>}>
               <ReviewQueueView />
+            </Suspense>
+          </div>
+        )}
+        {activeTab === 'postmortems' && (
+          <div id="incident-panel-postmortems" role="tabpanel">
+            <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="kv-skeleton w-8 h-8 rounded-full" /></div>}>
+              <PostmortemsTab />
             </Suspense>
           </div>
         )}

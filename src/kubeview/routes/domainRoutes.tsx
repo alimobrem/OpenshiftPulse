@@ -23,6 +23,7 @@ const ViewsManagement = lazy(() => import('../views/ViewsManagement'));
 const ToolsView = lazy(() => import('../views/ToolsView'));
 const AdminExtensionsView = lazy(() => import('../views/AdminExtensionsView'));
 const ToolboxView = lazy(() => import('../views/ToolboxView'));
+const TopologyView = lazy(() => import('../views/TopologyView'));
 
 function LoadingFallback() {
   return (
@@ -80,6 +81,7 @@ export function domainRoutes() {
       <Route path="views" element={<Lazy><ViewsManagement /></Lazy>} />
       <Route path="agent" element={<Lazy><MissionControlView /></Lazy>} />
       <Route path="toolbox" element={<Lazy><ToolboxView /></Lazy>} />
+      <Route path="topology" element={<Lazy><TopologyView /></Lazy>} />
       <Route path="tools" element={<Navigate to="/toolbox" replace />} />
       <Route path="extensions" element={<Navigate to="/toolbox?tab=skills" replace />} />
     </>

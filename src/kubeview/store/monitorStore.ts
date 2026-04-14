@@ -264,6 +264,17 @@ export const useMonitorStore = create<MonitorState>()(
               break;
             }
 
+            case 'investigation_progress': {
+              set((s) => ({
+                findings: s.findings.map((f) =>
+                  f.id === event.findingId
+                    ? { ...f, investigationPhases: event.phases, planId: event.planId, planName: event.planName }
+                    : f,
+                ),
+              }));
+              break;
+            }
+
             case 'skill_activity': {
               set((s) => ({
                 activeSkill: event.skill_name,

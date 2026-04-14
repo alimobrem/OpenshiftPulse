@@ -330,7 +330,17 @@ function SkillsTab() {
                     <span className="text-[10px] px-1.5 py-0.5 bg-slate-800 rounded text-slate-500 shrink-0">v{Number(skill.version)}</span>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    {!skill.builtin && (
+                    {skill.generated_by === 'auto' && !skill.reviewed && (
+                      <span className="text-[10px] px-1.5 py-0.5 bg-amber-900/40 text-amber-300 rounded border border-amber-700/40">
+                        AI-generated · Needs review
+                      </span>
+                    )}
+                    {skill.generated_by === 'auto' && Boolean(skill.reviewed) && (
+                      <span className="text-[10px] px-1.5 py-0.5 bg-emerald-900/30 text-emerald-400 rounded border border-emerald-800/30">
+                        AI-generated · Reviewed
+                      </span>
+                    )}
+                    {!skill.builtin && !skill.generated_by && (
                       <span className="text-[10px] px-1.5 py-0.5 bg-violet-900/30 text-violet-400 rounded border border-violet-800/30">custom</span>
                     )}
                     {Boolean(skill.write_tools) && (
@@ -380,9 +390,84 @@ function SkillsTab() {
         )}
       </div>
 
+      {/* Investigation Plan Templates */}
+      <PlanTemplatesSection />
+
       {/* Skill detail drawer */}
       {selectedSkill && (
         <SkillDetailDrawer name={selectedSkill} onClose={() => setSelectedSkill(null)} />
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Plan Templates Section                                              */
+/* ------------------------------------------------------------------ */
+
+interface PlanTemplate {
+  id: string;
+  name: string;
+  incident_type: string;
+  phases: number;
+  max_duration: number;
+}
+
+function PlanTemplatesSection() {
+  const [expanded, setExpanded] = useState(false);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['plan-templates'],
+    queryFn: async () => {
+      const res = await fetch('/api/agent/plan-templates');
+      if (!res.ok) return { templates: [] };
+      return res.json() as Promise<{ templates: PlanTemplate[] }>;
+    },
+  });
+
+  const templates = data?.templates ?? [];
+
+  if (isLoading || templates.length === 0) return null;
+
+  return (
+    <div className="bg-slate-900 border border-slate-800 rounded-lg">
+      <button
+        onClick={() => setExpanded((prev) => !prev)}
+        className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-800/30 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Target className="w-4 h-4 text-cyan-400" />
+          <span className="text-sm font-medium text-slate-200">Investigation Plans</span>
+          <span className="text-xs px-1.5 py-0.5 bg-cyan-900/50 text-cyan-300 rounded">{templates.length}</span>
+        </div>
+        <ChevronDown className={cn('w-4 h-4 text-slate-400 transition-transform', expanded && 'rotate-180')} />
+      </button>
+      {expanded && (
+        <div className="border-t border-slate-800 divide-y divide-slate-800/50">
+          <div className="px-4 py-2">
+            <p className="text-[11px] text-slate-500">
+              Pre-defined investigation plans that the agent uses to resolve incidents. Each plan executes phases in order: triage, diagnose, remediate, verify.
+            </p>
+          </div>
+          {templates.map((t) => (
+            <div key={t.id} className="px-4 py-3 flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="text-sm font-medium text-slate-200">{t.name}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 bg-cyan-900/30 text-cyan-400 rounded border border-cyan-800/30">Plan</span>
+                </div>
+                <div className="flex items-center gap-3 text-xs text-slate-500">
+                  <span>{t.phases} phases</span>
+                  <span>Matches: {t.incident_type}</span>
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {Math.round(t.max_duration / 60)}m max
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

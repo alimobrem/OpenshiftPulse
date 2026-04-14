@@ -4,7 +4,7 @@
  * display and correlation.
  */
 
-import type { Finding, ResourceRef } from '../monitorClient';
+import type { Finding, InvestigationPhase, ResourceRef } from '../monitorClient';
 import type { TimelineEntry } from './timeline';
 import type { TrackedError } from '../../store/errorStore';
 import type { ErrorCategory } from '../errors';
@@ -63,6 +63,9 @@ export interface IncidentItem {
   correlationKey: string;
   sourceRef: string;
   clusterId?: string;
+  /** Investigation phases for active plan execution. */
+  investigationPhases?: InvestigationPhase[];
+  planName?: string;
   /** Original object for drill-down / detail views. */
   sourceData?: Record<string, unknown>;
 }
@@ -118,6 +121,8 @@ export function findingToIncident(f: Finding, now = Date.now()): IncidentItem {
       ? `${f.resources[0].kind}/${f.resources[0].name}/${f.resources[0].namespace ?? '_'}`
       : `finding:${f.id}`,
     sourceRef: `finding:${f.id}`,
+    investigationPhases: f.investigationPhases,
+    planName: f.planName,
     sourceData: f as unknown as Record<string, unknown>,
   };
 }

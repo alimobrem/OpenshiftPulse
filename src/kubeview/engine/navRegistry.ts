@@ -23,6 +23,7 @@ export const NAV_ITEMS: NavItem[] = [
 
   // Operations
   { id: 'incidents', label: 'Incident Center', icon: 'Bell', path: '/incidents', group: 'operations', subtitle: 'Real-time incidents, correlation, auto-remediation', color: 'text-red-400' },
+  { id: 'topology', label: 'Impact Analysis', icon: 'Network', path: '/topology', group: 'operations', subtitle: 'Resource dependency graph, blast radius visualization', color: 'text-cyan-400' },
   { id: 'security', label: 'Security', icon: 'ShieldCheck', path: '/security', group: 'operations', subtitle: 'Pod security, RBAC analysis, image scanning', color: 'text-red-400' },
   { id: 'gitops', label: 'GitOps', icon: 'GitBranch', path: '/gitops', group: 'operations', subtitle: 'ArgoCD applications, sync status, rollouts', color: 'text-green-400' },
   { id: 'fleet', label: 'Fleet', icon: 'Layers', path: '/fleet', group: 'operations', subtitle: 'Multi-cluster management, compare, drift detection', color: 'text-indigo-400' },

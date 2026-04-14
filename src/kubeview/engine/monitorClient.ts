@@ -15,6 +15,16 @@ export interface ResourceRef {
   namespace?: string;
 }
 
+export interface InvestigationPhase {
+  id: string;
+  status: 'pending' | 'running' | 'complete' | 'failed' | 'skipped';
+  skill_name: string;
+  summary?: string;
+  confidence?: number;
+  started_at?: number;
+  completed_at?: number;
+}
+
 export interface Finding {
   id: string;
   severity: 'critical' | 'warning' | 'info';
@@ -27,6 +37,9 @@ export interface Finding {
   confidence?: number;
   noiseScore?: number;
   timestamp: number;
+  investigationPhases?: InvestigationPhase[];
+  planId?: string;
+  planName?: string;
 }
 
 export interface ActionReport {
@@ -126,6 +139,7 @@ export type MonitorEvent =
   | ({ type: 'monitor_status' } & MonitorStatus)
   | { type: 'findings_snapshot'; activeIds: string[]; timestamp: number }
   | { type: 'skill_activity'; skill_name: string; status: string; timestamp: number; handoff_from?: string; handoff_to?: string }
+  | { type: 'investigation_progress'; findingId: string; phases: InvestigationPhase[]; planId?: string; planName?: string; timestamp: number }
   | { type: 'connected' }
   | { type: 'disconnected' }
   | { type: 'error'; message: string };
