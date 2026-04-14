@@ -15,6 +15,7 @@ import {
   fetchIntelligenceSections, fetchPromptStats,
   fetchTopologySummary, fetchPlanTemplates, fetchPostmortemCount,
   fetchFixHistorySummary, fetchSLOStatus,
+  fetchFixStrategies, fetchLearningFeed,
 } from '../engine/analyticsApi';
 import type { ToolInfo, ToolUsageEntry } from '../store/toolUsageStore';
 
@@ -2202,7 +2203,19 @@ function OrcaAnalyticsSection() {
     staleTime: 60_000,
   });
 
-  const hasData = topology || (templates && templates.length > 0) || (postmortemCount && postmortemCount > 0) || fixSummary;
+  const { data: strategies } = useQuery({
+    queryKey: ['analytics', 'fix-strategies'],
+    queryFn: () => fetchFixStrategies(30).catch(() => ({ strategies: [], days: 30 })),
+    staleTime: 60_000,
+  });
+
+  const { data: learning } = useQuery({
+    queryKey: ['analytics', 'learning-feed'],
+    queryFn: () => fetchLearningFeed(7).catch(() => ({ events: [], days: 7 })),
+    staleTime: 60_000,
+  });
+
+  const hasData = topology || (templates && templates.length > 0) || (postmortemCount && postmortemCount > 0) || fixSummary || sloData?.slos?.length;
   if (!hasData) return null;
 
   return (
@@ -2244,6 +2257,40 @@ function OrcaAnalyticsSection() {
           icon={<FileText className="w-4 h-4 text-teal-400" />}
         />
       </div>
+
+      {/* Routing Channels (#1) */}
+      {learning && learning.events.some(e => e.type === 'weight_update' || e.type === 'selection_summary') && (
+        <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+          <h3 className="text-xs font-medium text-slate-300 mb-1">Skill Routing Channels</h3>
+          <p className="text-[11px] text-slate-500 mb-3">How queries are routed — each channel scores independently, then scores are fused with learned weights.</p>
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center">
+            {[
+              { name: 'Keyword', weight: 0.30, color: 'bg-blue-500' },
+              { name: 'Component', weight: 0.20, color: 'bg-emerald-500' },
+              { name: 'Historical', weight: 0.20, color: 'bg-violet-500' },
+              { name: 'Semantic', weight: 0.15, color: 'bg-cyan-500' },
+              { name: 'Taxonomy', weight: 0.10, color: 'bg-amber-500' },
+              { name: 'Temporal', weight: 0.05, color: 'bg-slate-500' },
+            ].map((ch) => (
+              <div key={ch.name}>
+                <div className="text-[10px] text-slate-500 mb-1">{ch.name}</div>
+                <div className="h-12 bg-slate-800 rounded relative overflow-hidden">
+                  <div
+                    className={cn('absolute bottom-0 left-0 right-0 rounded-b', ch.color + '/50')}
+                    style={{ height: `${ch.weight * 100 * 2}%` }}
+                  />
+                </div>
+                <div className="text-[10px] text-slate-400 mt-1">{Math.round(ch.weight * 100)}%</div>
+              </div>
+            ))}
+          </div>
+          {learning.events.find(e => e.type === 'selection_summary') && (
+            <div className="mt-2 text-[11px] text-slate-400">
+              {learning.events.find(e => e.type === 'selection_summary')?.description}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Fix Outcomes */}
       {fixSummary && fixSummary.total_actions > 0 && (
@@ -2346,6 +2393,52 @@ function OrcaAnalyticsSection() {
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Fix Strategy Effectiveness (#4) */}
+      {strategies && strategies.strategies.length > 0 && (
+        <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+          <h3 className="text-xs font-medium text-slate-300 mb-1">Fix Strategy Effectiveness</h3>
+          <p className="text-[11px] text-slate-500 mb-3">Which remediation strategies work for which incident types (last 30 days).</p>
+          <div className="space-y-2">
+            {strategies.strategies.slice(0, 8).map((s) => (
+              <div key={`${s.category}:${s.tool}`} className="flex items-center gap-3 text-xs">
+                <span className="w-20 text-slate-400 truncate">{s.category}</span>
+                <span className="w-32 font-mono text-slate-300 truncate">{s.tool}</span>
+                <div className="flex-1 h-3 bg-slate-800 rounded-sm overflow-hidden">
+                  <div
+                    className={cn('h-full rounded-sm', s.success_rate >= 0.7 ? 'bg-emerald-600/60' : s.success_rate >= 0.4 ? 'bg-amber-600/60' : 'bg-red-600/60')}
+                    style={{ width: `${s.success_rate * 100}%` }}
+                  />
+                </div>
+                <span className="w-12 text-right text-slate-400">{Math.round(s.success_rate * 100)}%</span>
+                <span className="w-8 text-right text-slate-500">{s.total}x</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Agent Learning Feed (#5) */}
+      {learning && learning.events.length > 0 && (
+        <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+          <h3 className="text-xs font-medium text-slate-300 mb-1">Agent Learning</h3>
+          <p className="text-[11px] text-slate-500 mb-3">What the agent learned this week — weight updates, scaffolded skills, selection patterns.</p>
+          <div className="space-y-2">
+            {learning.events.map((evt, i) => (
+              <div key={i} className="flex items-start gap-2 text-xs">
+                <span className={cn(
+                  'shrink-0 mt-0.5 w-2 h-2 rounded-full',
+                  evt.type === 'weight_update' ? 'bg-violet-400' :
+                  evt.type === 'skill_scaffolded' ? 'bg-amber-400' :
+                  evt.type === 'postmortems_generated' ? 'bg-teal-400' :
+                  'bg-blue-400',
+                )} />
+                <span className="text-slate-300">{evt.description}</span>
+              </div>
+            ))}
           </div>
         </div>
       )}

@@ -384,6 +384,11 @@ function IncidentCard({
             <span className="text-xs px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded">
               {incident.category}
             </span>
+            {incident.category === 'change_risk' && (
+              <span className="text-xs px-1.5 py-0.5 bg-orange-900/50 text-orange-300 rounded border border-orange-700/40">
+                Deploy Risk
+              </span>
+            )}
           </div>
           <p className="text-xs text-slate-400 mb-2">{incident.detail}</p>
           {incident.resources.length > 0 && (

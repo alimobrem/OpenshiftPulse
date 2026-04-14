@@ -227,3 +227,27 @@ export interface SLOStatus {
 
 export const fetchSLOStatus = () =>
   get<{ slos: SLOStatus[]; total: number }>(`${AGENT_BASE}/slo`);
+
+export interface FixStrategy {
+  category: string;
+  tool: string;
+  total: number;
+  success: number;
+  verified: number;
+  failed: number;
+  success_rate: number;
+  verification_rate: number;
+}
+
+export interface LearningEvent {
+  type: string;
+  description: string;
+  data?: unknown;
+  timestamp?: number;
+}
+
+export const fetchFixStrategies = (days = 30) =>
+  get<{ strategies: FixStrategy[]; days: number }>(`${AGENT_BASE}/analytics/fix-strategies?days=${days}`);
+
+export const fetchLearningFeed = (days = 7) =>
+  get<{ events: LearningEvent[]; days: number }>(`${AGENT_BASE}/analytics/learning?days=${days}`);
