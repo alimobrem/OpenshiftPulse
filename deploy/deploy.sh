@@ -430,12 +430,19 @@ fi
 oc label namespace "$NAMESPACE" app.kubernetes.io/managed-by=Helm --overwrite 2>/dev/null || true
 oc annotate namespace "$NAMESPACE" meta.helm.sh/release-name="$RELEASE" meta.helm.sh/release-namespace="$NAMESPACE" --overwrite 2>/dev/null || true
 
-# Record current revision for rollback
-PREV_REVISION=$(helm history "$RELEASE" -n "$NAMESPACE" --max 1 -o json 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['revision'])" 2>/dev/null || echo "")
-[[ -n "$PREV_REVISION" ]] && info "Current revision: $PREV_REVISION (rollback target if deploy fails)"
+# Record current revision for rollback (safe on fresh clusters where no history exists)
+PREV_REVISION=""
+if helm status "$RELEASE" -n "$NAMESPACE" &>/dev/null; then
+  PREV_REVISION=$(helm history "$RELEASE" -n "$NAMESPACE" --max 1 -o json 2>/dev/null \
+    | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0]['revision'] if d else '')" 2>/dev/null) || true
+  [[ -n "$PREV_REVISION" ]] && info "Current revision: $PREV_REVISION (rollback target if deploy fails)"
+fi
 
-# Build Helm dependencies
-helm dependency build deploy/helm/pulse/ 2>/dev/null
+# Build Helm dependencies (required on fresh clones where tgz archives are missing)
+if ! helm dependency build deploy/helm/pulse/ 2>/dev/null; then
+  warn "helm dependency build failed — retrying with update"
+  helm dependency update deploy/helm/pulse/ 2>/dev/null || true
+fi
 
 # Generate values file (keeps secrets out of process listings)
 AI_BACKEND="none"
@@ -487,6 +494,15 @@ chmod 600 "$VALUES_FILE"
 
 # Rebuild chart dependencies to pick up subchart version changes
 helm dependency update deploy/helm/pulse/ >/dev/null 2>&1 || true
+
+# Recover from stuck helm state (pending-install/pending-upgrade from interrupted deploys)
+HELM_STATUS=$(helm status "$RELEASE" -n "$NAMESPACE" -o json 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin).get('info',{}).get('status',''))" 2>/dev/null) || true
+if [[ "$HELM_STATUS" == pending-* ]]; then
+  warn "Helm release stuck in '$HELM_STATUS' — cleaning up for fresh install"
+  helm uninstall "$RELEASE" -n "$NAMESPACE" --no-hooks 2>/dev/null || true
+  # Force-delete the release secret if uninstall fails
+  oc delete secret -l owner=helm,name="$RELEASE" -n "$NAMESPACE" 2>/dev/null || true
+fi
 
 # Delete MCP deployment before upgrade to avoid field manager conflicts.
 # The toolset toggle API patches .args at runtime, which creates field ownership
