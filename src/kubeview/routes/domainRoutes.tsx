@@ -20,7 +20,7 @@ const IncidentCenterView = lazy(() => import('../views/IncidentCenterView'));
 const OnboardingView = lazy(() => import('../views/OnboardingView'));
 const MissionControlView = lazy(() => import('../views/MissionControlView'));
 const ViewsManagement = lazy(() => import('../views/ViewsManagement'));
-const ToolsView = lazy(() => import('../views/ToolsView'));
+// ToolsView deleted — /tools redirects to /toolbox
 const AdminExtensionsView = lazy(() => import('../views/AdminExtensionsView'));
 const ToolboxView = lazy(() => import('../views/ToolboxView'));
 const TopologyView = lazy(() => import('../views/TopologyView'));
