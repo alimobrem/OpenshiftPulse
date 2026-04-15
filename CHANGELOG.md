@@ -1,5 +1,26 @@
 # Changelog
 
+## [6.2.0] - 2026-04-14
+
+ORCA UI Surfaces release matching Agent v2.3.0.
+
+### Added
+- **Postmortems tab** in Incident Center — auto-generated postmortem reports with timeline, root cause, blast radius, and prevention recommendations
+- **Impact Analysis** (`/topology`) — dependency graph visualization with blast radius overlays and change risk scores
+- **Plans tab** in Toolbox Skills — view, edit, and delete investigation plan templates
+- **SLOs tab** in Toolbox — CRUD for SLO definitions with live Prometheus burn-rate queries
+- **Agent Intelligence section** in Analytics — unified view with routing decisions, fix strategies, and learning feed
+- **Investigation progress** — real-time phase updates during multi-phase investigations
+- **Deploy risk badges** — findings display change risk scores from recent deployments
+- **Skill badges** — tools in the catalog show which skill(s) they belong to
+
+### Stats
+- **1,934 tests** across 163 test files, **53 E2E scenarios**
+- **122 tools** (86 native + 36 MCP), **7 skills**, **18 scanners**
+- **0 npm CVEs**, all Red Hat UBI images
+
+---
+
 ## [6.0.0] - 2026-04-10
 
 Major release matching Agent v2.0.0.
