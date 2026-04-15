@@ -18,104 +18,9 @@ import 'react-resizable/css/styles.css';
 
 const ResponsiveGrid = WidthProvider(Responsive);
 
-import { applyTemplate } from '../engine/layoutTemplates';
-
-/** Generate a sensible default layout based on component kinds.
- *  If the view has a templateId, use template positions.
- *  Otherwise, stack full-width vertically.
- */
-/** Compute ideal width for a component spec (4-column grid) */
-function idealWidth(spec: ComponentSpec): number {
-  if (spec.kind === 'stat_card' || spec.kind === 'metric_card') return 1;
-  if (spec.kind === 'chart' || spec.kind === 'log_viewer') return 2;
-  if (spec.kind === 'key_value' || spec.kind === 'yaml_viewer' || spec.kind === 'relationship_tree') return 2;
-  if (spec.kind === 'bar_list' || spec.kind === 'progress_list') return 2;
-  if (spec.kind === 'timeline') return 4;
-  return 4; // data_table, grid, status_list, tabs, section — full width
-}
-
-/** Compute ideal height for a component spec (rowHeight=30 units) */
-export function idealHeight(spec: ComponentSpec): number {
-  const rows = spec.kind === 'data_table' ? (spec as any).rows?.length || 5 : 0;
-  if (spec.kind === 'grid') {
-    const items: any[] = (spec as any).items || [];
-    const cols = (spec as any).columns || 2;
-    // Calculate height per visual row based on item kinds
-    let totalH = 1; // title/padding
-    const fullSpanKinds = new Set(['resource_counts', 'data_table', 'status_list']);
-    const fullSpan = items.filter(i => fullSpanKinds.has(i.kind));
-    const cards = items.filter(i => !fullSpanKinds.has(i.kind));
-    // Full-span items get their own row
-    for (const item of fullSpan) {
-      totalH += item.kind === 'resource_counts' ? 2 : 3;
-    }
-    // Card items pack into columns
-    const cardRows = Math.ceil(cards.length / cols);
-    totalH += cardRows * 3;
-    return totalH;
-  }
-  if (spec.kind === 'section') {
-    // Sum child component heights + 2 for section header/padding
-    const children: any[] = (spec as any).components || [];
-    const childH = children.reduce((sum: number, child: ComponentSpec) => sum + idealHeight(child), 0);
-    return Math.max(childH + 2, 5);
-  }
-
-  return (
-    spec.kind === 'metric_card' ? 3 :
-    spec.kind === 'status_list' ? Math.min(2 + Math.ceil(((spec as any).items?.length || 3) * 0.8), 8) :
-    spec.kind === 'badge_list' ? 2 :
-    spec.kind === 'key_value' ? Math.min(3 + ((spec as any).pairs?.length || 2), 8) :
-    spec.kind === 'chart' ? 10 :
-    spec.kind === 'data_table' ? Math.min(3 + rows, 14) :
-    spec.kind === 'log_viewer' ? 10 :
-    spec.kind === 'yaml_viewer' ? 8 :
-    spec.kind === 'tabs' ? 14 :
-    spec.kind === 'bar_list' ? 6 :
-    spec.kind === 'progress_list' ? 6 :
-    spec.kind === 'stat_card' ? 3 :
-    spec.kind === 'timeline' ? 8 :
-    5
-  );
-}
-
-function generateDefaultLayout(specs: ComponentSpec[], templateId?: string): ReactGridLayout.Layout[] {
-  if (templateId) {
-    const result = applyTemplate(templateId, specs);
-    if (result) {
-      return Object.entries(result.positions).map(([idx, pos]) => ({
-        i: idx,
-        ...pos,
-        minW: 1,
-        minH: 2,
-      }));
-    }
-  }
-
-  // Pack widgets into a 4-column grid, placing small ones side by side
-  let x = 0;
-  let y = 0;
-  let rowH = 0;
-  return specs.map((spec, i) => {
-    const w = idealWidth(spec);
-    const h = idealHeight(spec);
-    if (x + w > 4) {
-      // Wrap to next row
-      x = 0;
-      y += rowH;
-      rowH = 0;
-    }
-    const layout = { i: String(i), x, y, w, h, minW: 1, minH: 2 };
-    x += w;
-    rowH = Math.max(rowH, h);
-    if (x >= 4) {
-      x = 0;
-      y += rowH;
-      rowH = 0;
-    }
-    return layout;
-  });
-}
+/* Layout is backend-authoritative. The engine computes positions
+   via compute_layout() and the frontend renders them verbatim.
+   No idealWidth/idealHeight/generateDefaultLayout/applyTemplate. */
 
 /** Convert react-grid-layout Layout[] to our positions map */
 function layoutToPositions(layout: ReactGridLayout.Layout[]): Record<number, { x: number; y: number; w: number; h: number }> {
@@ -127,15 +32,24 @@ function layoutToPositions(layout: ReactGridLayout.Layout[]): Record<number, { x
 }
 
 /** Convert positions map to react-grid-layout Layout[].
- *  Uses saved height if available (user may have resized), otherwise computes from content. */
+ *  Backend computes all positions — frontend just renders them.
+ *  Missing positions get a safe full-width default appended below existing widgets. */
 export function positionsToLayout(positions: Record<string | number, { x: number; y: number; w: number; h: number }>, specs: ComponentSpec[]): ReactGridLayout.Layout[] {
+  // Compute max_y from existing positions for appending missing widgets
+  let maxY = 0;
+  for (const pos of Object.values(positions)) {
+    if (pos && pos.y + pos.h > maxY) maxY = pos.y + pos.h;
+  }
+
   return Array.from({ length: specs.length }, (_, i) => {
     const pos = positions[i] || positions[String(i)];
-    const defaultH = idealHeight(specs[i]);
     if (pos) {
-      return { i: String(i), x: pos.x, y: pos.y, w: pos.w, h: pos.h || defaultH, minW: 1, minH: 2 };
+      return { i: String(i), x: pos.x, y: pos.y, w: pos.w, h: pos.h || 8, minW: 1, minH: 2 };
     }
-    return { i: String(i), x: 0, y: i * 5, w: idealWidth(specs[i]), h: defaultH, minW: 1, minH: 2 };
+    // Missing position — append below existing widgets
+    const fallbackY = maxY > 0 ? maxY : i * 8;
+    maxY = fallbackY + 8;
+    return { i: String(i), x: 0, y: fallbackY, w: 4, h: 8, minW: 1, minH: 2 };
   });
 }
 
@@ -230,10 +144,8 @@ export default function CustomView() {
 
   const currentLayout = useMemo(() => {
     if (!view) return [];
-    if (view.positions && Object.keys(view.positions).length > 0) {
-      return positionsToLayout(view.positions, view.layout);
-    }
-    return generateDefaultLayout(view.layout, view.templateId);
+    // Backend-authoritative: positions come from compute_layout()
+    return positionsToLayout(view.positions || {}, view.layout);
   }, [view]);
 
   const handleLayoutChange = useCallback(
