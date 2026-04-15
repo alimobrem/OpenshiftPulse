@@ -365,7 +365,7 @@ pnpm install         # Install dependencies
 cp .env.example .env # Configure cluster URLs (optional)
 oc proxy --port=8001 & # Start API proxy
 pnpm dev             # Dev server on port 9000
-pnpm test            # Run test suite (1908 tests)
+pnpm test            # Run test suite
 pnpm build           # Production build (~1s)
 pnpm type-check      # TypeScript checking
 pnpm verify          # Full check: types + lint + test + build
