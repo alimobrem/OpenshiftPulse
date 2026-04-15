@@ -10,6 +10,7 @@ import {
   Cable, Trash2, Copy, Hash, TrendingUp, Target, LayoutDashboard, Plus, Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useShallow } from 'zustand/react/shallow';
 import { useToolUsageStore } from '../store/toolUsageStore';
 import {
   fetchIntelligenceSections, fetchPromptStats,
@@ -188,7 +189,9 @@ interface McpToolInfo extends ToolInfo {
 }
 
 function CatalogTab() {
-  const { tools, toolsLoading, loadTools } = useToolUsageStore();
+  const { tools, toolsLoading, loadTools } = useToolUsageStore(useShallow((s) => ({
+    tools: s.tools, toolsLoading: s.toolsLoading, loadTools: s.loadTools,
+  })));
   const [search, setSearch] = useState('');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
 
@@ -1910,7 +1913,9 @@ function ComponentsTab() {
 /* ------------------------------------------------------------------ */
 
 function UsageTab() {
-  const { usage, usageLoading, filters, loadUsage } = useToolUsageStore();
+  const { usage, usageLoading, filters, loadUsage } = useToolUsageStore(useShallow((s) => ({
+    usage: s.usage, usageLoading: s.usageLoading, filters: s.filters, loadUsage: s.loadUsage,
+  })));
   const [toolFilter, setToolFilter] = useState(filters.tool_name || '');
   const [modeFilter, setModeFilter] = useState(filters.agent_mode || '');
   const [statusFilter, setStatusFilter] = useState(filters.status || '');
@@ -2089,7 +2094,11 @@ function UsageRow({ entry: e }: { entry: ToolUsageEntry }) {
 /* ------------------------------------------------------------------ */
 
 function AnalyticsTab() {
-  const { stats, statsLoading, loadStats, chains, chainsLoading, loadChains, tools, loadTools } = useToolUsageStore();
+  const { stats, statsLoading, loadStats, chains, chainsLoading, loadChains, tools, loadTools } = useToolUsageStore(useShallow((s) => ({
+    stats: s.stats, statsLoading: s.statsLoading, loadStats: s.loadStats,
+    chains: s.chains, chainsLoading: s.chainsLoading, loadChains: s.loadChains,
+    tools: s.tools, loadTools: s.loadTools,
+  })));
 
   const { data: intelligence } = useQuery({
     queryKey: ['analytics', 'intelligence'],

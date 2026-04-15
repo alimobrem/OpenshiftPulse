@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Search, Globe, Sparkles } from 'lucide-react';
+import { useShallow } from 'zustand/react/shallow';
 import { useUIStore } from '../store/uiStore';
 import { useAgentStore } from '../store/agentStore';
 import { getFavorites } from '../engine/favorites';
@@ -66,9 +67,11 @@ function saveRecent(item: CommandItem) {
 export function CommandPalette() {
   const navigate = useNavigate();
   const location = useLocation();
-  const closeCommandPalette = useUIStore((s) => s.closeCommandPalette);
-  const openDock = useUIStore((s) => s.openDock);
-  const addTab = useUIStore((s) => s.addTab);
+  const { closeCommandPalette, openDock, addTab } = useUIStore(useShallow((s) => ({
+    closeCommandPalette: s.closeCommandPalette,
+    openDock: s.openDock,
+    addTab: s.addTab,
+  })));
   const resourceRegistry = useClusterStore((s) => s.resourceRegistry);
   const connectAndSend = useAgentStore((s) => s.connectAndSend);
 

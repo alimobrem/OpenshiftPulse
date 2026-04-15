@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AlertTriangle, Bot, Bell, GitPullRequest } from 'lucide-react';
+import { useShallow } from 'zustand/react/shallow';
 import { DEGRADED_MESSAGES } from '../engine/degradedMode';
 import { useUIStore } from '../store/uiStore';
 import { useFleetStore } from '../store/fleetStore';
@@ -12,21 +13,28 @@ import { getNavByPath } from '../engine/navRegistry';
 
 
 export function StatusBar() {
-  const connectionStatus = useUIStore((s) => s.connectionStatus);
-  const lastSyncTime = useUIStore((s) => s.lastSyncTime);
-  const selectedNamespace = useUIStore((s) => s.selectedNamespace);
-  const activeOperation = useUIStore((s) => s.activeOperation);
-  const tabs = useUIStore((s) => s.tabs);
-  const dockPanel = useUIStore((s) => s.dockPanel);
-  const openDock = useUIStore((s) => s.openDock);
-  const closeDock = useUIStore((s) => s.closeDock);
+  const {
+    connectionStatus, lastSyncTime, selectedNamespace, activeOperation,
+    tabs, dockPanel, openDock, closeDock, degradedReasons,
+  } = useUIStore(useShallow((s) => ({
+    connectionStatus: s.connectionStatus,
+    lastSyncTime: s.lastSyncTime,
+    selectedNamespace: s.selectedNamespace,
+    activeOperation: s.activeOperation,
+    tabs: s.tabs,
+    dockPanel: s.dockPanel,
+    openDock: s.openDock,
+    closeDock: s.closeDock,
+    degradedReasons: s.degradedReasons,
+  })));
   const location = useLocation();
   const activeCluster = useFleetStore((s) => s.clusters.find(c => c.id === s.activeClusterId));
 
-  const degradedReasons = useUIStore((s) => s.degradedReasons);
   const navigate = useNavigate();
-  const findingsCount = useMonitorStore((s) => s.findings.length);
-  const pendingReviewCount = useMonitorStore((s) => s.pendingActions.length);
+  const { findingsCount, pendingReviewCount } = useMonitorStore(useShallow((s) => ({
+    findingsCount: s.findings.length,
+    pendingReviewCount: s.pendingActions.length,
+  })));
 
   const [relativeTime, setRelativeTime] = useState(formatRelativeTime(lastSyncTime));
 

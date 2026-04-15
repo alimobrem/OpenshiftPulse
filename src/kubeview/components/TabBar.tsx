@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { X, Plus, Pin, PinOff } from 'lucide-react';
+import { useShallow } from 'zustand/react/shallow';
 import { useUIStore } from '../store/uiStore';
 import { useCustomViewStore } from '../store/customViewStore';
 import { cn } from '@/lib/utils';
@@ -69,16 +70,22 @@ export function TabBar() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const tabs = useUIStore((s) => s.tabs);
-  const activeTabId = useUIStore((s) => s.activeTabId);
-  const setActiveTab = useUIStore((s) => s.setActiveTab);
-  const closeTab = useUIStore((s) => s.closeTab);
-  const reorderTabs = useUIStore((s) => s.reorderTabs);
-  const pinTab = useUIStore((s) => s.pinTab);
-  const unpinTab = useUIStore((s) => s.unpinTab);
-  const openCommandPalette = useUIStore((s) => s.openCommandPalette);
-  const addTab = useUIStore((s) => s.addTab);
-  const pendingNavigate = useUIStore((s) => s._pendingNavigate);
+  const {
+    tabs, activeTabId, setActiveTab, closeTab, reorderTabs,
+    pinTab, unpinTab, openCommandPalette, addTab,
+    _pendingNavigate: pendingNavigate,
+  } = useUIStore(useShallow((s) => ({
+    tabs: s.tabs,
+    activeTabId: s.activeTabId,
+    setActiveTab: s.setActiveTab,
+    closeTab: s.closeTab,
+    reorderTabs: s.reorderTabs,
+    pinTab: s.pinTab,
+    unpinTab: s.unpinTab,
+    openCommandPalette: s.openCommandPalette,
+    addTab: s.addTab,
+    _pendingNavigate: s._pendingNavigate,
+  })));
 
   // Handle navigation after tab close (via React Router, not full reload)
   // Clear _pendingNavigate only after the route has actually changed,
