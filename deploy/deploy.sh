@@ -567,17 +567,13 @@ if [[ "$HEALTHY" == "true" ]]; then
     if [[ "$TOKEN_CHECK" != "0" ]]; then
       error "WS TOKEN NOT INJECTED — nginx config still has __AGENT_TOKEN__ placeholder"
       error "WebSocket connections will fail. Fix: check secret '$WS_SECRET' exists and is mounted"
-      # Attempt auto-fix: read token from secret and patch configmap
-      ACTUAL_TOKEN=$(oc get secret "$WS_SECRET" -n "$NAMESPACE" -o jsonpath='{.data.token}' 2>/dev/null | base64 --decode 2>/dev/null || echo "")
-      if [[ -n "$ACTUAL_TOKEN" ]]; then
-        warn "Attempting token injection fix..."
-        oc get configmap openshiftpulse-nginx -n "$NAMESPACE" -o json 2>/dev/null | \
-          python3 -c "import sys,json; d=json.load(sys.stdin); d['data']['nginx.conf']=d['data']['nginx.conf'].replace('__AGENT_TOKEN__','$ACTUAL_TOKEN'); json.dump(d,sys.stdout)" | \
-          oc replace -f - 2>/dev/null && \
-          oc rollout restart deployment/openshiftpulse -n "$NAMESPACE" 2>/dev/null && \
-          info "Token injected via configmap patch — pods restarting" && \
-          wait_for_rollout "openshiftpulse" "$NAMESPACE" 60
-      fi
+      # Auto-fix: delete the configmap and rollout restart so the pod re-reads
+      # the token from the mounted secret on next startup.
+      # NOTE: do NOT use oc replace/patch — it creates field manager conflicts with Helm.
+      warn "Attempting token injection fix — restarting UI pods..."
+      oc rollout restart deployment/openshiftpulse -n "$NAMESPACE" 2>/dev/null && \
+        info "UI pods restarting — token will be read from secret mount" && \
+        wait_for_rollout "openshiftpulse" "$NAMESPACE" 60
     else
       info "WS token injection verified"
     fi
