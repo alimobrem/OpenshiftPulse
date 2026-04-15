@@ -1929,15 +1929,19 @@ function UsageTab() {
           className="px-2 py-1.5 text-xs bg-slate-900 border border-slate-700 rounded-md text-slate-200 placeholder:text-slate-500 w-36 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
         <select
-          aria-label="Filter by agent mode"
+          aria-label="Filter by skill"
           value={modeFilter}
           onChange={(e) => { setModeFilter(e.target.value); loadUsage({ agent_mode: e.target.value || undefined, page: 1 }); }}
           className="px-2 py-1.5 text-xs bg-slate-900 border border-slate-700 rounded-md text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
         >
-          <option value="">All modes</option>
+          <option value="">All skills</option>
           <option value="sre">SRE</option>
           <option value="security">Security</option>
           <option value="view_designer">View Designer</option>
+          <option value="plan_builder">Plan Builder</option>
+          <option value="capacity_planner">Capacity Planner</option>
+          <option value="postmortem">Postmortem</option>
+          <option value="slo_management">SLO Management</option>
         </select>
         <select
           aria-label="Filter by status"
@@ -1964,7 +1968,7 @@ function UsageTab() {
                 <th scope="col" className="text-left py-2 px-3 text-slate-400 font-medium">Time</th>
                 <th scope="col" className="text-left py-2 px-3 text-slate-400 font-medium">Tool</th>
                 <th scope="col" className="text-left py-2 px-3 text-slate-400 font-medium">Source</th>
-                <th scope="col" className="text-left py-2 px-3 text-slate-400 font-medium">Mode</th>
+                <th scope="col" className="text-left py-2 px-3 text-slate-400 font-medium">Skill</th>
                 <th scope="col" className="text-left py-2 px-3 text-slate-400 font-medium">Status</th>
                 <th scope="col" className="text-right py-2 px-3 text-slate-400 font-medium">Duration</th>
                 <th scope="col" className="text-right py-2 px-3 text-slate-400 font-medium">Size</th>
@@ -2034,7 +2038,21 @@ function UsageRow({ entry: e }: { entry: ToolUsageEntry }) {
         <td className="py-1.5 px-3 text-slate-400">{time}</td>
         <td className="py-1.5 px-3 font-mono text-slate-200">{e.tool_name}</td>
         <td className="py-1.5 px-3"><SourceBadge source={e.tool_source} /></td>
-        <td className="py-1.5 px-3 text-slate-400 capitalize">{e.agent_mode}</td>
+        <td className="py-1.5 px-3">
+          <span className={cn(
+            'text-[10px] px-1.5 py-0.5 rounded',
+            e.agent_mode === 'sre' ? 'bg-violet-900/30 text-violet-400' :
+            e.agent_mode === 'security' ? 'bg-red-900/30 text-red-400' :
+            e.agent_mode === 'view_designer' ? 'bg-emerald-900/30 text-emerald-400' :
+            e.agent_mode === 'plan_builder' ? 'bg-cyan-900/30 text-cyan-400' :
+            e.agent_mode === 'capacity_planner' ? 'bg-blue-900/30 text-blue-400' :
+            e.agent_mode === 'postmortem' ? 'bg-teal-900/30 text-teal-400' :
+            e.agent_mode === 'slo_management' ? 'bg-amber-900/30 text-amber-400' :
+            'bg-slate-800 text-slate-400',
+          )}>
+            {e.agent_mode}
+          </span>
+        </td>
         <td className="py-1.5 px-3">
           {e.status === 'success' ? (
             <span className="text-emerald-400 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> ok</span>
