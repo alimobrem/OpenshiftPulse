@@ -62,11 +62,37 @@ export function Shell() {
     })));
   return (
     <div className="flex h-screen flex-col bg-slate-900 text-slate-100">
-      {/* Session expired banner */}
+      {/* Session expired modal — blocks interaction until user re-authenticates */}
       {sessionExpired && (
-        <div className="flex items-center justify-between px-4 py-2 bg-red-900/60 border-b border-red-700 text-xs">
-          <span className="text-red-200">Your session has expired. API requests are failing with 401 Unauthorized.</span>
-          <button onClick={() => window.location.reload()} className="px-3 py-1 text-white bg-red-700 hover:bg-red-600 rounded font-medium transition-colors">Re-authenticate</button>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-red-700 rounded-xl shadow-2xl max-w-md w-full mx-4 p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-900/50 flex items-center justify-center">
+                <svg className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m0 0v2m0-2h2m-2 0H10m11-5a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-white">Session Expired</h2>
+                <p className="text-sm text-slate-400">Your OAuth token has expired</p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-300 leading-relaxed">
+              API requests are returning 401 Unauthorized. You need to re-authenticate to continue using Pulse. Your dashboards and settings are preserved.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => window.location.href = '/'}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors"
+              >
+                Re-authenticate
+              </button>
+              <button
+                onClick={() => useUIStore.getState().removeDegradedReason('session_expired')}
+                className="px-4 py-2.5 text-sm text-slate-400 hover:text-slate-200 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
         </div>
       )}
       {/* Impersonation banner */}
