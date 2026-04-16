@@ -1,0 +1,365 @@
+/**
+ * useMultiSourceTable — Orchestrates K8s watches + PromQL/log enrichment
+ * for multi-datasource live tables.
+ *
+ * K8s datasources use useK8sListWatch (real-time via WebSocket watch).
+ * PromQL datasources use queryInstant (polled via TanStack Query).
+ * Log datasources poll /api/agent/log-counts (polled via TanStack Query).
+ *
+ * Results are merged: K8s rows are the base, enrichment datasources
+ * add columns by joining on a key (e.g., Prometheus "pod" label → row "name").
+ */
+
+import { useCallback, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import type { K8sResource, ColumnDef } from '../engine/renderers';
+import type { TableDatasource, K8sDatasource, PromQLDatasource, LogDatasource } from '../engine/agentComponents';
+import { useK8sListWatch } from './useK8sListWatch';
+import { buildApiPath } from './useResourceUrl';
+import { queryInstant } from '../components/metrics/prometheus';
+import { getColumnsForResource } from '../engine/enhancers';
+import { getImpersonationHeaders } from '../engine/query';
+import { kindToPlural } from '../engine/renderers';
+
+const DEFAULT_ENRICHMENT_INTERVAL_MS = 30_000;
+
+interface SourceInfo {
+  id: string;
+  label: string;
+  count: number;
+  error?: string;
+}
+
+export interface UseMultiSourceTableResult {
+  /** Merged K8s resources, enriched with metric + log columns */
+  resources: K8sResource[];
+  /** Union of all columns (enhancer + enrichment) */
+  columns: ColumnDef[];
+  /** Whether any data is still loading */
+  isLoading: boolean;
+  /** Whether K8s watches are connected */
+  isLive: boolean;
+  /** Whether auto-refresh is paused */
+  isPaused: boolean;
+  /** Toggle pause/resume */
+  togglePause: () => void;
+  /** Source metadata for the footer */
+  sources: SourceInfo[];
+  /** Time since last enrichment poll (ms), null if no enrichment */
+  enrichmentAge: number | null;
+}
+
+/** Convert a K8sDatasource to a GVR key like "v1/pods" or "apps/v1/deployments" */
+function datasourceToGvrKey(ds: K8sDatasource): string {
+  const group = ds.group || '';
+  const version = ds.version || 'v1';
+  return group ? `${group}/${version}/${ds.resource}` : `${version}/${ds.resource}`;
+}
+
+/** Convert a K8sDatasource to an apiPath for useK8sListWatch */
+function datasourceToApiPath(ds: K8sDatasource): string {
+  const gvrKey = datasourceToGvrKey(ds);
+  return buildApiPath(gvrKey, ds.namespace);
+}
+
+/**
+ * Hook wrapper that conditionally calls useK8sListWatch.
+ * React hooks must be called unconditionally, so each datasource
+ * slot calls this — disabled slots return empty arrays.
+ */
+function useConditionalWatch(
+  ds: K8sDatasource | null,
+  enabled: boolean,
+) {
+  const apiPath = ds ? datasourceToApiPath(ds) : '';
+  const namespace = ds?.namespace || '';
+
+  // Build query params for selectors
+  let effectivePath = apiPath;
+  if (ds && (ds.labelSelector || ds.fieldSelector)) {
+    const params = new URLSearchParams();
+    if (ds.labelSelector) params.set('labelSelector', ds.labelSelector);
+    if (ds.fieldSelector) params.set('fieldSelector', ds.fieldSelector);
+    effectivePath = `${apiPath}?${params}`;
+  }
+
+  return useK8sListWatch({
+    apiPath: effectivePath,
+    namespace: namespace === '' ? undefined : namespace,
+    enabled: enabled && !!apiPath,
+  });
+}
+
+// Max K8s datasources we support (hooks must be called unconditionally)
+const MAX_K8S_DATASOURCES = 5;
+
+export function useMultiSourceTable(
+  datasources: TableDatasource[],
+  enrichmentIntervalMs = DEFAULT_ENRICHMENT_INTERVAL_MS,
+): UseMultiSourceTableResult {
+  const [isPaused, setIsPaused] = useState(false);
+  const togglePause = useCallback(() => setIsPaused((p) => !p), []);
+
+  // Partition datasources by type
+  const k8sDatasources = useMemo(
+    () => datasources.filter((ds): ds is K8sDatasource => ds.type === 'k8s').slice(0, MAX_K8S_DATASOURCES),
+    [datasources],
+  );
+  const promqlDatasources = useMemo(
+    () => datasources.filter((ds): ds is PromQLDatasource => ds.type === 'promql'),
+    [datasources],
+  );
+  const logDatasources = useMemo(
+    () => datasources.filter((ds): ds is LogDatasource => ds.type === 'logs'),
+    [datasources],
+  );
+
+  // Pad K8s datasources array to MAX_K8S_DATASOURCES for stable hook count
+  const paddedK8s: (K8sDatasource | null)[] = useMemo(() => {
+    const arr: (K8sDatasource | null)[] = [...k8sDatasources];
+    while (arr.length < MAX_K8S_DATASOURCES) arr.push(null);
+    return arr;
+  }, [k8sDatasources]);
+
+  // Call useK8sListWatch unconditionally for each slot
+  const watch0 = useConditionalWatch(paddedK8s[0], !isPaused);
+  const watch1 = useConditionalWatch(paddedK8s[1], !isPaused);
+  const watch2 = useConditionalWatch(paddedK8s[2], !isPaused);
+  const watch3 = useConditionalWatch(paddedK8s[3], !isPaused);
+  const watch4 = useConditionalWatch(paddedK8s[4], !isPaused);
+
+  const watchResults = [watch0, watch1, watch2, watch3, watch4];
+
+  // PromQL enrichment — single query that batches all promql datasources
+  const {
+    data: promqlData,
+    dataUpdatedAt: promqlUpdatedAt,
+  } = useQuery({
+    queryKey: ['multi-table-promql', promqlDatasources.map((ds) => ds.query)],
+    queryFn: async () => {
+      const results: Record<string, Array<{ metric: Record<string, string>; value: number }>> = {};
+      await Promise.all(
+        promqlDatasources.map(async (ds) => {
+          try {
+            results[ds.id] = await queryInstant(ds.query);
+          } catch {
+            results[ds.id] = [];
+          }
+        }),
+      );
+      return results;
+    },
+    enabled: promqlDatasources.length > 0 && !isPaused,
+    refetchInterval: isPaused ? false : enrichmentIntervalMs,
+    placeholderData: (prev) => prev,
+    retry: 1,
+    staleTime: enrichmentIntervalMs / 2,
+  });
+
+  // Log enrichment
+  const {
+    data: logData,
+    dataUpdatedAt: logUpdatedAt,
+  } = useQuery({
+    queryKey: ['multi-table-logs', logDatasources.map((ds) => `${ds.namespace}:${ds.pattern}:${ds.labelSelector}`)],
+    queryFn: async () => {
+      const results: Record<string, Record<string, number>> = {};
+      await Promise.all(
+        logDatasources.map(async (ds) => {
+          try {
+            const params = new URLSearchParams({
+              namespace: ds.namespace,
+              pattern: ds.pattern || 'error|Error|ERROR',
+              tailLines: String(ds.tailLines || 100),
+            });
+            if (ds.labelSelector) params.set('labelSelector', ds.labelSelector);
+            const res = await fetch(`/api/agent/log-counts?${params}`, {
+              headers: getImpersonationHeaders(),
+            });
+            if (res.ok) {
+              const json = await res.json();
+              results[ds.id] = json.counts || {};
+            } else {
+              results[ds.id] = {};
+            }
+          } catch {
+            results[ds.id] = {};
+          }
+        }),
+      );
+      return results;
+    },
+    enabled: logDatasources.length > 0 && !isPaused,
+    refetchInterval: isPaused ? false : enrichmentIntervalMs,
+    placeholderData: (prev) => prev,
+    retry: 1,
+    staleTime: enrichmentIntervalMs / 2,
+  });
+
+  // Merge K8s resources from all watch results
+  const { mergedResources, sources, isLoading, isLive } = useMemo(() => {
+    const allResources: K8sResource[] = [];
+    const srcInfo: SourceInfo[] = [];
+    let loading = false;
+    let live = false;
+    const seenUids = new Set<string>();
+
+    k8sDatasources.forEach((ds, i) => {
+      const result = watchResults[i];
+      if (!result) return;
+
+      if (result.isLoading) loading = true;
+      if (result.data && result.data.length > 0) live = true;
+
+      const resources = result.data || [];
+      let count = 0;
+
+      for (const r of resources) {
+        const uid = r.metadata?.uid || '';
+        if (uid && seenUids.has(uid)) continue;
+        if (uid) seenUids.add(uid);
+
+        // Stamp source label and GVR key
+        const enriched = { ...r } as K8sResource & Record<string, unknown>;
+        enriched._source = ds.label;
+        enriched._gvrKey = datasourceToGvrKey(ds);
+        allResources.push(enriched as K8sResource);
+        count++;
+      }
+
+      srcInfo.push({ id: ds.id, label: ds.label, count });
+    });
+
+    return { mergedResources: allResources, sources: srcInfo, isLoading: loading, isLive: live };
+  }, [k8sDatasources, ...watchResults.map((w) => w.data)]);
+
+  // Apply PromQL enrichment
+  const enrichedResources = useMemo(() => {
+    if (!promqlData && !logData) return mergedResources;
+
+    return mergedResources.map((r) => {
+      const enriched = { ...r } as K8sResource & Record<string, unknown>;
+
+      // PromQL enrichment
+      if (promqlData) {
+        for (const ds of promqlDatasources) {
+          const results = promqlData[ds.id] || [];
+          const match = results.find((m) => {
+            const labelValue = m.metric[ds.joinLabel] || '';
+            const rowValue = String(
+              ds.joinColumn === 'name'
+                ? r.metadata?.name || ''
+                : ds.joinColumn === 'namespace'
+                  ? r.metadata?.namespace || ''
+                  : (r as Record<string, unknown>)[ds.joinColumn] || '',
+            );
+            return labelValue === rowValue;
+          });
+          if (match) {
+            enriched[ds.columnId] = ds.unit
+              ? `${match.value.toFixed(2)} ${ds.unit}`
+              : match.value.toFixed(2);
+          } else {
+            enriched[ds.columnId] = '-';
+          }
+        }
+      }
+
+      // Log enrichment
+      if (logData) {
+        for (const ds of logDatasources) {
+          const counts = logData[ds.id] || {};
+          const podName = r.metadata?.name || '';
+          enriched[ds.columnId] = counts[podName] ?? 0;
+        }
+      }
+
+      return enriched as K8sResource;
+    });
+  }, [mergedResources, promqlData, logData, promqlDatasources, logDatasources]);
+
+  // Build columns — enhancer columns for primary K8s resource + enrichment columns
+  const columns = useMemo(() => {
+    const primaryGvr = k8sDatasources[0] ? datasourceToGvrKey(k8sDatasources[0]) : '';
+    const namespaced = k8sDatasources.some((ds) => !!ds.namespace);
+
+    let baseCols = primaryGvr
+      ? getColumnsForResource(primaryGvr, namespaced, enrichedResources)
+      : [];
+
+    // Add source column when multiple K8s datasources
+    if (k8sDatasources.length > 1) {
+      baseCols = [
+        ...baseCols,
+        {
+          id: '_source',
+          header: 'Source',
+          accessorFn: (r: K8sResource) => (r as Record<string, unknown>)._source || '',
+          render: (value: unknown) => {
+            const label = String(value || '');
+            return (
+              <span className="inline-block px-1.5 py-0.5 text-xs rounded bg-slate-700 text-slate-300">
+                {label}
+              </span>
+            );
+          },
+          sortable: true,
+          priority: 90,
+        } satisfies ColumnDef,
+      ];
+    }
+
+    // Add enrichment columns
+    for (const ds of promqlDatasources) {
+      baseCols.push({
+        id: ds.columnId,
+        header: ds.columnHeader,
+        accessorFn: (r: K8sResource) => (r as Record<string, unknown>)[ds.columnId] ?? '-',
+        render: (value: unknown) => (
+          <span className="font-mono text-sm text-slate-300">{String(value)}</span>
+        ),
+        sortable: true,
+        sortType: 'number',
+        priority: 80,
+      });
+    }
+
+    for (const ds of logDatasources) {
+      baseCols.push({
+        id: ds.columnId,
+        header: ds.columnHeader,
+        accessorFn: (r: K8sResource) => (r as Record<string, unknown>)[ds.columnId] ?? 0,
+        render: (value: unknown) => {
+          const count = Number(value) || 0;
+          const color = count > 0 ? 'text-red-400' : 'text-slate-500';
+          return <span className={`font-mono text-sm ${color}`}>{count}</span>;
+        },
+        sortable: true,
+        sortType: 'number',
+        priority: 80,
+      });
+    }
+
+    return baseCols;
+  }, [k8sDatasources, promqlDatasources, logDatasources, enrichedResources]);
+
+  // Enrichment age
+  const enrichmentAge = useMemo(() => {
+    const hasEnrichment = promqlDatasources.length > 0 || logDatasources.length > 0;
+    if (!hasEnrichment) return null;
+    const latest = Math.max(promqlUpdatedAt || 0, logUpdatedAt || 0);
+    if (latest === 0) return null;
+    return Date.now() - latest;
+  }, [promqlDatasources.length, logDatasources.length, promqlUpdatedAt, logUpdatedAt]);
+
+  return {
+    resources: enrichedResources,
+    columns,
+    isLoading,
+    isLive,
+    isPaused,
+    togglePause,
+    sources,
+    enrichmentAge,
+  };
+}

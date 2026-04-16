@@ -24,7 +24,8 @@ export type ComponentSpec =
   | ProgressListSpec
   | StatCardSpec
   | TimelineSpec
-  | ResourceCountsSpec;
+  | ResourceCountsSpec
+  | TopologySpec;
 
 export interface RelationshipTreeSpec {
   kind: 'relationship_tree';
@@ -44,6 +45,47 @@ export interface RelationshipTreeSpec {
   rootId: string;         // which node is the root
 }
 
+/** K8s API datasource — provides base rows via LIST + WATCH (real-time) */
+export interface K8sDatasource {
+  type: 'k8s';
+  id: string;
+  label: string;
+  resource: string;
+  namespace?: string;
+  group?: string;
+  version?: string;
+  labelSelector?: string;
+  fieldSelector?: string;
+}
+
+/** Prometheus datasource — enriches rows with a metric column (polled) */
+export interface PromQLDatasource {
+  type: 'promql';
+  id: string;
+  label: string;
+  query: string;
+  columnId: string;
+  columnHeader: string;
+  unit?: string;
+  joinLabel: string;
+  joinColumn: string;
+}
+
+/** Log datasource — enriches rows with a log-count column (polled) */
+export interface LogDatasource {
+  type: 'logs';
+  id: string;
+  label: string;
+  namespace: string;
+  labelSelector?: string;
+  pattern?: string;
+  columnId: string;
+  columnHeader: string;
+  tailLines?: number;
+}
+
+export type TableDatasource = K8sDatasource | PromQLDatasource | LogDatasource;
+
 export interface DataTableSpec {
   kind: 'data_table';
   title?: string;
@@ -56,6 +98,10 @@ export interface DataTableSpec {
   resourceType?: string;
   /** API group~version~resource for detail links (e.g. 'v1~pods', 'apps~v1~deployments') */
   gvr?: string;
+  /** Multi-datasource definition for live table with K8s watch + enrichment */
+  datasources?: TableDatasource[];
+  /** Column ID for row deduplication across K8s datasources (default: uid) */
+  deduplicateBy?: string;
 }
 
 export interface InfoCardGridSpec {
@@ -300,6 +346,27 @@ export function truncateForPersistence(spec: ComponentSpec): ComponentSpec {
     return { ...spec, components: spec.components.map(truncateForPersistence) };
   }
   return spec;
+}
+
+export interface TopologySpec {
+  kind: 'topology';
+  title?: string;
+  description?: string;
+  nodes: Array<{
+    id: string;
+    kind: string;
+    name: string;
+    namespace: string;
+    status?: 'healthy' | 'warning' | 'error';
+    risk?: number;
+    riskLevel?: 'critical' | 'high' | 'medium' | 'low';
+    recentlyChanged?: boolean;
+  }>;
+  edges: Array<{
+    source: string;
+    target: string;
+    relationship: string;
+  }>;
 }
 
 export interface ResourceCountsSpec {
