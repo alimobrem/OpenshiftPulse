@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { CheckCircle, AlertTriangle, XCircle, Clock, HelpCircle, ChevronDown, ChevronUp, ChevronRight, Plus, ArrowUpDown, ArrowUp, ArrowDown, Settings2, Eye, EyeOff, Filter, Search, Download, Radio, Pause, Loader2 } from 'lucide-react';
 import { useMultiSourceTable } from '../../hooks/useMultiSourceTable';
+import type { K8sResource } from '../../engine/renderers';
 
 // Lazy-load the chart component to keep recharts (~150KB) out of the initial bundle
 const LazyAgentChart = lazy(() => import('./AgentChart'));
@@ -116,15 +117,13 @@ function LiveAgentTable({ spec, onAddToView, refreshInterval }: { spec: DataTabl
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
 
-  // Convert K8s resources to flat rows for rendering
+  // Convert K8s resources to flat rows for rendering, preserving the original resource ref
   const processedRows = useMemo(() => {
     let items = result.resources.map((r) => {
-      const row: Record<string, unknown> = {};
-      // Extract values using column accessors
+      const row: Record<string, unknown> = { _resource: r };
       for (const col of result.columns) {
         row[col.id] = col.accessorFn(r);
       }
-      // Keep metadata for navigation
       row._gvr = (r as Record<string, unknown>)._gvrKey
         ? String((r as Record<string, unknown>)._gvrKey).replace(/\//g, '~')
         : '';
@@ -135,7 +134,7 @@ function LiveAgentTable({ spec, onAddToView, refreshInterval }: { spec: DataTabl
     if (search) {
       const q = search.toLowerCase();
       items = items.filter((row) =>
-        Object.values(row).some((v) => String(v ?? '').toLowerCase().includes(q)),
+        Object.values(row).some((v) => v !== row._resource && String(v ?? '').toLowerCase().includes(q)),
       );
     }
     return items;
@@ -229,7 +228,7 @@ function LiveAgentTable({ spec, onAddToView, refreshInterval }: { spec: DataTabl
               >
                 {result.columns.map((col) => (
                   <td key={col.id} className="px-3 py-1.5 whitespace-nowrap">
-                    {col.render(row[col.id], result.resources[page * PAGE_SIZE + i])}
+                    {col.render(row[col.id], row._resource as K8sResource)}
                   </td>
                 ))}
               </tr>
@@ -251,8 +250,8 @@ function LiveAgentTable({ spec, onAddToView, refreshInterval }: { spec: DataTabl
               Sources: {result.sources.map((s) => `${s.label} (${s.count})`).join(' + ')}
             </span>
           )}
-          {result.enrichmentAge !== null && (
-            <span>Enrichment: {Math.round(result.enrichmentAge / 1000)}s ago</span>
+          {result.enrichmentUpdatedAt !== null && (
+            <span>Enrichment: {Math.round((Date.now() - result.enrichmentUpdatedAt) / 1000)}s ago</span>
           )}
         </div>
         {processedRows.length > PAGE_SIZE && (

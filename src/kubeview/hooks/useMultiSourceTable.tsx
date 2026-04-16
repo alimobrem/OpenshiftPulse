@@ -19,7 +19,6 @@ import { buildApiPath } from './useResourceUrl';
 import { queryInstant } from '../components/metrics/prometheus';
 import { getColumnsForResource } from '../engine/enhancers';
 import { getImpersonationHeaders } from '../engine/query';
-import { kindToPlural } from '../engine/renderers';
 
 const DEFAULT_ENRICHMENT_INTERVAL_MS = 30_000;
 
@@ -45,8 +44,8 @@ export interface UseMultiSourceTableResult {
   togglePause: () => void;
   /** Source metadata for the footer */
   sources: SourceInfo[];
-  /** Time since last enrichment poll (ms), null if no enrichment */
-  enrichmentAge: number | null;
+  /** Timestamp of last enrichment poll (ms epoch), null if no enrichment */
+  enrichmentUpdatedAt: number | null;
 }
 
 /** Convert a K8sDatasource to a GVR key like "v1/pods" or "apps/v1/deployments" */
@@ -284,7 +283,7 @@ export function useMultiSourceTable(
     const namespaced = k8sDatasources.some((ds) => !!ds.namespace);
 
     let baseCols = primaryGvr
-      ? getColumnsForResource(primaryGvr, namespaced, enrichedResources)
+      ? getColumnsForResource(primaryGvr, namespaced, mergedResources)
       : [];
 
     // Add source column when multiple K8s datasources
@@ -341,16 +340,13 @@ export function useMultiSourceTable(
     }
 
     return baseCols;
-  }, [k8sDatasources, promqlDatasources, logDatasources, enrichedResources]);
+  }, [k8sDatasources, promqlDatasources, logDatasources, mergedResources]);
 
-  // Enrichment age
-  const enrichmentAge = useMemo(() => {
-    const hasEnrichment = promqlDatasources.length > 0 || logDatasources.length > 0;
-    if (!hasEnrichment) return null;
-    const latest = Math.max(promqlUpdatedAt || 0, logUpdatedAt || 0);
-    if (latest === 0) return null;
-    return Date.now() - latest;
-  }, [promqlDatasources.length, logDatasources.length, promqlUpdatedAt, logUpdatedAt]);
+  // Enrichment last-updated timestamp — consumers compute age at render time
+  const hasEnrichment = promqlDatasources.length > 0 || logDatasources.length > 0;
+  const enrichmentUpdatedAt = hasEnrichment
+    ? Math.max(promqlUpdatedAt || 0, logUpdatedAt || 0) || null
+    : null;
 
   return {
     resources: enrichedResources,
@@ -360,6 +356,6 @@ export function useMultiSourceTable(
     isPaused,
     togglePause,
     sources,
-    enrichmentAge,
+    enrichmentUpdatedAt,
   };
 }
