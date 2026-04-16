@@ -16,7 +16,11 @@ import { compareValues } from '../../views/TableView';
 import {
   ArrowUp, ArrowDown, ArrowUpDown, Search, Download,
   Settings2, Eye, EyeOff, Filter, Plus, ExternalLink,
+  FileText, Trash2, ScrollText,
 } from 'lucide-react';
+import { buildApiPath } from '../../hooks/useResourceUrl';
+import { k8sDelete } from '../../engine/query';
+import { ConfirmDialog } from '../feedback/ConfirmDialog';
 import type { ComponentSpec } from '../../engine/agentComponents';
 
 export interface TableColumn {
@@ -77,6 +81,8 @@ export function ResourceTable({
   showActions,
 }: ResourceTableProps) {
   const navigate = useNavigate();
+  const [deleteTarget, setDeleteTarget] = useState<Record<string, unknown> | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [page, setPage] = useState(0);
   const [sortCol, setSortCol] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -296,23 +302,16 @@ export function ResourceTable({
                 onClick={() => onRowClick?.(row)}
               >
                 {visibleColumns.map((col) => (
-                  <td key={col.id} className="px-3 py-1.5 text-slate-300 whitespace-nowrap group/cell relative">
+                  <td key={col.id} className="px-3 py-1.5 text-slate-300 whitespace-nowrap">
                     {renderCell
                       ? renderCell(row[col.id], col.id, col.type, row)
                       : <DefaultCellValue value={row[col.id]} />
                     }
-                    <button
-                      onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(String(row[col.id] ?? '')); }}
-                      className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/cell:opacity-100 text-slate-600 hover:text-slate-300 transition-opacity"
-                      title="Copy"
-                    >
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" strokeWidth="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" strokeWidth="2"/></svg>
-                    </button>
                   </td>
                 ))}
                 {showActions && (
                   <td className="px-3 py-1.5 whitespace-nowrap">
-                    <RowActions row={row} navigate={navigate} />
+                    <RowActions row={row} navigate={navigate} onDelete={setDeleteTarget} />
                   </td>
                 )}
               </tr>
@@ -352,6 +351,32 @@ export function ResourceTable({
           </div>
         )}
       </div>
+
+      {/* Delete confirmation */}
+      {deleteTarget && (
+        <ConfirmDialog
+          open={!!deleteTarget}
+          title={`Delete ${String(deleteTarget.name || deleteTarget._name || 'resource')}`}
+          description={`Are you sure you want to delete "${String(deleteTarget.name || deleteTarget._name)}"${deleteTarget.namespace || deleteTarget._namespace ? ` from ${String(deleteTarget.namespace || deleteTarget._namespace)}` : ''}? This cannot be undone.`}
+          confirmLabel="Delete"
+          variant="danger"
+          loading={deleteLoading}
+          onConfirm={async () => {
+            const gvr = String(deleteTarget._gvr || '').replace(/~/g, '/');
+            const name = String(deleteTarget.name || deleteTarget._name || '');
+            const ns = String(deleteTarget.namespace || deleteTarget._namespace || '');
+            if (!gvr || !name) return;
+            setDeleteLoading(true);
+            try {
+              const apiPath = buildApiPath(gvr, ns || undefined, name);
+              await k8sDelete(apiPath);
+            } catch { /* toast handled by k8sDelete */ }
+            setDeleteLoading(false);
+            setDeleteTarget(null);
+          }}
+          onClose={() => setDeleteTarget(null)}
+        />
+      )}
     </div>
   );
 }
@@ -362,23 +387,52 @@ function DefaultCellValue({ value }: { value: unknown }) {
   return <>{String(value)}</>;
 }
 
-/** Inline row actions — navigate to resource detail view */
-function RowActions({ row, navigate }: { row: Record<string, unknown>; navigate: (path: string) => void }) {
+/** Inline row actions — open, YAML, logs, delete */
+function RowActions({ row, navigate, onDelete }: {
+  row: Record<string, unknown>;
+  navigate: (path: string) => void;
+  onDelete: (row: Record<string, unknown>) => void;
+}) {
   const gvr = row._gvr ? String(row._gvr) : '';
   const name = String(row.name || row._name || '');
   const ns = String(row.namespace || row._namespace || '');
   if (!gvr || !name) return null;
 
+  const isPod = gvr.includes('pods') || gvr === 'v1~pods';
+  const btnClass = 'p-1 text-slate-600 hover:text-slate-300 rounded transition-colors';
+
   return (
-    <button
-      onClick={(e) => {
-        e.stopPropagation();
-        navigate(`/r/${gvr}/${ns || '_'}/${name}`);
-      }}
-      className="p-0.5 text-slate-600 hover:text-blue-400 rounded transition-colors"
-      title="Open detail view"
-    >
-      <ExternalLink className="w-3.5 h-3.5" />
-    </button>
+    <div className="flex items-center gap-0.5">
+      <button
+        onClick={(e) => { e.stopPropagation(); navigate(`/r/${gvr}/${ns || '_'}/${name}`); }}
+        className={cn(btnClass, 'hover:text-blue-400')}
+        title="Open detail view"
+      >
+        <ExternalLink className="w-3 h-3" />
+      </button>
+      <button
+        onClick={(e) => { e.stopPropagation(); navigate(`/yaml/${gvr}/${ns || '_'}/${name}`); }}
+        className={cn(btnClass, 'hover:text-amber-400')}
+        title="View YAML"
+      >
+        <FileText className="w-3 h-3" />
+      </button>
+      {isPod && (
+        <button
+          onClick={(e) => { e.stopPropagation(); navigate(`/logs/${ns}/${name}`); }}
+          className={cn(btnClass, 'hover:text-emerald-400')}
+          title="View logs"
+        >
+          <ScrollText className="w-3 h-3" />
+        </button>
+      )}
+      <button
+        onClick={(e) => { e.stopPropagation(); onDelete(row); }}
+        className={cn(btnClass, 'hover:text-red-400')}
+        title="Delete"
+      >
+        <Trash2 className="w-3 h-3" />
+      </button>
+    </div>
   );
 }
