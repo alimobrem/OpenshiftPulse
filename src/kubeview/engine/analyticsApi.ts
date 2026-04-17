@@ -251,3 +251,26 @@ export const fetchFixStrategies = (days = 30) =>
 
 export const fetchLearningFeed = (days = 7) =>
   get<{ events: LearningEvent[]; days: number }>(`${AGENT_BASE}/analytics/learning?days=${days}`);
+
+// --- Session analytics ---
+
+export interface SessionSummary {
+  total_sessions: number;
+  total_page_views: number;
+  unique_pages: number;
+  total_queries: number;
+  avg_duration_seconds: number;
+}
+
+export interface SessionAnalytics {
+  summary: SessionSummary;
+  pages: Array<{ page: string; views: number; sessions: number }>;
+  time_on_page: Array<{ page: string; avg_seconds: number; samples: number }>;
+  agent_queries_by_page: Array<{ page: string; queries: number }>;
+  top_suggestions: Array<{ suggestion: string; clicks: number }>;
+  feature_usage: Array<{ feature: string; uses: number }>;
+  days: number;
+}
+
+export const fetchSessionAnalytics = (days = 7) =>
+  get<SessionAnalytics>(`${AGENT_BASE}/analytics/sessions?days=${days}`);

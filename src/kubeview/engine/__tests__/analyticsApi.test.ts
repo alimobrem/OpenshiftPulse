@@ -11,6 +11,7 @@ import {
   fetchReadinessSummary,
   fetchCapabilities,
   fetchAgentVersion,
+  fetchSessionAnalytics,
 } from '../analyticsApi';
 
 const mockFetch = vi.fn();
@@ -115,5 +116,29 @@ describe('analyticsApi', () => {
     mockFetch.mockResolvedValueOnce({ ok: false, status: 500 });
     const result = await fetchAgentVersion();
     expect(result).toBeNull();
+  });
+
+  it('fetchSessionAnalytics calls correct endpoint with default days', async () => {
+    const mockData = {
+      summary: { total_sessions: 25, total_page_views: 180, unique_pages: 8, total_queries: 42, avg_duration_seconds: 35.2 },
+      pages: [{ page: '/pulse', views: 50, sessions: 20 }],
+      time_on_page: [{ page: '/pulse', avg_seconds: 45.3, samples: 18 }],
+      agent_queries_by_page: [{ page: '/incidents', queries: 15 }],
+      top_suggestions: [{ suggestion: 'Show me crashlooping pods', clicks: 8 }],
+      feature_usage: [{ feature: 'chart_edit', uses: 12 }],
+      days: 7,
+    };
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockData) });
+    const result = await fetchSessionAnalytics();
+    expect(mockFetch).toHaveBeenCalledWith('/api/agent/analytics/sessions?days=7');
+    expect(result.summary.total_sessions).toBe(25);
+    expect(result.pages).toHaveLength(1);
+    expect(result.top_suggestions[0].clicks).toBe(8);
+  });
+
+  it('fetchSessionAnalytics passes custom days parameter', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ summary: {}, pages: [], days: 30 }) });
+    await fetchSessionAnalytics(30);
+    expect(mockFetch).toHaveBeenCalledWith('/api/agent/analytics/sessions?days=30');
   });
 });
