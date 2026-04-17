@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Search } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { useToolUsageStore } from '../../store/toolUsageStore';
@@ -19,21 +19,22 @@ export function CatalogTab() {
 
   useEffect(() => { loadTools(); }, [loadTools]);
 
-  const allTools: Array<ToolInfo & { source: string; mcp_server?: string }> = [];
-  if (tools) {
-    for (const t of tools.sre) allTools.push({ ...t, source: (t as unknown as { source?: string }).source || 'native' });
+  const allTools = useMemo(() => {
+    const result: Array<ToolInfo & { source: string; mcp_server?: string }> = [];
+    if (!tools) return result;
+    const seen = new Set<string>();
+    for (const t of tools.sre) { seen.add(t.name); result.push({ ...t, source: (t as unknown as { source?: string }).source || 'native' }); }
     for (const t of tools.security) {
-      if (!allTools.some((x) => x.name === t.name)) allTools.push({ ...t, source: (t as unknown as { source?: string }).source || 'native' });
+      if (!seen.has(t.name)) { seen.add(t.name); result.push({ ...t, source: (t as unknown as { source?: string }).source || 'native' }); }
     }
     const mcpTools = (tools as unknown as { mcp?: McpToolInfo[] }).mcp;
     if (mcpTools) {
       for (const t of mcpTools) {
-        if (!allTools.some((x) => x.name === t.name)) {
-          allTools.push({ ...t, source: 'mcp', mcp_server: t.mcp_server });
-        }
+        if (!seen.has(t.name)) { seen.add(t.name); result.push({ ...t, source: 'mcp', mcp_server: t.mcp_server }); }
       }
     }
-  }
+    return result;
+  }, [tools]);
 
   const filtered = allTools.filter((t) => {
     if (sourceFilter !== 'all' && t.source !== sourceFilter) return false;

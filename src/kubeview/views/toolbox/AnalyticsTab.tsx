@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Wrench, Database, AlertTriangle, Clock, Bot, Shield, Palette,
@@ -71,12 +71,11 @@ export function AnalyticsTab() {
 
   const byTool = stats.by_tool || [];
   const maxCount = Math.max(...byTool.slice(0, 10).map((t) => t.count), 1);
-  const rawBySource = (stats as unknown as { by_source?: Record<string, number> | Array<{ source: string; count: number }> }).by_source;
-  const bySource = rawBySource
-    ? Array.isArray(rawBySource)
-      ? rawBySource
-      : Object.entries(rawBySource).map(([source, count]) => ({ source, count }))
-    : [];
+  const bySource = useMemo(() => {
+    const raw = (stats as unknown as { by_source?: Record<string, number> | Array<{ source: string; count: number }> }).by_source;
+    if (!raw) return [];
+    return Array.isArray(raw) ? raw : Object.entries(raw).map(([source, count]) => ({ source, count }));
+  }, [stats]);
 
   const skills = skillStats?.skills || [];
   const handoffs = skillStats?.handoffs || [];
