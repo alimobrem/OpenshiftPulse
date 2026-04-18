@@ -71,7 +71,7 @@ export function IncidentLifecycleDrawer({ findingId, onClose }: IncidentLifecycl
     : 'pending';
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-label="Incident Lifecycle" onClick={onClose}>
       <div className="absolute inset-0 bg-black/50" />
       <div
         ref={drawerRef}

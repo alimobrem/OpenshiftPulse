@@ -54,7 +54,7 @@ export function AISidebar() {
   }
 
   return (
-    <div className="w-[360px] h-full flex flex-col border-l border-slate-800 bg-slate-900 shrink-0">
+    <aside className="w-[360px] h-full flex flex-col border-l border-slate-800 bg-slate-900 shrink-0" aria-label="AI Sidebar">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-slate-800 shrink-0">
         <span className="text-xs font-semibold text-slate-300">Pulse AI</span>
@@ -90,6 +90,6 @@ export function AISidebar() {
           </>
         )}
       </div>
-    </div>
+    </aside>
   );
 }
