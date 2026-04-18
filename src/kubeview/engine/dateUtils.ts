@@ -1,5 +1,18 @@
 /** Shared date/time formatting utilities */
 
+/** Format a Date as a human-readable date group key (Today, Yesterday, or full date). */
+export function getDateKey(date: Date): string {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const eventDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  if (eventDate.getTime() === today.getTime()) return 'Today';
+  if (eventDate.getTime() === yesterday.getTime()) return 'Yesterday';
+  return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
 /** Format a duration between two ISO timestamps (or from start to now) */
 export function formatDuration(start: string, end?: string): string {
   if (!start) return '—';

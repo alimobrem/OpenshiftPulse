@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useMonitorStore } from '../store/monitorStore';
 import type {
@@ -72,31 +72,34 @@ async function fetchPostmortems(): Promise<Postmortem[]> {
 }
 
 export function useIncidentLifecycle(findingId: string): IncidentLifecycle {
-  const findings = useMonitorStore((s) => s.findings);
-  const investigations = useMonitorStore((s) => s.investigations);
-  const recentActions = useMonitorStore((s) => s.recentActions);
-  const pendingActions = useMonitorStore((s) => s.pendingActions);
-  const verifications = useMonitorStore((s) => s.verifications);
-
-  const detection = useMemo(
-    () => findings.find((f) => f.id === findingId) ?? null,
-    [findings, findingId],
+  const detection = useMonitorStore(
+    useCallback((s) => s.findings.find((f) => f.id === findingId) ?? null, [findingId]),
   );
-
-  const investigation = useMemo(
-    () => [...investigations].reverse().find((r) => r.findingId === findingId) ?? null,
-    [investigations, findingId],
+  const investigation = useMonitorStore(
+    useCallback((s) => {
+      for (let i = s.investigations.length - 1; i >= 0; i--) {
+        if (s.investigations[i].findingId === findingId) return s.investigations[i];
+      }
+      return null;
+    }, [findingId]),
   );
-
-  const action = useMemo(() => {
-    const pending = pendingActions.find((a) => a.findingId === findingId);
-    if (pending) return pending;
-    return [...recentActions].reverse().find((a) => a.findingId === findingId) ?? null;
-  }, [pendingActions, recentActions, findingId]);
-
-  const verification = useMemo(
-    () => [...verifications].reverse().find((v) => v.findingId === findingId) ?? null,
-    [verifications, findingId],
+  const action = useMonitorStore(
+    useCallback((s) => {
+      const pending = s.pendingActions.find((a) => a.findingId === findingId);
+      if (pending) return pending;
+      for (let i = s.recentActions.length - 1; i >= 0; i--) {
+        if (s.recentActions[i].findingId === findingId) return s.recentActions[i];
+      }
+      return null;
+    }, [findingId]),
+  );
+  const verification = useMonitorStore(
+    useCallback((s) => {
+      for (let i = s.verifications.length - 1; i >= 0; i--) {
+        if (s.verifications[i].findingId === findingId) return s.verifications[i];
+      }
+      return null;
+    }, [findingId]),
   );
 
   const { data: impact, isLoading: impactLoading } = useQuery({

@@ -86,6 +86,8 @@ function ScannerControlsPopover() {
   const ref = useRef<HTMLDivElement>(null);
   const triggerScan = useMonitorStore((s) => s.triggerScan);
   const setDisabledScanners = useMonitorStore((s) => s.setDisabledScanners);
+  const lastScanTime = useMonitorStore((s) => s.lastScanTime);
+  const scanStartRef = useRef(0);
 
   const { data: scanners = [], refetch: refetchScanners } = useQuery<ScannerInfo[]>({
     queryKey: ['scanners'],
@@ -125,10 +127,16 @@ function ScannerControlsPopover() {
     refetchScanners();
   };
 
+  useEffect(() => {
+    if (scanning && lastScanTime > scanStartRef.current) {
+      setScanning(false);
+    }
+  }, [lastScanTime, scanning]);
+
   const handleScanNow = () => {
+    scanStartRef.current = Date.now();
     setScanning(true);
     triggerScan();
-    setTimeout(() => setScanning(false), 3000);
   };
 
   const scannerStats = (coverage as { scanners?: Array<{ name: string; findings_count: number }> })?.scanners;

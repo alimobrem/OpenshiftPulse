@@ -7,21 +7,9 @@ import { cn } from '@/lib/utils';
 import { Card } from '../../../components/primitives/Card';
 import { formatRelativeTime } from '../../../engine/formatters';
 import { useUIStore } from '../../../store/uiStore';
+import type { Postmortem } from '../../../hooks/useIncidentLifecycle';
 
-export interface Postmortem {
-  id: string;
-  incident_type: string;
-  plan_id: string;
-  timeline: string;
-  root_cause: string;
-  contributing_factors: string[];
-  blast_radius: string[];
-  actions_taken: string[];
-  prevention: string[];
-  metrics_impact: string;
-  confidence: number;
-  generated_at: number;
-}
+export type { Postmortem };
 
 const INCIDENT_TYPE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   crashloop: AlertTriangle,

@@ -93,6 +93,10 @@ export function NowTab() {
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    return () => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current); };
+  }, []);
+
   // Deep-link: auto-focus incident from ?finding=<id> URL param
   useEffect(() => {
     const findingId = new URLSearchParams(window.location.search).get('finding');

@@ -14,6 +14,7 @@ import { useAgentStore } from '../../store/agentStore';
 import { useNavigateTab } from '../../hooks/useNavigateTab';
 import { resourceDetailUrl } from '../../engine/gvr';
 import { formatRelativeTime } from '../../engine/formatters';
+import { getDateKey } from '../../engine/dateUtils';
 import { fetchLearningFeed, type LearningEvent } from '../../engine/analyticsApi';
 import type { TimelineEntry, TimelineCategory, CorrelationGroup } from '../../engine/types/timeline';
 import type { InvestigationReport } from '../../engine/monitorClient';
@@ -34,18 +35,6 @@ const ACTIVITY_CATEGORIES: { id: ActivityCategory; label: string; icon: React.El
   { id: 'rollouts', label: 'Rollouts', icon: RefreshCw },
   { id: 'config', label: 'Config', icon: Settings },
 ];
-
-function getDateKey(date: Date): string {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const eventDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-
-  if (eventDate.getTime() === today.getTime()) return 'Today';
-  if (eventDate.getTime() === yesterday.getTime()) return 'Yesterday';
-  return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-}
 
 async function fetchPostmortems(): Promise<{ postmortems: Postmortem[]; total: number }> {
   const res = await fetch('/api/agent/postmortems');
