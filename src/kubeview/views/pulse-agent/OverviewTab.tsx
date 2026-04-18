@@ -258,7 +258,7 @@ function AgentHealthCard({ health }: { health: AgentHealthStatus }) {
   );
 }
 
-function AgentIntelligenceCard() {
+export function AgentIntelligenceCard() {
   const { data: learning } = useQuery({
     queryKey: ['agent', 'learning-mc'],
     queryFn: async () => {
@@ -296,7 +296,7 @@ function AgentIntelligenceCard() {
           <Bot className="w-3.5 h-3.5 text-cyan-400" />
           Agent Intelligence
         </h3>
-        <a href="/toolbox?tab=analytics" className="text-[10px] text-slate-500 hover:text-slate-300">
+        <a href="/agent" className="text-[10px] text-slate-500 hover:text-slate-300">
           Full analytics →
         </a>
       </div>

@@ -14,6 +14,7 @@ import {
   fetchAgentVersion,
   fetchAgentHealth,
   type AgentHealthStatus,
+  type FixHistorySummary,
 } from '../engine/analyticsApi';
 import { fetchAgentEvalStatus } from '../engine/evalStatus';
 import { TrustPolicy } from './mission-control/TrustPolicy';
@@ -23,6 +24,7 @@ import { CapabilityDiscovery } from './mission-control/CapabilityDiscovery';
 import { ScannerDrawer } from './mission-control/ScannerDrawer';
 import { EvalDrawer } from './mission-control/EvalDrawer';
 import { MemoryDrawer } from './mission-control/MemoryDrawer';
+import { AgentIntelligenceCard } from './pulse-agent/OverviewTab';
 
 const KPI_EXPLANATIONS: Record<string, string> = {
   mttd: 'Mean Time to Detect — how quickly issues are found. Target: <5min. If failing, check scanner interval or add more scanners.',
@@ -136,42 +138,36 @@ export default function MissionControlView() {
         {/* KPI Dashboard */}
         {kpiQ.data?.kpis && (
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
-            {Object.entries(kpiQ.data.kpis as Record<string, { label: string; value: number | string; unit: string; target: number | string | null; status: string; description?: string }>).map(([key, kpi]) => (
-              <div key={key} title={KPI_EXPLANATIONS[key] || kpi.description || kpi.label} className={cn(
-                'bg-slate-900 border rounded-lg p-2.5 text-center group relative',
-                kpi.status === 'pass' ? 'border-emerald-800/30' :
-                kpi.status === 'warn' ? 'border-amber-800/30' :
-                kpi.status === 'fail' ? 'border-red-800/30' :
-                'border-slate-800',
-              )}>
-                <div className="flex items-center justify-center gap-1 mb-1">
-                  {kpi.status === 'pass' ? <CheckCircle className="w-3 h-3 text-emerald-400" /> :
-                   kpi.status === 'warn' ? <AlertTriangle className="w-3 h-3 text-amber-400" /> :
-                   kpi.status === 'info' ? <Activity className="w-3 h-3 text-blue-400" /> :
-                   <XCircle className="w-3 h-3 text-red-400" />}
-                  <span className="text-[10px] text-slate-500 truncate">{kpi.label}</span>
-                </div>
-                <div className={cn(
-                  'text-sm font-bold',
-                  kpi.status === 'pass' ? 'text-emerald-400' :
-                  kpi.status === 'warn' ? 'text-amber-400' :
-                  kpi.status === 'fail' ? 'text-red-400' :
-                  kpi.status === 'info' ? 'text-blue-400' :
-                  'text-slate-200',
+            {Object.entries(kpiQ.data.kpis as Record<string, { label: string; value: number | string; unit: string; target: number | string | null; status: string; description?: string; sample_count?: number }>).map(([key, kpi]) => {
+              const noData = kpi.status === 'info' && (kpi.value === 0 || kpi.value === '0');
+              const val = noData ? '\u2014' :
+                kpi.unit === 'ratio' ? `${Math.round((kpi.value as number) * 100)}%` :
+                kpi.unit === 'seconds' ? `${kpi.value}s` :
+                kpi.unit === 'ms' ? `${kpi.value}ms` :
+                kpi.unit === 'chars' ? `${Math.round((kpi.value as number) / 1000)}K` :
+                String(kpi.value);
+              return (
+                <div key={key} title={KPI_EXPLANATIONS[key] || kpi.description || kpi.label} className={cn(
+                  'bg-slate-900 border rounded-lg p-2.5 text-center',
+                  kpi.status === 'pass' ? 'border-emerald-800/30' :
+                  kpi.status === 'warn' ? 'border-amber-800/30' :
+                  kpi.status === 'fail' ? 'border-red-800/30' :
+                  'border-slate-800',
                 )}>
-                  {kpi.unit === 'ratio' ? `${Math.round((kpi.value as number) * 100)}%` :
-                   kpi.unit === 'seconds' ? `${kpi.value}s` :
-                   kpi.unit === 'ms' ? `${kpi.value}ms` :
-                   kpi.unit === 'chars' ? `${Math.round((kpi.value as number) / 1000)}K` :
-                   String(kpi.value)}
-                </div>
-                {kpi.description && (
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-[10px] text-slate-400 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                    {kpi.description}
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    {kpi.status === 'pass' ? <CheckCircle className="w-3 h-3 text-emerald-400" /> :
+                     kpi.status === 'warn' ? <AlertTriangle className="w-3 h-3 text-amber-400" /> :
+                     kpi.status === 'info' ? <Activity className="w-3 h-3 text-slate-500" /> :
+                     <XCircle className="w-3 h-3 text-red-400" />}
+                    <span className="text-[10px] text-slate-500 truncate">{kpi.label}</span>
                   </div>
-                )}
-              </div>
-            ))}
+                  <div className={cn('text-sm font-bold', noData ? 'text-slate-500' : kpi.status === 'pass' ? 'text-emerald-400' : kpi.status === 'warn' ? 'text-amber-400' : kpi.status === 'fail' ? 'text-red-400' : 'text-slate-200')}>
+                    {val}
+                  </div>
+                  {noData && <div className="text-[9px] text-slate-600 mt-0.5">No data yet</div>}
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -184,8 +180,8 @@ export default function MissionControlView() {
 
         {healthQ.data && <AgentHealthCard health={healthQ.data} />}
 
-        {/* Agent Intelligence Summary */}
-        <AgentIntelligenceCard />
+        {/* Recent agent activity */}
+        <AgentActivityCard fixSummary={fixQ.data ?? null} />
 
         <TrustPolicy
           maxTrustLevel={capQ.data?.max_trust_level ?? 0}
@@ -280,17 +276,7 @@ function AgentHealthCard({ health }: { health: AgentHealthStatus }) {
   );
 }
 
-function AgentIntelligenceCard() {
-  const { data: learning } = useQuery({
-    queryKey: ['agent', 'learning-mc'],
-    queryFn: async () => {
-      const res = await fetch('/api/agent/analytics/learning?days=7');
-      if (!res.ok) throw new Error(`Learning fetch failed (${res.status})`);
-      return res.json();
-    },
-    staleTime: 60_000,
-  });
-
+function AgentActivityCard({ fixSummary }: { fixSummary: FixHistorySummary | null }) {
   const { data: fixStrategies } = useQuery({
     queryKey: ['agent', 'fix-strategies-mc'],
     queryFn: async () => {
@@ -301,55 +287,46 @@ function AgentIntelligenceCard() {
     staleTime: 60_000,
   });
 
-  const events = learning?.events ?? [];
   const strategies = fixStrategies?.strategies ?? [];
-
-  if (events.length === 0 && strategies.length === 0) return null;
-
-  const selectionSummary = events.find((e: Record<string, unknown>) => e.type === 'selection_summary');
-  const routingDecisions = events.filter((e: Record<string, unknown>) => e.type === 'routing_decision');
-  const postmortemCount = events.find((e: Record<string, unknown>) => e.type === 'postmortems_generated');
   const topStrategy = strategies[0];
+  const total = fixSummary?.total_actions ?? 0;
+  const succeeded = fixSummary?.completed ?? 0;
+  const failed = fixSummary?.failed ?? 0;
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
           <Bot className="w-3.5 h-3.5 text-cyan-400" />
-          Agent Intelligence
+          Recent Activity
         </h3>
-        <a href="/toolbox?tab=analytics" className="text-[10px] text-slate-500 hover:text-slate-300">
-          Full analytics →
-        </a>
+        <span className="text-[10px] text-slate-600">Last 7 days</span>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-        {selectionSummary && (
+      {total === 0 ? (
+        <p className="text-xs text-slate-500">No auto-fix actions taken yet. The agent is monitoring but hasn&apos;t needed to intervene.</p>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
           <div>
-            <div className="text-slate-500 mb-0.5">Routing</div>
-            <div className="text-slate-200">{String((selectionSummary as Record<string, unknown>).description).split(',')[0]}</div>
+            <div className="text-slate-500 mb-0.5">Issues fixed</div>
+            <div className="text-emerald-400 font-medium">{succeeded} of {total}</div>
+            {failed > 0 && <div className="text-[10px] text-red-400/70 mt-0.5">{failed} failed — <a href="/incidents?tab=actions" className="underline">review</a></div>}
           </div>
-        )}
-        {postmortemCount && (
-          <div>
-            <div className="text-slate-500 mb-0.5">Postmortems</div>
-            <div className="text-teal-400">{String((postmortemCount as Record<string, unknown>).description)}</div>
-          </div>
-        )}
-        {topStrategy && (
-          <div>
-            <div className="text-slate-500 mb-0.5">Top Fix Strategy</div>
-            <div className="text-slate-200">
-              {topStrategy.tool}: {Math.round(topStrategy.success_rate * 100)}%
+          {topStrategy && (
+            <div>
+              <div className="text-slate-500 mb-0.5">Most effective fix</div>
+              <div className="text-slate-200">{topStrategy.tool.replace(/_/g, ' ')}</div>
+              <div className="text-[10px] text-slate-500">{Math.round(topStrategy.success_rate * 100)}% success rate</div>
             </div>
-          </div>
-        )}
-        {routingDecisions.length > 0 && (
-          <div>
-            <div className="text-slate-500 mb-0.5">Recent Routing</div>
-            <div className="text-slate-200">{routingDecisions.length} decisions</div>
-          </div>
-        )}
-      </div>
+          )}
+          {(fixSummary?.rolled_back ?? 0) > 0 && (
+            <div>
+              <div className="text-slate-500 mb-0.5">Rolled back</div>
+              <div className="text-amber-400 font-medium">{fixSummary!.rolled_back}</div>
+              <div className="text-[10px] text-slate-500">Agent reverted its own changes</div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
