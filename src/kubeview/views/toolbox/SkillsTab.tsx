@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Wrench, Shield, LayoutDashboard, TrendingUp, Puzzle, Bot, Database, Target,
-  RefreshCw, Play, ArrowRight,
+  RefreshCw, Play, ArrowRight, BarChart3, Activity,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SkillDetailDrawer } from './SkillDetailDrawer';
@@ -33,6 +33,16 @@ export function SkillsTab() {
       if (!res.ok) return [];
       return res.json();
     },
+  });
+
+  const { data: skillStats } = useQuery({
+    queryKey: ['admin', 'skill-usage-skills-tab'],
+    queryFn: async () => {
+      const res = await fetch('/api/agent/skills/usage?days=30');
+      if (!res.ok) return null;
+      return res.json();
+    },
+    staleTime: 30_000,
   });
 
   const reloadMutation = useMutation({
@@ -158,10 +168,91 @@ export function SkillsTab() {
         )}
       </div>
 
+      {/* Skill Usage Analytics */}
+      {skillStats?.skills && skillStats.skills.length > 0 && (
+        <div className="border-t border-slate-800 pt-6 space-y-4">
+          <h2 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+            <BarChart3 className="w-4 h-4 text-violet-400" />
+            Usage Analytics (30 days)
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {skillStats.skills.map((skill: Record<string, unknown>) => (
+              <SkillStatsCard key={String(skill.name)} skill={skill} onSelect={() => setSelectedSkill(String(skill.name))} />
+            ))}
+          </div>
+
+          {skillStats.handoffs && skillStats.handoffs.length > 0 && (
+            <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+              <h3 className="text-xs font-medium text-slate-300 mb-2">Skill Handoffs</h3>
+              <div className="space-y-1.5">
+                {skillStats.handoffs.map((h: { from: string; to: string; count: number }, i: number) => (
+                  <div key={i} className="flex items-center gap-2 text-xs">
+                    <span className="text-slate-300">{h.from}</span>
+                    <ArrowRight className="w-3 h-3 text-slate-600" />
+                    <span className="text-slate-300">{h.to}</span>
+                    <span className="text-slate-500 ml-auto">{h.count}x</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Skill detail drawer */}
       {selectedSkill && (
         <SkillDetailDrawer name={selectedSkill} onClose={() => setSelectedSkill(null)} />
       )}
     </div>
+  );
+}
+
+function SkillStatsCard({ skill, onSelect }: { skill: Record<string, unknown>; onSelect: () => void }) {
+  const { data: trend } = useQuery({
+    queryKey: ['skill-trend', String(skill.name)],
+    queryFn: async () => {
+      const res = await fetch(`/api/agent/skills/usage/${encodeURIComponent(String(skill.name))}/trend?days=30`);
+      if (!res.ok) return null;
+      return res.json() as Promise<{ sparkline?: number[]; duration_sparkline?: number[]; runs: number; days_active?: number }>;
+    },
+    staleTime: 60_000,
+  });
+
+  const sparkline = trend?.sparkline ?? [];
+  const maxVal = Math.max(...sparkline, 1);
+
+  return (
+    <button onClick={onSelect} className="bg-slate-900 border border-slate-800 rounded-lg p-4 space-y-2 text-left hover:border-violet-700/50 transition-colors w-full">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-slate-100">{String(skill.name)}</span>
+        <span className="text-lg font-bold text-slate-100">{Number(skill.invocations)}</span>
+      </div>
+      <div className="flex items-center gap-3 text-xs text-slate-500">
+        <span>avg {Number(skill.avg_tools)} tools</span>
+        <span>{Number(skill.avg_duration_ms)}ms avg</span>
+        {Number(skill.feedback_positive) > 0 && <span className="text-emerald-400">{Number(skill.feedback_positive)} positive</span>}
+        {Number(skill.feedback_negative) > 0 && <span className="text-red-400">{Number(skill.feedback_negative)} negative</span>}
+      </div>
+
+      {/* Sparkline */}
+      {sparkline.length > 1 && (
+        <div className="flex items-end gap-px h-8">
+          {sparkline.map((v, i) => (
+            <div
+              key={i}
+              className="flex-1 bg-violet-500/40 rounded-sm min-h-[2px]"
+              style={{ height: `${(v / maxVal) * 100}%` }}
+              title={`${v} calls`}
+            />
+          ))}
+        </div>
+      )}
+
+      {(skill.top_tools as Array<{ name: string; count: number }>)?.length > 0 && (
+        <div className="text-[10px] text-slate-600">
+          Top: {(skill.top_tools as Array<{ name: string; count: number }>).map((t) => t.name).join(', ')}
+        </div>
+      )}
+    </button>
   );
 }
