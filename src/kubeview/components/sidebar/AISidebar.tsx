@@ -22,7 +22,6 @@ export function AISidebar() {
   const collapseAISidebar = useUIStore((s) => s.collapseAISidebar);
 
   const streaming = useAgentStore((s) => s.streaming);
-  const messages = useAgentStore((s) => s.messages);
   const activeSkill = useMonitorStore((s) => s.activeSkill);
 
   // Auto-transition to chat when agent starts investigating
@@ -48,7 +47,7 @@ export function AISidebar() {
       }
     }, 30_000);
     return () => { if (idleTimerRef.current) clearTimeout(idleTimerRef.current); };
-  }, [mode, streaming, messages.length, setMode]);
+  }, [mode, streaming, setMode]);
 
   if (!expanded) {
     return <CollapsedRail />;

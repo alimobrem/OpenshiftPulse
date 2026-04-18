@@ -156,7 +156,7 @@ export const useUIStore = create<UIState>()(
     UIState,
     [],
     [],
-    Pick<UIState, 'tabs' | 'activeTabId' | 'selectedNamespace' | 'dockWidth'>
+    Pick<UIState, 'tabs' | 'activeTabId' | 'selectedNamespace' | 'aiSidebarExpanded' | 'bottomDockHeight'>
   >(
     (set, get) => ({
       // Tabs - default state
@@ -300,15 +300,15 @@ export const useUIStore = create<UIState>()(
       dockFullscreen: false,
 
       openDock: (panel) => {
-        if (panel === 'agent' || panel === 'monitor') {
-          set({ aiSidebarExpanded: true, aiSidebarMode: 'chat' });
-        } else if (panel) {
-          set({ bottomDockPanel: panel as 'logs' | 'terminal' | 'events' });
+        if (panel === 'agent') {
+          set({ aiSidebarExpanded: true, aiSidebarMode: 'chat', dockPanel: 'agent' });
+        } else if (panel === 'logs' || panel === 'terminal' || panel === 'events') {
+          set({ bottomDockPanel: panel, dockPanel: panel });
         }
       },
 
       closeDock: () => {
-        set({ bottomDockPanel: null });
+        set({ bottomDockPanel: null, dockPanel: null });
       },
 
       setDockWidth: (width) => {
@@ -413,10 +413,9 @@ export const useUIStore = create<UIState>()(
         tabs: state.tabs,
         activeTabId: state.activeTabId,
         selectedNamespace: state.selectedNamespace,
-        dockWidth: state.dockWidth,
         aiSidebarExpanded: state.aiSidebarExpanded,
         bottomDockHeight: state.bottomDockHeight,
-      } as Pick<UIState, 'tabs' | 'activeTabId' | 'selectedNamespace' | 'dockWidth' | 'aiSidebarExpanded' | 'bottomDockHeight'>),
+      }),
       merge: (persisted, current) => {
         if (persisted == null) return current;
         const persistedState = persisted as Partial<Pick<UIState, 'tabs' | 'activeTabId'>>;
