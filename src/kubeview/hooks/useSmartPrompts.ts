@@ -243,18 +243,18 @@ export function useSmartPrompts(): SmartPromptItem[] {
     if (items.length === 0) {
       items.push(
         {
-          prompt: 'Cluster is healthy \u2014 review security posture?',
-          context: 'No issues detected. Suggesting proactive security review.',
+          prompt: 'Create a dashboard for this namespace',
+          context: 'No issues detected. Suggesting view creation.',
           priority: 30,
         },
         {
-          prompt: 'All green \u2014 optimize resource requests?',
-          context: 'No issues detected. Suggesting resource optimization.',
+          prompt: 'Review security posture',
+          context: 'No issues detected. Suggesting proactive security review.',
           priority: 25,
         },
         {
-          prompt: 'Everything running smoothly \u2014 check for unused resources?',
-          context: 'No issues detected. Suggesting cleanup.',
+          prompt: 'Build an investigation plan for this cluster',
+          context: 'No issues detected. Suggesting proactive planning.',
           priority: 20,
         },
       );
@@ -262,7 +262,7 @@ export function useSmartPrompts(): SmartPromptItem[] {
 
     // --- Always include self-discovery prompt ---
     items.push({
-      prompt: 'What can you do?',
+      prompt: 'What skills do you have?',
       context: 'Self-description: lists skills, tools, and capabilities',
       priority: 10,
     });

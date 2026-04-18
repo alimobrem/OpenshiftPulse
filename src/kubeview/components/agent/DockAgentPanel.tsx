@@ -73,10 +73,45 @@ async function renameSession(sessionId: string, title: string): Promise<void> {
 const FOLLOW_UP_MAP: Record<string, string[]> = {
   diagnose: ['Build me a dashboard for this', 'Check if this happened before', 'What metrics should I monitor?'],
   security: ['Build a security findings dashboard', 'Check RBAC for this namespace', 'Are there network policies?'],
-  dashboard_created: ['Add a memory chart', 'Change the layout', 'Clone this dashboard'],
   dashboard_requested: ['Show me the production namespace', 'What metrics should I include?', 'Add CPU and memory charts'],
-  general: ['What else can you do?', 'Show me available PromQL recipes', 'Are there any deprecated APIs?'],
+  general: ['Create a dashboard for this namespace', 'Build an investigation plan', 'What skills do you have?'],
 };
+
+const METRIC_FAMILIES: Record<string, string[]> = {
+  cpu: ['cpu', 'processor', 'cores', 'utilization'],
+  memory: ['memory', 'mem', 'ram', 'rss', 'heap'],
+  network: ['network', 'traffic', 'bandwidth', 'packets', 'bytes_transmitted'],
+  disk: ['disk', 'storage', 'filesystem', 'iops', 'volume'],
+  latency: ['latency', 'response time', 'duration', 'p99', 'p95'],
+  errors: ['error', 'failure', '5xx', '4xx', 'error rate'],
+};
+
+function deriveDashboardSuggestions(components: ComponentSpec[]): string[] {
+  const titles = components
+    .map((c) => ('title' in c && c.title ? c.title.toLowerCase() : ''))
+    .filter(Boolean);
+  const allText = titles.join(' ');
+
+  const present = new Set<string>();
+  for (const [family, keywords] of Object.entries(METRIC_FAMILIES)) {
+    if (keywords.some((kw) => allText.includes(kw))) present.add(family);
+  }
+
+  const additions: string[] = [];
+  if (!present.has('cpu')) additions.push('Add CPU utilization');
+  if (!present.has('memory')) additions.push('Add memory usage');
+  if (!present.has('network')) additions.push('Add network traffic');
+  if (!present.has('latency')) additions.push('Add request latency');
+  if (!present.has('errors')) additions.push('Add error rate');
+  if (!present.has('disk')) additions.push('Add disk I/O');
+
+  const suggestions: string[] = [];
+  if (additions.length > 0) suggestions.push(additions[0]);
+  suggestions.push('Save as custom dashboard');
+  if (additions.length > 1) suggestions.push(additions[1]);
+
+  return suggestions.slice(0, 3);
+}
 
 function FollowUpSuggestions({
   messages,
@@ -95,11 +130,14 @@ function FollowUpSuggestions({
   const hasComponents = Array.isArray(lastAssistant.components) && lastAssistant.components.length > 0;
   let suggestions: string[];
 
-  const dashboardCreated = hasComponents || text.includes('dashboard created') || text.includes('successfully created') || text.includes('here\'s your dashboard');
-  const dashboardRequested = !dashboardCreated && (text.includes('dashboard') || text.includes('view') || text.includes('create_dashboard'));
+  const charts = hasComponents ? lastAssistant.components!.filter((c) => c.kind === 'chart') : [];
+  const isDashboard = charts.length >= 2 || text.includes('dashboard created') || text.includes('successfully created') || text.includes('here\'s your dashboard');
+  const dashboardRequested = !isDashboard && (text.includes('dashboard') || text.includes('create_dashboard'));
 
-  if (dashboardCreated) {
-    suggestions = FOLLOW_UP_MAP.dashboard_created;
+  if (isDashboard && hasComponents) {
+    suggestions = deriveDashboardSuggestions(lastAssistant.components!);
+  } else if (isDashboard) {
+    suggestions = ['Add another chart', 'Save as custom dashboard', 'Share this dashboard'];
   } else if (dashboardRequested) {
     suggestions = FOLLOW_UP_MAP.dashboard_requested;
   } else if (text.includes('security') || text.includes('rbac') || text.includes('scan')) {

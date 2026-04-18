@@ -102,7 +102,7 @@ describe('useSmartPrompts', () => {
     const { result } = renderHook(() => useSmartPrompts());
 
     expect(result.current.length).toBeGreaterThanOrEqual(1);
-    expect(result.current[0].prompt).toContain('healthy');
+    expect(result.current[0].prompt).toContain('dashboard');
   });
 
   it('returns empty array while loading', () => {
