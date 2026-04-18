@@ -98,11 +98,11 @@
 .hide-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 
 /* Thin scrollbar for sidebar */
-.thin-scrollbar { scrollbar-width: thin; scrollbar-color: transparent transparent; }
-.thin-scrollbar:hover { scrollbar-color: var(--kv-border) transparent; }
-.thin-scrollbar::-webkit-scrollbar { width: 4px; }
-.thin-scrollbar::-webkit-scrollbar-thumb { background: transparent; border-radius: 2px; }
-.thin-scrollbar:hover::-webkit-scrollbar-thumb { background: var(--kv-border); }
+.openshiftpulse .thin-scrollbar { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+.openshiftpulse .thin-scrollbar:hover { scrollbar-color: var(--kv-border) transparent; }
+.openshiftpulse .thin-scrollbar::-webkit-scrollbar { width: 4px; }
+.openshiftpulse .thin-scrollbar::-webkit-scrollbar-thumb { background: transparent; border-radius: 2px; }
+.openshiftpulse .thin-scrollbar:hover::-webkit-scrollbar-thumb { background: var(--kv-border); }
 
 .openshiftpulse ::-webkit-scrollbar-track {
   background: transparent;
