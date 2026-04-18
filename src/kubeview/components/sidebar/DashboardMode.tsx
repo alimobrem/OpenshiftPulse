@@ -66,7 +66,7 @@ export function DashboardMode() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+      <div className="flex-1 overflow-y-auto thin-scrollbar px-4 py-3 space-y-4">
         {/* Agent Status */}
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800/50 border border-slate-700/50">
           <StatusIcon className={cn(

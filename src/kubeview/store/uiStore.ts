@@ -61,10 +61,12 @@ interface UIState {
   // AI Sidebar (right-side, always present)
   aiSidebarExpanded: boolean;
   aiSidebarMode: 'dashboard' | 'chat';
+  aiSidebarWidth: number;
   expandAISidebar: () => void;
   collapseAISidebar: () => void;
   toggleAISidebar: () => void;
   setAISidebarMode: (mode: 'dashboard' | 'chat') => void;
+  setAISidebarWidth: (width: number) => void;
 
   // Bottom Dock (logs/terminal/events)
   bottomDockPanel: 'logs' | 'terminal' | 'events' | null;
@@ -165,7 +167,7 @@ export const useUIStore = create<UIState>()(
     UIState,
     [],
     [],
-    Pick<UIState, 'tabs' | 'activeTabId' | 'selectedNamespace' | 'aiSidebarExpanded' | 'bottomDockHeight'>
+    Pick<UIState, 'tabs' | 'activeTabId' | 'selectedNamespace' | 'aiSidebarExpanded' | 'aiSidebarWidth' | 'bottomDockHeight'>
   >(
     (set, get) => ({
       // Tabs - default state
@@ -281,11 +283,13 @@ export const useUIStore = create<UIState>()(
       // AI Sidebar
       aiSidebarExpanded: true,
       aiSidebarMode: 'dashboard' as const,
+      aiSidebarWidth: 360,
 
       expandAISidebar: () => set({ aiSidebarExpanded: true }),
       collapseAISidebar: () => set({ aiSidebarExpanded: false }),
       toggleAISidebar: () => set((s) => ({ aiSidebarExpanded: !s.aiSidebarExpanded })),
       setAISidebarMode: (mode) => set({ aiSidebarMode: mode }),
+      setAISidebarWidth: (width) => set({ aiSidebarWidth: Math.max(300, Math.min(600, width)) }),
 
       // Bottom Dock
       bottomDockPanel: null,
@@ -427,6 +431,7 @@ export const useUIStore = create<UIState>()(
         activeTabId: state.activeTabId,
         selectedNamespace: state.selectedNamespace,
         aiSidebarExpanded: state.aiSidebarExpanded,
+        aiSidebarWidth: state.aiSidebarWidth,
         bottomDockHeight: state.bottomDockHeight,
       }),
       merge: (persisted, current) => {

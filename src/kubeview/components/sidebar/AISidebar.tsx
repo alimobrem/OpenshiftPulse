@@ -1,5 +1,6 @@
-import { useEffect, useRef, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { PanelRightClose } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useUIStore } from '../../store/uiStore';
 import { useAgentStore } from '../../store/agentStore';
 import { useMonitorStore } from '../../store/monitorStore';
@@ -18,11 +19,40 @@ function AgentDegradedBanner() {
 export function AISidebar() {
   const expanded = useUIStore((s) => s.aiSidebarExpanded);
   const mode = useUIStore((s) => s.aiSidebarMode);
+  const width = useUIStore((s) => s.aiSidebarWidth);
+  const setWidth = useUIStore((s) => s.setAISidebarWidth);
   const setMode = useUIStore((s) => s.setAISidebarMode);
   const collapseAISidebar = useUIStore((s) => s.collapseAISidebar);
 
   const streaming = useAgentStore((s) => s.streaming);
   const activeSkill = useMonitorStore((s) => s.activeSkill);
+
+  // Resize
+  const [isResizing, setIsResizing] = useState(false);
+  const startX = useRef(0);
+  const startWidth = useRef(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsResizing(true);
+    startX.current = e.clientX;
+    startWidth.current = width;
+    e.preventDefault();
+  };
+
+  useEffect(() => {
+    if (!isResizing) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      const delta = startX.current - e.clientX;
+      setWidth(startWidth.current + delta);
+    };
+    const handleMouseUp = () => setIsResizing(false);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing, setWidth]);
 
   // Auto-transition to chat when agent starts investigating
   const prevActiveSkill = useRef(activeSkill);
@@ -54,7 +84,20 @@ export function AISidebar() {
   }
 
   return (
-    <aside className="w-[360px] h-full flex flex-col border-l border-slate-800 bg-slate-900 shrink-0" aria-label="AI Sidebar">
+    <aside
+      className="relative h-full flex flex-col border-l border-slate-800 bg-slate-900 shrink-0"
+      style={{ width }}
+      aria-label="AI Sidebar"
+    >
+      {/* Resize handle (left edge) */}
+      <div
+        onMouseDown={handleMouseDown}
+        className={cn(
+          'absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize z-10 transition-colors hover:bg-violet-500/50',
+          isResizing && 'bg-violet-500',
+        )}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-slate-800 shrink-0">
         <span className="text-xs font-semibold text-slate-300">Pulse AI</span>
