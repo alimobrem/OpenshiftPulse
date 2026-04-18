@@ -225,17 +225,15 @@ export function useSmartPrompts(): SmartPromptItem[] {
     });
 
     // Add view-specific prompts from the engine that we haven't already covered
+    const seenContexts = new Set(items.map((item) => item.context));
     for (const sp of enginePrompts) {
-      // Skip if we already have a similar prompt (avoid duplication)
-      const isDuplicate = items.some((item) =>
+      const context = `${sp.category} suggestion for ${location.pathname}`;
+      const isDuplicate = seenContexts.has(context) || items.some((item) =>
         item.prompt.toLowerCase().includes(sp.text.toLowerCase().slice(0, 20)),
       );
       if (!isDuplicate && sp.priority <= 60) {
-        items.push({
-          prompt: sp.text,
-          context: `${sp.category} suggestion for ${location.pathname}`,
-          priority: sp.priority,
-        });
+        seenContexts.add(context);
+        items.push({ prompt: sp.text, context, priority: sp.priority });
       }
     }
 
