@@ -149,7 +149,7 @@ export function DashboardMode() {
         {/* Memory Highlights */}
         {memorySummary && (
           <button
-            onClick={() => navigate('/agent/memory')}
+            onClick={() => navigate('/memory')}
             className="w-full text-left px-3 py-2.5 rounded-lg bg-slate-800/50 border border-slate-700/50 hover:bg-slate-800 transition-colors"
           >
             <h3 className="text-[10px] text-slate-500 uppercase tracking-wider font-medium mb-1.5 flex items-center gap-1">
