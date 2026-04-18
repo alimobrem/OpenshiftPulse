@@ -210,6 +210,27 @@ function makeEvents(): Event[] {
       firstTimestamp: '2026-03-24T08:15:10Z',
       lastTimestamp: '2026-03-24T08:15:10Z',
     },
+    {
+      apiVersion: 'v1',
+      kind: 'Event',
+      metadata: {
+        name: 'pulse-agent.rolling-update',
+        namespace: 'openshiftpulse',
+        uid: 'evt-uid-005',
+        creationTimestamp: '2026-03-24T10:20:00Z',
+      },
+      involvedObject: {
+        apiVersion: 'v1',
+        kind: 'Pod',
+        name: 'pulse-agent-7b6fdf6894-4dm5j',
+        namespace: 'openshiftpulse',
+      },
+      reason: 'Killing',
+      message: 'Stopping container sre-agent',
+      type: 'Normal',
+      firstTimestamp: '2026-03-24T10:20:00Z',
+      lastTimestamp: '2026-03-24T10:20:00Z',
+    },
   ];
 }
 
@@ -618,7 +639,7 @@ describe('timeline engine', () => {
   describe('eventsToTimeline', () => {
     it('maps K8s events to TimelineEntry[]', () => {
       const entries = eventsToTimeline(makeEvents());
-      expect(entries).toHaveLength(4);
+      expect(entries).toHaveLength(5);
       expect(entries.every(e => e.category === 'event')).toBe(true);
     });
 
@@ -647,6 +668,12 @@ describe('timeline engine', () => {
 
       const killed = entries.find(e => e.title === 'KilledContainer');
       expect(killed?.severity).toBe('warning');
+    });
+
+    it('classifies Killing reason as normal (rolling update lifecycle)', () => {
+      const entries = eventsToTimeline(makeEvents());
+      const killing = entries.find(e => e.title === 'Killing');
+      expect(killing?.severity).toBe('normal');
     });
 
     it('extracts involvedObject as resource reference', () => {
@@ -1039,17 +1066,17 @@ describe('timeline engine', () => {
     it('keeps entries within the cutoff window', () => {
       const entries = eventsToTimeline(makeEvents());
       // cutoff = 4 hours = 14_400_000 ms => cutoff at 08:00:00Z
-      // 10:00:05Z (in), 09:30:00Z (in), 10:10:00Z (in), 08:15:10Z (in)
+      // 10:00:05Z (in), 09:30:00Z (in), 10:10:00Z (in), 08:15:10Z (in), 10:20:00Z (in)
       const filtered = filterByTimeRange(entries, 14_400_000);
-      expect(filtered).toHaveLength(4);
+      expect(filtered).toHaveLength(5);
     });
 
     it('partially filters entries based on cutoff', () => {
       const entries = eventsToTimeline(makeEvents());
       // cutoff = 2.5 hours = 9_000_000 ms => cutoff at 09:30:00Z
-      // 10:00:05Z (in), 09:30:00Z (in), 10:10:00Z (in), 08:15:10Z (out)
+      // 10:00:05Z (in), 09:30:00Z (in), 10:10:00Z (in), 08:15:10Z (out), 10:20:00Z (in)
       const filtered = filterByTimeRange(entries, 9_000_000);
-      expect(filtered).toHaveLength(3);
+      expect(filtered).toHaveLength(4);
       expect(filtered.some(e => e.title === 'KilledContainer')).toBe(false);
     });
 
@@ -1064,7 +1091,7 @@ describe('timeline engine', () => {
       const entries = eventsToTimeline(makeEvents());
       // 30 days
       const filtered = filterByTimeRange(entries, 30 * 24 * 60 * 60 * 1000);
-      expect(filtered).toHaveLength(4);
+      expect(filtered).toHaveLength(5);
     });
 
     it('handles empty input', () => {

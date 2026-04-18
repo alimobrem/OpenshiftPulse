@@ -72,7 +72,8 @@ export function eventsToTimeline(events: Event[]): TimelineEntry[] {
       const timestamp = ev.lastTimestamp || ev.firstTimestamp || ev.metadata.creationTimestamp || '';
       const involved = ev.involvedObject || { kind: '', name: '', apiVersion: 'v1' };
       const isWarning = ev.type === 'Warning';
-      const isFailed = (ev.reason || '').includes('Failed') || (ev.reason || '').includes('Error') || (ev.reason || '').includes('Kill');
+      const reason = ev.reason || '';
+      const isFailed = reason.includes('Failed') || reason.includes('Error') || (reason.includes('Kill') && reason !== 'Killing');
 
       return {
         id: `event-${ev.metadata.uid || ev.metadata.name || timestamp}`,

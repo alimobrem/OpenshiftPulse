@@ -938,8 +938,8 @@ export function ReportTab({ nodes, allPods, deployments, pvcs, operators, go }: 
                     className="w-full flex items-center gap-2 text-xs text-left hover:bg-slate-800/50 px-2 py-1.5 rounded transition-colors group">
                     <span className="text-slate-500 w-10 shrink-0 text-right font-mono">{ev.ago}</span>
                     <span className={cn('px-1 py-0.5 rounded text-xs font-medium shrink-0',
-                      ev.reason === 'Killing' || ev.reason === 'Unhealthy' || ev.reason === 'BackOff' ? 'bg-red-900/40 text-red-300' :
-                      ev.reason === 'Pulled' || ev.reason === 'Created' || ev.reason === 'Started' || ev.reason === 'Scheduled' ? 'bg-green-900/40 text-green-300' :
+                      ev.reason === 'Unhealthy' || ev.reason === 'BackOff' ? 'bg-red-900/40 text-red-300' :
+                      ev.reason === 'Pulled' || ev.reason === 'Created' || ev.reason === 'Started' || ev.reason === 'Scheduled' || ev.reason === 'Killing' ? 'bg-green-900/40 text-green-300' :
                       'bg-slate-800 text-slate-400'
                     )}>{ev.reason}</span>
                     <span className="text-slate-300 truncate">{ev.name}</span>
