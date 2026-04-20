@@ -27,8 +27,8 @@ const PERSPECTIVES: PerspectiveDef[] = [
   { label: 'Physical', kinds: 'Node,Pod', relationships: 'schedules', layout_hint: 'grouped', include_metrics: true, group_by: 'node' },
   { label: 'Logical', kinds: 'Deployment,ReplicaSet,Pod,ConfigMap,Secret,PVC,ServiceAccount,HPA', relationships: 'owns,references,mounts,uses,scales', layout_hint: 'top-down', include_metrics: false, group_by: '' },
   { label: 'Network', kinds: 'Route,Ingress,Service,Pod,NetworkPolicy', relationships: 'routes_to,selects,applies_to', layout_hint: 'left-to-right', include_metrics: false, group_by: '' },
-  { label: 'Multi-Tenant', kinds: 'Pod,Node', relationships: 'schedules', layout_hint: 'grouped', include_metrics: true, group_by: 'namespace' },
-  { label: 'Helm', kinds: 'HelmRelease,Deployment,StatefulSet,Service,ConfigMap,Secret', relationships: 'manages,owns', layout_hint: 'grouped', include_metrics: false, group_by: '' },
+  { label: 'Multi-Tenant', kinds: 'Pod', relationships: '', layout_hint: 'grouped', include_metrics: true, group_by: 'namespace' },
+  { label: 'Helm', kinds: 'HelmRelease,Deployment,StatefulSet,Service,ConfigMap,Secret', relationships: 'manages,owns', layout_hint: 'top-down', include_metrics: false, group_by: '' },
 ];
 
 export default function AgentTopology({ spec: initialSpec, onAddToView }: { spec: TopologySpec; onAddToView?: (spec: ComponentSpec) => void }) {
