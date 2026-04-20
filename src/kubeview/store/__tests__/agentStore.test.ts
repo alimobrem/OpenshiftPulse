@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock AgentClient as a class
+let lastMockClient: any = null;
 vi.mock('../../engine/agentClient', () => {
   return {
     AgentClient: class MockAgentClient {
@@ -11,6 +12,7 @@ vi.mock('../../engine/agentClient', () => {
 
       constructor(mode: string) {
         this.mode = mode;
+        lastMockClient = this;
       }
 
       on(handler: (e: any) => void) {
@@ -38,11 +40,16 @@ vi.mock('../../engine/agentClient', () => {
       private emit(event: any) {
         for (const h of this.handlers) h(event);
       }
+
+      _simulateEvent(event: any) {
+        this.emit(event);
+      }
     },
   };
 });
 
 import { useAgentStore } from '../agentStore';
+import { useUIStore } from '../uiStore';
 
 describe('agentStore', () => {
   beforeEach(() => {
@@ -59,6 +66,8 @@ describe('agentStore', () => {
       pendingConfirm: null,
       error: null,
     });
+    useUIStore.getState().removeDegradedReason('session_expired');
+    lastMockClient = null;
   });
 
   it('initializes with default state', () => {
@@ -110,5 +119,32 @@ describe('agentStore', () => {
     const state = useAgentStore.getState();
     expect(state.messages).toEqual([]);
     expect(state.error).toBeNull();
+  });
+
+  it('triggers session_expired on 4001 auth error', () => {
+    const store = useAgentStore.getState();
+    store.connect();
+    expect(useUIStore.getState().degradedReasons.has('session_expired')).toBe(false);
+
+    lastMockClient._simulateEvent({
+      type: 'error',
+      message: 'Agent authentication failed (code 4001). The WebSocket token may not be configured correctly.',
+    });
+
+    expect(useUIStore.getState().degradedReasons.has('session_expired')).toBe(true);
+    expect(useAgentStore.getState().error).toContain('4001');
+  });
+
+  it('does not trigger session_expired on non-auth errors', () => {
+    const store = useAgentStore.getState();
+    store.connect();
+
+    lastMockClient._simulateEvent({
+      type: 'error',
+      message: 'Tool execution failed: timeout after 30s',
+    });
+
+    expect(useUIStore.getState().degradedReasons.has('session_expired')).toBe(false);
+    expect(useAgentStore.getState().error).toContain('timeout');
   });
 });

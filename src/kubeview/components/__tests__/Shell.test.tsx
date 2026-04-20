@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+import { render, screen, cleanup, act, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import React from 'react';
 
@@ -13,6 +13,7 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
+const _mockRemoveDegraded = vi.fn();
 const _mockUIState: Record<string, any> = {
   commandPaletteOpen: false,
   browserOpen: false,
@@ -23,6 +24,7 @@ const _mockUIState: Record<string, any> = {
   impersonateUser: null,
   clearImpersonation: vi.fn(),
   degradedReasons: new Set(),
+  removeDegradedReason: _mockRemoveDegraded,
   selectedNamespace: '*',
   addTab: vi.fn(),
   addToast: vi.fn(),
@@ -76,7 +78,7 @@ vi.mock('../../store/monitorStore', () => ({
       };
       return selector(state);
     },
-    { getState: () => ({ toggleNotificationCenter: vi.fn() }) },
+    { getState: () => ({ toggleNotificationCenter: vi.fn(), disconnect: vi.fn() }) },
   ),
 }));
 
@@ -92,7 +94,7 @@ vi.mock('../../store/agentStore', () => ({
       };
       return selector(state);
     },
-    { getState: () => ({ connected: false, connect: vi.fn(), streaming: false }) },
+    { getState: () => ({ connected: false, connect: vi.fn(), disconnect: vi.fn(), streaming: false }) },
   ),
 }));
 
@@ -166,6 +168,8 @@ describe('Shell', () => {
     _mockUIState.commandPaletteOpen = false;
     _mockUIState.browserOpen = false;
     _mockUIState.impersonateUser = null;
+    _mockUIState.degradedReasons = new Set();
+    _mockRemoveDegraded.mockClear();
   });
 
   it('renders CommandBar, TabBar, StatusBar, and Outlet', () => {
@@ -203,12 +207,10 @@ describe('Shell', () => {
     _mockUIState.degradedReasons = new Set(['session_expired']);
     renderShell();
     expect(screen.getByText('Session Expired')).toBeDefined();
-    expect(screen.getByText('Re-authenticate')).toBeDefined();
-    _mockUIState.degradedReasons = new Set();
+    expect(screen.getByText('Log in now')).toBeDefined();
   });
 
   it('does not render session expired modal when no session_expired reason', () => {
-    _mockUIState.degradedReasons = new Set();
     renderShell();
     expect(screen.queryByText('Session Expired')).toBeNull();
   });
@@ -217,6 +219,46 @@ describe('Shell', () => {
     _mockUIState.degradedReasons = new Set(['agent_unreachable']);
     renderShell();
     expect(screen.queryByText('Session Expired')).toBeNull();
+  });
+
+  it('session expired modal shows countdown starting at 10s', () => {
+    _mockUIState.degradedReasons = new Set(['session_expired']);
+    renderShell();
+    expect(screen.getByText('10s')).toBeDefined();
+    _mockUIState.degradedReasons = new Set();
+  });
+
+  it('session expired modal countdown decrements', () => {
+    vi.useFakeTimers();
+    try {
+      _mockUIState.degradedReasons = new Set(['session_expired']);
+      renderShell();
+      expect(screen.getByText('10s')).toBeDefined();
+
+      act(() => { vi.advanceTimersByTime(1000); });
+      expect(screen.getByText('9s')).toBeDefined();
+
+      act(() => { vi.advanceTimersByTime(1000); });
+      expect(screen.getByText('8s')).toBeDefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('session expired modal has progress bar', () => {
+    _mockUIState.degradedReasons = new Set(['session_expired']);
+    const { container } = renderShell();
+    const progressBar = container.querySelector('.bg-blue-500.h-1\\.5');
+    expect(progressBar).toBeDefined();
+    _mockUIState.degradedReasons = new Set();
+  });
+
+  it('session expired modal dismiss button removes session_expired reason', () => {
+    _mockUIState.degradedReasons = new Set(['session_expired']);
+    renderShell();
+
+    fireEvent.click(screen.getByText('Dismiss'));
+    expect(_mockRemoveDegraded).toHaveBeenCalledWith('session_expired');
     _mockUIState.degradedReasons = new Set();
   });
 });

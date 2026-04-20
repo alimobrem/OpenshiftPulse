@@ -8,6 +8,10 @@ vi.mock('../../engine/monitorClient', () => {
       connected = false;
       private handlers = new Set<(e: any) => void>();
 
+      constructor() {
+        lastMonitorClient = this;
+      }
+
       on(handler: (e: any) => void) {
         this.handlers.add(handler);
         return () => this.handlers.delete(handler);
@@ -66,6 +70,9 @@ vi.mock('../../engine/fixHistory', () => ({
 }));
 
 import { useMonitorStore } from '../monitorStore';
+import { useUIStore } from '../uiStore';
+
+let lastMonitorClient: any = null;
 
 describe('monitorStore', () => {
   beforeEach(() => {
@@ -90,6 +97,8 @@ describe('monitorStore', () => {
       unreadCount: 0,
       notificationCenterOpen: false,
     });
+    useUIStore.getState().removeDegradedReason('session_expired');
+    lastMonitorClient = null;
   });
 
   it('initializes with default state', () => {
@@ -245,5 +254,30 @@ describe('monitorStore', () => {
 
     useMonitorStore.getState().dismissFinding('f-dismissed');
     expect(useMonitorStore.getState().findings).toHaveLength(0);
+  });
+
+  it('triggers session_expired on 4001 auth error', () => {
+    useMonitorStore.getState().connect();
+    expect(useUIStore.getState().degradedReasons.has('session_expired')).toBe(false);
+
+    lastMonitorClient._simulateEvent({
+      type: 'error',
+      message: 'Monitor authentication failed (code 4001). The WebSocket token may not be configured correctly.',
+    });
+
+    expect(useUIStore.getState().degradedReasons.has('session_expired')).toBe(true);
+    expect(useMonitorStore.getState().connectionError).toContain('4001');
+  });
+
+  it('does not trigger session_expired on non-auth errors', () => {
+    useMonitorStore.getState().connect();
+
+    lastMonitorClient._simulateEvent({
+      type: 'error',
+      message: 'Monitor connection lost',
+    });
+
+    expect(useUIStore.getState().degradedReasons.has('session_expired')).toBe(false);
+    expect(useMonitorStore.getState().connectionError).toContain('connection lost');
   });
 });

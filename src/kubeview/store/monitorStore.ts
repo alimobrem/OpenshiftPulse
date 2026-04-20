@@ -24,6 +24,7 @@ import {
 } from '../engine/fixHistory';
 import { useTrustStore } from './trustStore';
 import { useUIStore } from './uiStore';
+import { handleAuthError } from '../engine/auth';
 
 const MAX_FINDINGS = 200;
 const MAX_PREDICTIONS = 50;
@@ -293,6 +294,7 @@ export const useMonitorStore = create<MonitorState>()(
 
             case 'error':
               console.error('Monitor error:', event.message);
+              handleAuthError(event.message);
               set({ connectionError: event.message || 'Unknown monitor error' });
               break;
           }

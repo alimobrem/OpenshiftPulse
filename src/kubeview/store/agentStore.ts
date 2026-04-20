@@ -7,6 +7,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { useTrustStore } from './trustStore';
+import { handleAuthError } from '../engine/auth';
 import {
   AgentClient,
   type AgentMode,
@@ -269,6 +270,7 @@ export const useAgentStore = create<AgentState>()(
             case 'error':
               flushDeltas(set);
               resetStreamingState();
+              handleAuthError(event.message);
               set({
                 error: event.message,
                 streaming: false,

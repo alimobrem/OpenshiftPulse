@@ -9,6 +9,7 @@ import { isMultiCluster } from '../engine/clusterConnection';
 import { k8sList } from '../engine/query';
 import { getPodStatus } from '../engine/renderers/statusUtils';
 import { cn } from '@/lib/utils';
+import { performLogout } from '../engine/auth';
 
 export function CommandBar() {
   const navigate = useNavigate();
@@ -443,7 +444,7 @@ export function CommandBar() {
                   <button
                     onClick={() => {
                       setShowUserMenu(false);
-                      window.location.href = '/oauth/sign_out';
+                      performLogout();
                     }}
                     className="w-full px-3 py-2 text-left text-sm text-slate-400 hover:bg-slate-700 transition-colors flex items-center gap-2"
                   >
