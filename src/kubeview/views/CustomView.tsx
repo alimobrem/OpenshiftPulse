@@ -98,6 +98,13 @@ export default function CustomView() {
     };
   }, [viewId]);
 
+  // Trigger grid width recalculation when the AI sidebar toggles
+  const sidebarExpanded = useUIStore((s) => s.aiSidebarExpanded);
+  useEffect(() => {
+    const timer = setTimeout(() => window.dispatchEvent(new Event('resize')), 300);
+    return () => clearTimeout(timer);
+  }, [sidebarExpanded]);
+
   // Derive layout from already-subscribed view to avoid redundant selector
   const viewLayout = view?.layout;
 
@@ -205,7 +212,7 @@ export default function CustomView() {
 
   return (
     <div className="h-full overflow-auto bg-slate-950 p-6">
-      <div className="max-w-7xl mx-auto space-y-4">
+      <div className="w-full max-w-[1800px] mx-auto space-y-4">
         {/* Header */}
         <div className="flex items-start justify-between">
           <div>
