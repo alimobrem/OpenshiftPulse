@@ -172,6 +172,7 @@ export const useInboxStore = create<InboxState>((set, get) => ({
     try {
       await snoozeInboxItem(id, hours);
       get().refresh();
+      _toast('success', `Snoozed for ${hours}h`);
       return true;
     } catch {
       _toast('error', 'Failed to snooze');

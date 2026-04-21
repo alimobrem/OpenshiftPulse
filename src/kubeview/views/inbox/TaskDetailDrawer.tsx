@@ -251,6 +251,19 @@ export function TaskDetailDrawer({
             </Button>
           )}
 
+          {item.status === 'agent_reviewing' && (
+            <>
+              <Button size="sm" variant="ghost" onClick={() => { advanceStatus(item.id, 'acknowledged'); claim(item.id); }}>
+                <CheckCircle2 className="w-4 h-4 mr-1" />
+                Skip AI — Claim Now
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => dismiss(item.id)}>
+                <Archive className="w-4 h-4 mr-1" />
+                Dismiss
+              </Button>
+            </>
+          )}
+
           {item.status === 'agent_cleared' && (
             <>
               <Button size="sm" onClick={() => restore(item.id)}>
