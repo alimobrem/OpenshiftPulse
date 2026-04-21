@@ -25,6 +25,7 @@ export function InboxPage() {
   const setSelectedItem = useInboxStore((s) => s.setSelectedItem);
   const refresh = useInboxStore((s) => s.refresh);
   const filters = useInboxStore((s) => s.filters);
+  const activePreset = useInboxStore((s) => s.activePreset);
 
   useEffect(() => {
     refresh();
@@ -68,6 +69,12 @@ export function InboxPage() {
 
         <TabsContent value="inbox" className="flex-1 flex flex-col overflow-hidden">
           <InboxFilterBar />
+
+          {activePreset === 'archived' && (
+            <div className="mx-4 mt-2 rounded-lg border border-slate-700 bg-slate-800/50 px-4 py-3 text-sm text-slate-400">
+              <span className="font-medium text-slate-300">Archived items</span> are automatically deleted after 30 days. You can review past incidents, postmortems, and resolved issues here.
+            </div>
+          )}
 
           <div className="flex-1 overflow-y-auto">
             {loading && !hasItems && (

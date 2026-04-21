@@ -25,12 +25,13 @@ import {
 import { handleAuthError } from '../engine/auth';
 import { useUIStore } from './uiStore';
 
-type Preset = 'needs_attention' | 'agent_cleared' | 'my_items' | 'all' | null;
+type Preset = 'needs_attention' | 'agent_cleared' | 'my_items' | 'archived' | 'all' | null;
 
 const PRESET_FILTERS: Record<string, InboxFilters> = {
   needs_attention: { status: '__needs_attention__' },
   agent_cleared: { status: 'agent_cleared' },
   my_items: { claimed_by: '__current_user__' },
+  archived: { status: 'archived' },
   all: {},
 };
 
@@ -182,6 +183,7 @@ export const useInboxStore = create<InboxState>((set, get) => ({
     try {
       await dismissInboxItem(id);
       get().refresh();
+      _toast('success', 'Archived — will be deleted after 30 days');
       return true;
     } catch {
       _toast('error', 'Failed to dismiss');
