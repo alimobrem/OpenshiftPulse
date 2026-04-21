@@ -31,9 +31,17 @@ import type {
   StatCardSpec,
   TimelineSpec,
   ResourceCountsSpec,
+  ActionButtonSpec,
+  ConfidenceBadgeSpec,
+  ResolutionTrackerSpec,
+  BlastRadiusSpec,
 } from '../../engine/agentComponents';
 const LazyAgentNodeMap = lazy(() => import('./AgentNodeMap').then(m => ({ default: m.AgentNodeMap })));
 const LazyAgentTopology = lazy(() => import('./AgentTopology'));
+import { AgentActionButton } from './AgentActionButton';
+import { AgentConfidenceBadge } from './AgentConfidenceBadge';
+import { AgentResolutionTracker } from './AgentResolutionTracker';
+import { AgentBlastRadius } from './AgentBlastRadius';
 import { DynamicComponent } from './DynamicComponent';
 import { Badge } from '../primitives/Badge';
 import { InfoCard } from '../primitives/InfoCard';
@@ -97,6 +105,14 @@ export function AgentComponentRenderer({ spec, depth = 0, onAddToView, refreshIn
       return <AgentResourceCounts spec={spec} />;
     case 'topology':
       return <Suspense fallback={<div className="h-48 flex items-center justify-center text-slate-500 text-xs">Loading topology...</div>}><LazyAgentTopology spec={spec} onAddToView={onAddToView} /></Suspense>;
+    case 'action_button':
+      return <AgentActionButton spec={spec as ActionButtonSpec} />;
+    case 'confidence_badge':
+      return <AgentConfidenceBadge spec={spec as ConfidenceBadgeSpec} />;
+    case 'resolution_tracker':
+      return <AgentResolutionTracker spec={spec as ResolutionTrackerSpec} />;
+    case 'blast_radius':
+      return <AgentBlastRadius spec={spec as BlastRadiusSpec} />;
     default:
       // Dynamic rendering for unknown kinds — uses layout templates from component registry
       return <DynamicComponentFallback spec={spec} />;

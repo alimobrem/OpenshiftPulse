@@ -25,7 +25,11 @@ export type ComponentSpec =
   | StatCardSpec
   | TimelineSpec
   | ResourceCountsSpec
-  | TopologySpec;
+  | TopologySpec
+  | ActionButtonSpec
+  | ConfidenceBadgeSpec
+  | ResolutionTrackerSpec
+  | BlastRadiusSpec;
 
 export interface RelationshipTreeSpec {
   kind: 'relationship_tree';
@@ -332,6 +336,9 @@ export function truncateForPersistence(spec: ComponentSpec): ComponentSpec {
   if (spec.kind === 'log_viewer' && spec.lines.length > MAX_PERSISTED_ROWS) {
     return { ...spec, lines: spec.lines.slice(-MAX_PERSISTED_ROWS) };
   }
+  if (spec.kind === 'resolution_tracker' && spec.steps.length > MAX_PERSISTED_ROWS) {
+    return { ...spec, steps: spec.steps.slice(-MAX_PERSISTED_ROWS) };
+  }
   if (spec.kind === 'tabs') {
     return {
       ...spec,
@@ -385,6 +392,51 @@ export interface TopologySpec {
     target: string;
     relationship: string;
   }>;
+}
+
+export interface ActionButtonSpec {
+  kind: 'action_button';
+  label: string;
+  action: string;
+  action_input: Record<string, unknown>;
+  style?: 'primary' | 'danger' | 'ghost';
+  confirm_text?: string;
+  _is_write?: boolean;
+}
+
+export interface ConfidenceBadgeSpec {
+  kind: 'confidence_badge';
+  score: number;
+  label?: string;
+}
+
+export interface ResolutionStep {
+  title: string;
+  status: 'done' | 'running' | 'pending';
+  detail: string;
+  output?: string | null;
+  timestamp?: string | null;
+}
+
+export interface ResolutionTrackerSpec {
+  kind: 'resolution_tracker';
+  title?: string;
+  steps: ResolutionStep[];
+}
+
+export interface BlastItem {
+  kind_abbrev: string;
+  name: string;
+  relationship: string;
+  status: 'degraded' | 'healthy' | 'retrying' | 'paused';
+  status_detail: string;
+}
+
+export interface BlastRadiusSpec {
+  kind: 'blast_radius';
+  title?: string;
+  items: BlastItem[];
+  perspective?: 'physical' | 'logical' | 'network' | 'multi_tenant' | 'helm';
 }
 
 export interface ResourceCountsSpec {

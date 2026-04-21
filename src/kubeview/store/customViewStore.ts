@@ -51,6 +51,8 @@ interface CustomViewState {
   claimSharedView: (shareToken: string) => Promise<string | null>;
   /** Generate a share link for a view */
   shareView: (id: string) => Promise<string | null>;
+  /** Execute an action_button tool from a view */
+  executeAction: (viewId: string, action: string, actionInput: Record<string, unknown>) => Promise<{ result: string; status: string; error_message?: string }>;
 }
 
 async function apiFetch(path: string, options?: RequestInit) {
@@ -252,6 +254,14 @@ export const useCustomViewStore = create<CustomViewState>()(
         console.error('Failed to share view:', e);
         return null;
       }
+    },
+
+    executeAction: async (viewId, action, actionInput) => {
+      const data = await apiFetch(`/views/${viewId}/actions`, {
+        method: 'POST',
+        body: JSON.stringify({ action, action_input: actionInput }),
+      });
+      return data;
     },
   }),
 );
