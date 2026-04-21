@@ -213,8 +213,8 @@ function ActionPlanSection({
                       size="sm"
                       variant="ghost"
                       onClick={() => {
-                        // Optimistic: we don't persist skip to backend yet
-                        // (action endpoint doesn't exist). UI-only for now.
+                        step.status = 'skipped';
+                        useUIStore.getState().addToast({ type: 'success', title: `Skipped: ${step.title}` });
                       }}
                     >
                       <SkipForward className="w-3 h-3" />

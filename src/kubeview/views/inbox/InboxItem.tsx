@@ -215,7 +215,7 @@ export function InboxItem({
         onClose={() => setConfirmDismiss(false)}
         onConfirm={handleDismiss}
         title="Dismiss critical item?"
-        description={`"${item.title}" will be permanently removed from your inbox.`}
+        description={`"${item.title}" will be archived and automatically deleted after 30 days.`}
         variant="danger"
       />
     </>
