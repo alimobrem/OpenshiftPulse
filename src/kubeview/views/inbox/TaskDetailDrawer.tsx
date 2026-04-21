@@ -605,10 +605,20 @@ export function TaskDetailDrawer({
                   Claim
                 </Button>
               ) : (
-                <Button size="sm" onClick={() => handleAdvance('investigating')}>
-                  <ArrowRight className="w-4 h-4 mr-1" />
-                  Start Working
-                </Button>
+                <>
+                  {item.item_type === 'finding' && (
+                    <Button size="sm" onClick={() => handleAdvance('investigating')}>
+                      <ArrowRight className="w-4 h-4 mr-1" />
+                      Start Investigating
+                    </Button>
+                  )}
+                  {item.item_type === 'task' && (
+                    <Button size="sm" onClick={() => handleAdvance('in_progress')}>
+                      <ArrowRight className="w-4 h-4 mr-1" />
+                      Start Working
+                    </Button>
+                  )}
+                </>
               )}
               {item.item_type === 'assessment' && (
                 <Button size="sm" variant="ghost" onClick={handleEscalate}>
