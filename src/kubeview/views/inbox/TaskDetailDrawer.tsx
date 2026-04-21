@@ -335,9 +335,13 @@ export function TaskDetailDrawer({
 
   const handleInvestigate = () => {
     useAgentStore.getState().connectAndSend(buildInvestigatePrompt(item));
-    useUIStore.getState().expandAISidebar();
-    useUIStore.getState().setAISidebarMode('chat');
     onClose();
+    const uiState = useUIStore.getState();
+    uiState.expandAISidebar();
+    uiState.setAISidebarMode('chat');
+    if (window.innerWidth < 1200) {
+      uiState.setActiveTab('agent');
+    }
   };
 
   const handleEscalate = async () => {
@@ -640,13 +644,24 @@ export function TaskDetailDrawer({
 
           {item.status === 'investigating' && (
             <>
+              {!investigation && !actionPlan && (
+                <p className="w-full text-xs text-slate-500 mb-1">No investigation data yet. Use Deep Dive to investigate with the agent.</p>
+              )}
+              <Button size="sm" onClick={handleInvestigate}>
+                <Bot className="w-4 h-4 mr-1" />
+                Deep Dive
+              </Button>
               <Button size="sm" onClick={() => handleAdvance('action_taken')}>
                 <CheckCircle2 className="w-4 h-4 mr-1" />
                 Mark Action Taken
               </Button>
-              <Button size="sm" variant="ghost" onClick={handleInvestigate}>
-                <Bot className="w-4 h-4 mr-1" />
-                Deep Dive
+              <Button size="sm" variant="ghost" onClick={() => resolve(item.id)}>
+                <CheckCircle2 className="w-4 h-4 mr-1" />
+                Resolve
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => dismiss(item.id)}>
+                <Archive className="w-4 h-4 mr-1" />
+                Dismiss
               </Button>
             </>
           )}
@@ -660,6 +675,10 @@ export function TaskDetailDrawer({
               <Button size="sm" variant="ghost" onClick={handleInvestigate}>
                 <Bot className="w-4 h-4 mr-1" />
                 Deep Dive
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => dismiss(item.id)}>
+                <Archive className="w-4 h-4 mr-1" />
+                Dismiss
               </Button>
             </>
           )}
@@ -685,6 +704,10 @@ export function TaskDetailDrawer({
               <Button size="sm" variant="ghost" onClick={handleInvestigate}>
                 <Bot className="w-4 h-4 mr-1" />
                 Deep Dive
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => dismiss(item.id)}>
+                <Archive className="w-4 h-4 mr-1" />
+                Dismiss
               </Button>
             </>
           )}
