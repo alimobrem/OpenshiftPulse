@@ -318,6 +318,21 @@ export function TaskDetailDrawer({
             </Button>
           )}
 
+          {item.status === 'escalated' && (
+            <>
+              {!!item.metadata?.escalated_to && (
+                <Button size="sm" onClick={() => setSelectedItem(String(item.metadata!.escalated_to))}>
+                  <ArrowRight className="w-4 h-4 mr-1" />
+                  View Finding
+                </Button>
+              )}
+              <Button size="sm" variant="ghost" onClick={() => dismiss(item.id)}>
+                <Archive className="w-4 h-4 mr-1" />
+                Archive
+              </Button>
+            </>
+          )}
+
           {item.status === 'resolved' && (
             <Button size="sm" variant="ghost" onClick={() => dismiss(item.id)}>
               <Archive className="w-4 h-4 mr-1" />
