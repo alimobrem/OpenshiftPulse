@@ -1,8 +1,9 @@
-import { Clock, User, Calendar, Tag } from 'lucide-react';
+import { Clock, User, Calendar, Tag, ArrowUpCircle } from 'lucide-react';
 import { DrawerShell } from '../../components/primitives/DrawerShell';
 import { Badge } from '../../components/primitives/Badge';
 import { Button } from '../../components/primitives/Button';
 import { formatRelativeTime } from '../../engine/formatters';
+import { escalateInboxItem } from '../../engine/inboxApi';
 import type { InboxItem } from '../../engine/inboxApi';
 import { useInboxStore } from '../../store/inboxStore';
 
@@ -20,6 +21,7 @@ export function TaskDetailDrawer({
 }) {
   const resolve = useInboxStore((s) => s.resolve);
   const claim = useInboxStore((s) => s.claim);
+  const refresh = useInboxStore((s) => s.refresh);
 
   return (
     <DrawerShell title={item.title} onClose={onClose}>
@@ -75,7 +77,18 @@ export function TaskDetailDrawer({
           {!item.claimed_by && (
             <Button size="sm" variant="ghost" onClick={() => claim(item.id)}>Claim</Button>
           )}
-          {item.status !== 'resolved' && (
+          {item.item_type === 'assessment' && item.status === 'acknowledged' && (
+            <Button size="sm" variant="ghost" onClick={async () => {
+              try {
+                await escalateInboxItem(item.id);
+                refresh();
+              } catch { /* handled by store */ }
+            }}>
+              <ArrowUpCircle className="w-4 h-4 mr-1" />
+              Escalate to Incident
+            </Button>
+          )}
+          {item.item_type !== 'assessment' && item.status !== 'resolved' && item.status !== 'escalated' && (
             <Button size="sm" onClick={() => resolve(item.id)}>Mark Resolved</Button>
           )}
         </div>

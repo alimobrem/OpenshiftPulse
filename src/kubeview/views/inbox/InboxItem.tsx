@@ -9,6 +9,7 @@ import { Card } from '../../components/primitives/Card';
 import { Badge } from '../../components/primitives/Badge';
 import { Dropdown } from '../../components/primitives/Dropdown';
 import { ConfirmDialog } from '../../components/feedback/ConfirmDialog';
+import { Tooltip } from '../../components/primitives/Tooltip';
 import type { InboxItem as InboxItemType, InboxSeverity } from '../../engine/inboxApi';
 import { useInboxStore } from '../../store/inboxStore';
 
@@ -130,57 +131,62 @@ export function InboxItem({
 
           <div className="flex items-center gap-1 flex-shrink-0">
             {item.status === 'new' && (
-              <button
-                onClick={(e) => { e.stopPropagation(); acknowledge(item.id); }}
-                className="p-1.5 rounded hover:bg-slate-800 text-slate-500 hover:text-slate-300 transition-colors"
-                title="Acknowledge"
-                aria-label="Acknowledge"
-              >
-                <Eye className="w-4 h-4" />
-              </button>
+              <Tooltip content="Acknowledge">
+                <button
+                  onClick={(e) => { e.stopPropagation(); acknowledge(item.id); }}
+                  className="p-1.5 rounded hover:bg-slate-800 text-slate-500 hover:text-slate-300 transition-colors"
+                  aria-label="Acknowledge"
+                >
+                  <Eye className="w-4 h-4" />
+                </button>
+              </Tooltip>
             )}
             {!item.claimed_by && (
-              <button
-                onClick={(e) => { e.stopPropagation(); claim(item.id); }}
-                className="p-1.5 rounded hover:bg-slate-800 text-slate-500 hover:text-slate-300 transition-colors"
-                title="Claim"
-                aria-label="Claim"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-              </button>
-            )}
-            <Dropdown
-              trigger={
+              <Tooltip content="Claim">
                 <button
+                  onClick={(e) => { e.stopPropagation(); claim(item.id); }}
                   className="p-1.5 rounded hover:bg-slate-800 text-slate-500 hover:text-slate-300 transition-colors"
-                  title="Snooze"
-                  aria-label="Snooze"
+                  aria-label="Claim"
                 >
-                  <PauseCircle className="w-4 h-4" />
+                  <CheckCircle2 className="w-4 h-4" />
                 </button>
-              }
-              items={snoozeItems}
-              align="right"
-            />
-            <button
-              onClick={(e) => { e.stopPropagation(); pin(item.id); }}
-              className={cn(
-                'p-1.5 rounded hover:bg-slate-800 transition-colors',
-                isPinned ? 'text-yellow-500' : 'text-slate-500 hover:text-slate-300',
-              )}
-              title={isPinned ? 'Unpin' : 'Pin'}
-              aria-label={isPinned ? 'Unpin' : 'Pin'}
-            >
-              <Pin className="w-4 h-4" />
-            </button>
-            <button
-              onClick={onDismissClick}
-              className="p-1.5 rounded hover:bg-slate-800 text-slate-500 hover:text-red-400 transition-colors"
-              title="Dismiss"
-              aria-label="Dismiss"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+              </Tooltip>
+            )}
+            <Tooltip content="Snooze">
+              <Dropdown
+                trigger={
+                  <button
+                    className="p-1.5 rounded hover:bg-slate-800 text-slate-500 hover:text-slate-300 transition-colors"
+                    aria-label="Snooze"
+                  >
+                    <PauseCircle className="w-4 h-4" />
+                  </button>
+                }
+                items={snoozeItems}
+                align="right"
+              />
+            </Tooltip>
+            <Tooltip content={isPinned ? 'Unpin' : 'Pin'}>
+              <button
+                onClick={(e) => { e.stopPropagation(); pin(item.id); }}
+                className={cn(
+                  'p-1.5 rounded hover:bg-slate-800 transition-colors',
+                  isPinned ? 'text-yellow-500' : 'text-slate-500 hover:text-slate-300',
+                )}
+                aria-label={isPinned ? 'Unpin' : 'Pin'}
+              >
+                <Pin className="w-4 h-4" />
+              </button>
+            </Tooltip>
+            <Tooltip content="Dismiss">
+              <button
+                onClick={onDismissClick}
+                className="p-1.5 rounded hover:bg-slate-800 text-slate-500 hover:text-red-400 transition-colors"
+                aria-label="Dismiss"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </Tooltip>
           </div>
         </div>
       </Card>
