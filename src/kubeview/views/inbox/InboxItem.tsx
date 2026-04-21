@@ -122,7 +122,9 @@ export function InboxItem({
                 </>
               )}
               <span>·</span>
-              <InboxLifecycleBadge itemType={item.item_type} status={item.status} />
+              <Tooltip content="Green = done · Purple = current · Gray = upcoming" side="bottom">
+                <span><InboxLifecycleBadge itemType={item.item_type} status={item.status} /></span>
+              </Tooltip>
             </div>
           </div>
 
