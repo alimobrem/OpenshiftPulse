@@ -599,14 +599,13 @@ export function TaskDetailDrawer({
 
           {item.status === 'acknowledged' && (
             <>
-              {!item.claimed_by && (
+              {!item.claimed_by ? (
                 <Button size="sm" onClick={() => claim(item.id)}>
                   <CheckCircle2 className="w-4 h-4 mr-1" />
                   Claim
                 </Button>
-              )}
-              {item.item_type === 'task' && (
-                <Button size="sm" variant="ghost" onClick={() => handleAdvance('in_progress')}>
+              ) : (
+                <Button size="sm" onClick={() => handleAdvance('investigating')}>
                   <ArrowRight className="w-4 h-4 mr-1" />
                   Start Working
                 </Button>
@@ -617,9 +616,22 @@ export function TaskDetailDrawer({
                   Escalate
                 </Button>
               )}
+              <Button size="sm" variant="ghost" onClick={handleInvestigate}>
+                <Bot className="w-4 h-4 mr-1" />
+                Deep Dive
+              </Button>
               <Button size="sm" variant="ghost" onClick={() => dismiss(item.id)}>
                 <Archive className="w-4 h-4 mr-1" />
                 Dismiss
+              </Button>
+            </>
+          )}
+
+          {item.status === 'investigating' && (
+            <>
+              <Button size="sm" onClick={() => handleAdvance('action_taken')}>
+                <CheckCircle2 className="w-4 h-4 mr-1" />
+                Mark Action Taken
               </Button>
               <Button size="sm" variant="ghost" onClick={handleInvestigate}>
                 <Bot className="w-4 h-4 mr-1" />
@@ -628,18 +640,17 @@ export function TaskDetailDrawer({
             </>
           )}
 
-          {item.status === 'investigating' && (
-            <Button size="sm" onClick={() => handleAdvance('action_taken')}>
-              <CheckCircle2 className="w-4 h-4 mr-1" />
-              Mark Action Taken
-            </Button>
-          )}
-
           {item.status === 'action_taken' && (
-            <Button size="sm" onClick={() => handleAdvance('verifying')}>
-              <ArrowRight className="w-4 h-4 mr-1" />
-              Mark Verifying
-            </Button>
+            <>
+              <Button size="sm" onClick={() => handleAdvance('verifying')}>
+                <ArrowRight className="w-4 h-4 mr-1" />
+                Mark Verifying
+              </Button>
+              <Button size="sm" variant="ghost" onClick={handleInvestigate}>
+                <Bot className="w-4 h-4 mr-1" />
+                Deep Dive
+              </Button>
+            </>
           )}
 
           {item.status === 'verifying' && (
@@ -655,10 +666,16 @@ export function TaskDetailDrawer({
           )}
 
           {item.status === 'in_progress' && (
-            <Button size="sm" onClick={() => resolve(item.id)}>
-              <CheckCircle2 className="w-4 h-4 mr-1" />
-              Mark Done
-            </Button>
+            <>
+              <Button size="sm" onClick={() => resolve(item.id)}>
+                <CheckCircle2 className="w-4 h-4 mr-1" />
+                Mark Done
+              </Button>
+              <Button size="sm" variant="ghost" onClick={handleInvestigate}>
+                <Bot className="w-4 h-4 mr-1" />
+                Deep Dive
+              </Button>
+            </>
           )}
 
           {item.status === 'escalated' && (
