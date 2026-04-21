@@ -154,6 +154,22 @@ export function InboxFilterBar() {
         onChange={(v) => setFilters({ ...filters, status: v || undefined })}
         active={!!currentStatus}
       />
+      <Tooltip
+        content={
+          <div className="space-y-1 max-w-xs">
+            <div><span className="font-medium text-slate-200">New</span> — just arrived, awaiting agent review</div>
+            <div><span className="font-medium text-slate-200">AI Reviewing</span> — agent is analyzing</div>
+            <div><span className="font-medium text-slate-200">Acknowledged</span> — reviewed, needs human attention</div>
+            <div><span className="font-medium text-slate-200">Investigating</span> — actively being worked on</div>
+            <div><span className="font-medium text-slate-200">Resolved</span> — fix applied and verified</div>
+          </div>
+        }
+        side="bottom"
+      >
+        <button className="text-slate-600 hover:text-slate-400 transition-colors" aria-label="Status definitions">
+          <HelpCircle className="w-3.5 h-3.5" />
+        </button>
+      </Tooltip>
       <FilterSelect
         label="Filter by severity"
         value={currentSeverity}

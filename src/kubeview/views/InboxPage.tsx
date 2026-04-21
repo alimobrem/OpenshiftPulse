@@ -96,8 +96,20 @@ export function InboxPage() {
             {!loading && !error && !hasItems && !hasFilters && (
               <EmptyState
                 icon={<Inbox className="w-8 h-8" />}
-                title="All clear"
-                description="Nothing needs proactive attention right now."
+                title={
+                  activePreset === 'needs_attention' ? 'All clear' :
+                  activePreset === 'agent_cleared' ? 'No cleared items' :
+                  activePreset === 'archived' ? 'No archived items' :
+                  activePreset === 'my_items' ? 'No claimed items' :
+                  'Inbox is empty'
+                }
+                description={
+                  activePreset === 'needs_attention' ? 'The agent has reviewed everything and found no issues requiring your attention.' :
+                  activePreset === 'agent_cleared' ? 'No items cleared by the agent yet. Items the agent determines are safe will appear here.' :
+                  activePreset === 'archived' ? 'Resolved and dismissed items appear here for 30 days before auto-deletion.' :
+                  activePreset === 'my_items' ? 'Claim items from Needs Attention to track them here.' :
+                  'The agent monitors your cluster and adds items that need attention.'
+                }
               />
             )}
 

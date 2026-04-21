@@ -243,7 +243,7 @@ export const useInboxStore = create<InboxState>((set, get) => ({
     try {
       await createInboxTask(data);
       get().refresh();
-      _toast('success', 'Task created');
+      _toast('success', 'Task created — the agent will analyze and build a plan within a minute');
       return true;
     } catch {
       _toast('error', 'Failed to create task');
