@@ -369,7 +369,7 @@ export default function CustomView() {
             layouts={{ lg: currentLayout }}
             breakpoints={{ lg: 1024, md: 768, sm: 480 }}
             cols={{ lg: 4, md: 2, sm: 1 }}
-            rowHeight={24}
+            rowHeight={32}
             isDraggable={editMode}
             isResizable={editMode}
             onLayoutChange={handleLayoutChange}
