@@ -64,6 +64,7 @@ interface InboxState {
   resolve: (id: string) => Promise<boolean>;
   pin: (id: string) => Promise<boolean>;
   restore: (id: string) => Promise<boolean>;
+  advanceStatus: (id: string, status: string) => Promise<boolean>;
   createTask: (data: { title: string; summary?: string; namespace?: string }) => Promise<boolean>;
 }
 
@@ -215,6 +216,22 @@ export const useInboxStore = create<InboxState>((set, get) => ({
       return true;
     } catch {
       _toast('error', 'Failed to restore');
+      return false;
+    }
+  },
+
+  advanceStatus: async (id, status) => {
+    try {
+      const res = await fetch(`/api/agent/inbox/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+      get().refresh();
+      return true;
+    } catch {
+      _toast('error', 'Failed to update status');
       return false;
     }
   },

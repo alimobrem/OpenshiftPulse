@@ -94,20 +94,24 @@ export function TaskDetailDrawer({
 }) {
   const resolve = useInboxStore((s) => s.resolve);
   const claim = useInboxStore((s) => s.claim);
-  const acknowledge = useInboxStore((s) => s.acknowledge);
   const dismiss = useInboxStore((s) => s.dismiss);
   const restore = useInboxStore((s) => s.restore);
+  const advanceStatus = useInboxStore((s) => s.advanceStatus);
   const refresh = useInboxStore((s) => s.refresh);
   const setSelectedItem = useInboxStore((s) => s.setSelectedItem);
 
   const [investigation, setInvestigation] = useState<InvestigationReport | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     if (item.metadata?.investigation_id) {
-      fetchInboxInvestigation(item.id).then(setInvestigation).catch(() => null);
+      fetchInboxInvestigation(item.id)
+        .then((report) => { if (!cancelled) setInvestigation(report); })
+        .catch(() => { if (!cancelled) setInvestigation(null); });
     } else {
       setInvestigation(null);
     }
+    return () => { cancelled = true; };
   }, [item.id, item.metadata?.investigation_id]);
 
   const triaged = !!item.metadata?.triaged;
@@ -131,16 +135,7 @@ export function TaskDetailDrawer({
     } catch { /* toast */ }
   };
 
-  const handleAdvance = async (status: string) => {
-    try {
-      await fetch(`/api/agent/inbox/${item.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
-      refresh();
-    } catch { /* handled */ }
-  };
+  const handleAdvance = (status: string) => advanceStatus(item.id, status);
 
   return (
     <DrawerShell title={item.title} onClose={onClose}>
