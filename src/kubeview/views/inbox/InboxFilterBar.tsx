@@ -11,55 +11,22 @@ const TYPE_OPTIONS = [
   { value: 'assessment', label: 'Assessments' },
 ];
 
+const UNIFIED_STATUS_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: '', label: 'Any status' },
+  { value: 'new', label: 'New' },
+  { value: 'triaged', label: 'Triaged' },
+  { value: 'claimed', label: 'Claimed' },
+  { value: 'in_progress', label: 'In Progress' },
+  { value: 'resolved', label: 'Resolved' },
+  { value: 'agent_cleared', label: 'Agent Cleared' },
+];
+
 const STATUS_OPTIONS: Record<string, Array<{ value: string; label: string }>> = {
-  finding: [
-    { value: '', label: 'Any status' },
-    { value: 'new', label: 'New' },
-    { value: 'agent_reviewing', label: 'AI Reviewing' },
-    { value: 'acknowledged', label: 'Acknowledged' },
-    { value: 'investigating', label: 'Investigating' },
-    { value: 'action_taken', label: 'Action Taken' },
-    { value: 'verifying', label: 'Verifying' },
-    { value: 'resolved', label: 'Resolved' },
-    { value: 'agent_cleared', label: 'Agent Cleared' },
-  ],
-  task: [
-    { value: '', label: 'Any status' },
-    { value: 'new', label: 'New' },
-    { value: 'agent_reviewing', label: 'AI Reviewing' },
-    { value: 'in_progress', label: 'In Progress' },
-    { value: 'resolved', label: 'Resolved' },
-    { value: 'agent_cleared', label: 'Agent Cleared' },
-  ],
-  alert: [
-    { value: '', label: 'Any status' },
-    { value: 'new', label: 'New' },
-    { value: 'agent_reviewing', label: 'AI Reviewing' },
-    { value: 'acknowledged', label: 'Acknowledged' },
-    { value: 'resolved', label: 'Resolved' },
-    { value: 'agent_cleared', label: 'Agent Cleared' },
-  ],
-  assessment: [
-    { value: '', label: 'Any status' },
-    { value: 'new', label: 'New' },
-    { value: 'agent_reviewing', label: 'AI Reviewing' },
-    { value: 'acknowledged', label: 'Acknowledged' },
-    { value: 'escalated', label: 'Escalated' },
-    { value: 'agent_cleared', label: 'Agent Cleared' },
-  ],
-  default: [
-    { value: '', label: 'Any status' },
-    { value: 'new', label: 'New' },
-    { value: 'agent_reviewing', label: 'AI Reviewing' },
-    { value: 'acknowledged', label: 'Acknowledged' },
-    { value: 'in_progress', label: 'In Progress' },
-    { value: 'investigating', label: 'Investigating' },
-    { value: 'action_taken', label: 'Action Taken' },
-    { value: 'verifying', label: 'Verifying' },
-    { value: 'resolved', label: 'Resolved' },
-    { value: 'agent_cleared', label: 'Agent Cleared' },
-    { value: 'escalated', label: 'Escalated' },
-  ],
+  finding: UNIFIED_STATUS_OPTIONS,
+  task: UNIFIED_STATUS_OPTIONS,
+  alert: UNIFIED_STATUS_OPTIONS,
+  assessment: UNIFIED_STATUS_OPTIONS,
+  default: UNIFIED_STATUS_OPTIONS,
 };
 
 const SEVERITY_OPTIONS = [
@@ -158,10 +125,10 @@ export function InboxFilterBar() {
         content={
           <div className="space-y-1 max-w-xs">
             <div><span className="font-medium text-slate-200">New</span> — just arrived, awaiting agent review</div>
-            <div><span className="font-medium text-slate-200">AI Reviewing</span> — agent is analyzing</div>
-            <div><span className="font-medium text-slate-200">Acknowledged</span> — reviewed, needs human attention</div>
-            <div><span className="font-medium text-slate-200">Investigating</span> — actively being worked on</div>
-            <div><span className="font-medium text-slate-200">Resolved</span> — fix applied and verified</div>
+            <div><span className="font-medium text-slate-200">Triaged</span> — agent investigated and built an action plan</div>
+            <div><span className="font-medium text-slate-200">Claimed</span> — you own it, investigation view generated</div>
+            <div><span className="font-medium text-slate-200">In Progress</span> — actively being worked on</div>
+            <div><span className="font-medium text-slate-200">Resolved</span> — done, postmortem available</div>
           </div>
         }
         side="bottom"

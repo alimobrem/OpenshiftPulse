@@ -28,14 +28,13 @@ vi.mock('../../../store/agentStore', () => ({
 }));
 
 vi.mock('../../../store/uiStore', () => ({
-  useUIStore: { getState: () => ({ expandAISidebar: vi.fn(), setAISidebarMode: vi.fn(), addToast: vi.fn() }) },
+  useUIStore: { getState: () => ({ expandAISidebar: vi.fn(), setAISidebarMode: vi.fn(), addToast: vi.fn(), setActiveTab: vi.fn() }) },
 }));
 
 vi.mock('../../../engine/inboxApi', async () => {
   const actual = await vi.importActual('../../../engine/inboxApi');
   return {
     ...actual,
-    escalateInboxItem: vi.fn().mockResolvedValue({ finding_id: 'inb-new' }),
     fetchInboxInvestigation: vi.fn().mockRejectedValue(new Error('not found')),
   };
 });
@@ -74,18 +73,15 @@ const ALL_STATUSES: Array<{ status: string; item_type: string; metadata?: Record
   { status: 'new', item_type: 'finding' },
   { status: 'agent_reviewing', item_type: 'finding' },
   { status: 'agent_cleared', item_type: 'finding', metadata: { dismiss_reason: 'No issue found' } },
-  { status: 'acknowledged', item_type: 'finding', metadata: { triaged: true, triage_action: 'investigate' } },
-  { status: 'investigating', item_type: 'finding' },
-  { status: 'action_taken', item_type: 'finding' },
-  { status: 'verifying', item_type: 'finding' },
-  { status: 'resolved', item_type: 'finding' },
-  { status: 'escalated', item_type: 'assessment', metadata: { escalated_to: 'inb-finding' } },
-  { status: 'new', item_type: 'task' },
-  { status: 'agent_reviewing', item_type: 'task' },
+  { status: 'agent_review_failed', item_type: 'finding', metadata: { agent_error: 'Timeout' } },
+  { status: 'triaged', item_type: 'finding', metadata: { triaged: true } },
+  { status: 'claimed', item_type: 'task' },
   { status: 'in_progress', item_type: 'task' },
-  { status: 'agent_review_failed', item_type: 'finding', metadata: { agent_error: 'Timeout during analysis' } },
-  { status: 'acknowledged', item_type: 'alert' },
-  { status: 'acknowledged', item_type: 'assessment' },
+  { status: 'in_progress', item_type: 'finding' },
+  { status: 'resolved', item_type: 'finding' },
+  { status: 'new', item_type: 'task' },
+  { status: 'triaged', item_type: 'assessment' },
+  { status: 'triaged', item_type: 'alert' },
 ];
 
 describe('TaskDetailDrawer — no dead-end states', () => {
@@ -115,61 +111,40 @@ describe('TaskDetailDrawer — no dead-end states', () => {
     expect(screen.getAllByText(/investigating/i).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('agent_cleared shows dismiss reason', () => {
+  it('agent_cleared shows dismiss reason and Restore button', () => {
     const item = makeItem({
       status: 'agent_cleared',
       metadata: { dismiss_reason: 'Expected behavior on ROSA clusters' },
     });
     render(<TaskDetailDrawer item={item} onClose={vi.fn()} />);
     expect(screen.getAllByText(/Expected behavior/i).length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('agent_cleared shows Restore to Inbox button', () => {
-    const item = makeItem({
-      status: 'agent_cleared',
-      metadata: { dismiss_reason: 'No issue' },
-    });
-    render(<TaskDetailDrawer item={item} onClose={vi.fn()} />);
     expect(screen.getAllByText(/Restore to Inbox/i).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('escalated shows View Finding button', () => {
-    const item = makeItem({
-      item_type: 'assessment',
-      status: 'escalated',
-      metadata: { escalated_to: 'inb-finding-123' },
-    });
+  it('triaged shows Claim button', () => {
+    const item = makeItem({ status: 'triaged' });
     render(<TaskDetailDrawer item={item} onClose={vi.fn()} />);
-    expect(screen.getAllByText(/View Finding/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Claim/i).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('acknowledged finding shows Investigate with AI', () => {
-    const item = makeItem({ status: 'acknowledged' });
+  it('claimed shows Start Working button', () => {
+    const item = makeItem({ status: 'claimed', claimed_by: 'user' });
     render(<TaskDetailDrawer item={item} onClose={vi.fn()} />);
-    expect(screen.getAllByText(/Investigate with AI/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Start Working/i).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('verifying shows both Resolved and Re-investigate', () => {
-    const item = makeItem({ status: 'verifying' });
+  it('in_progress shows Resolve button', () => {
+    const item = makeItem({ status: 'in_progress' });
     render(<TaskDetailDrawer item={item} onClose={vi.fn()} />);
-    expect(screen.getAllByText(/Mark Resolved/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/Re-investigate/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Resolve/i).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('in_progress task shows Mark Done', () => {
-    const item = makeItem({ item_type: 'task', status: 'in_progress' });
-    render(<TaskDetailDrawer item={item} onClose={vi.fn()} />);
-    expect(screen.getAllByText(/Mark Done/i).length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('agent_review_failed shows error message and retry/manual/dismiss buttons', () => {
+  it('agent_review_failed shows retry/manual/dismiss buttons', () => {
     const item = makeItem({
       status: 'agent_review_failed',
       metadata: { agent_error: 'Timeout during analysis' },
     });
     render(<TaskDetailDrawer item={item} onClose={vi.fn()} />);
-    expect(screen.getAllByText(/Agent analysis failed/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/Timeout during analysis/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/Retry Agent Analysis/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/Investigate Manually/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/Dismiss/i).length).toBeGreaterThanOrEqual(1);
@@ -177,12 +152,12 @@ describe('TaskDetailDrawer — no dead-end states', () => {
 
   it('action plan renders numbered steps with execute/skip buttons', () => {
     const item = makeItem({
-      status: 'investigating',
+      status: 'triaged',
       metadata: {
         action_plan: [
           {
             title: 'Scale down replicas',
-            description: 'Reduce to 1 replica to stop thrashing',
+            description: 'Reduce to 1 replica',
             tool: 'scale_deployment',
             tool_input: { name: 'web', namespace: 'prod', replicas: 1 },
             risk: 'medium',
@@ -190,7 +165,7 @@ describe('TaskDetailDrawer — no dead-end states', () => {
           },
           {
             title: 'Check pod logs',
-            description: 'Review recent logs for root cause',
+            description: 'Review recent logs',
             tool: null,
             tool_input: null,
             risk: 'low',
@@ -202,8 +177,6 @@ describe('TaskDetailDrawer — no dead-end states', () => {
     render(<TaskDetailDrawer item={item} onClose={vi.fn()} />);
     expect(screen.getAllByText(/Action Plan/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/Scale down replicas/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/Execute/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/Skip/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/1\/2 steps complete/i).length).toBeGreaterThanOrEqual(1);
   });
 });

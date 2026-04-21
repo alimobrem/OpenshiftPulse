@@ -3,25 +3,22 @@ import type { InboxItemType, InboxStatus } from '../../engine/inboxApi';
 
 const UNIVERSAL_LIFECYCLE: Array<{ key: string; label: string }> = [
   { key: 'new', label: 'New' },
-  { key: 'agent_reviewing', label: 'AI Review' },
-  { key: 'acknowledged', label: 'Attention' },
+  { key: 'triaged', label: 'Triaged' },
+  { key: 'claimed', label: 'Claimed' },
   { key: 'in_progress', label: 'In Progress' },
   { key: 'resolved', label: 'Resolved' },
 ];
 
 const STATUS_MAP: Record<string, string> = {
   new: 'new',
-  agent_reviewing: 'agent_reviewing',
-  acknowledged: 'acknowledged',
-  investigating: 'in_progress',
-  action_taken: 'in_progress',
-  verifying: 'in_progress',
+  agent_reviewing: 'new',
+  agent_review_failed: 'new',
+  triaged: 'triaged',
+  claimed: 'claimed',
   in_progress: 'in_progress',
-  escalated: 'in_progress',
   resolved: 'resolved',
   archived: 'resolved',
   agent_cleared: 'resolved',
-  agent_review_failed: 'new',
 };
 
 export function InboxLifecycleBadge({
@@ -44,17 +41,18 @@ export function InboxLifecycleBadge({
         </span>
       )}
       {!isCleared && steps.map((step, idx) => {
-        const isCurrent = step.key === status;
+        const isCurrent = step.key === mappedStatus;
         const isPast = idx < currentIdx;
         const isLast = idx === steps.length - 1;
+        const isProcessing = status === 'agent_reviewing';
 
         return (
           <div key={step.key} className="flex items-center">
             <span
               className={cn(
                 'px-1.5 py-0.5 text-[10px] leading-none rounded-sm',
-                isCurrent && mappedStatus === 'agent_reviewing' && 'bg-violet-600 text-white font-medium animate-pulse',
-                isCurrent && mappedStatus !== 'agent_reviewing' && 'bg-violet-600 text-white font-medium',
+                isCurrent && isProcessing && 'bg-violet-600 text-white font-medium animate-pulse',
+                isCurrent && !isProcessing && 'bg-violet-600 text-white font-medium',
                 isPast && 'text-emerald-400',
                 !isCurrent && !isPast && 'text-slate-600',
               )}

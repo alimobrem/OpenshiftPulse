@@ -5,23 +5,20 @@ import { InboxLifecycleBadge, InboxLifecycleStepper } from '../InboxLifecycle';
 
 describe('InboxLifecycleBadge', () => {
   it('renders universal lifecycle stages', () => {
-    render(<InboxLifecycleBadge itemType="finding" status="acknowledged" />);
+    render(<InboxLifecycleBadge itemType="finding" status="triaged" />);
     expect(screen.getAllByText('New').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('AI Review').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('Attention').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Triaged').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Claimed').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('In Progress').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Resolved').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders same stages for tasks', () => {
-    render(<InboxLifecycleBadge itemType="task" status="new" />);
-    expect(screen.getAllByText('New').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('Resolved').length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('renders same stages for assessments', () => {
-    render(<InboxLifecycleBadge itemType="assessment" status="acknowledged" />);
-    expect(screen.getAllByText('Attention').length).toBeGreaterThanOrEqual(1);
+  it('renders same stages for all item types', () => {
+    for (const type of ['finding', 'task', 'alert', 'assessment'] as const) {
+      const { unmount } = render(<InboxLifecycleBadge itemType={type} status="new" />);
+      expect(screen.getAllByText('Triaged').length).toBeGreaterThanOrEqual(1);
+      unmount();
+    }
   });
 
   it('highlights current status with pulse for agent_reviewing', () => {
@@ -38,13 +35,15 @@ describe('InboxLifecycleBadge', () => {
 
 describe('InboxLifecycleStepper', () => {
   it('renders universal stepper', () => {
-    render(<InboxLifecycleStepper itemType="finding" status="acknowledged" />);
+    render(<InboxLifecycleStepper itemType="finding" status="triaged" />);
     expect(screen.getAllByText('New').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('Attention').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Triaged').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Claimed').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('In Progress').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Resolved').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('maps task in_progress to universal In Progress', () => {
+  it('maps in_progress correctly', () => {
     render(<InboxLifecycleStepper itemType="task" status="in_progress" />);
     expect(screen.getAllByText('In Progress').length).toBeGreaterThanOrEqual(1);
   });

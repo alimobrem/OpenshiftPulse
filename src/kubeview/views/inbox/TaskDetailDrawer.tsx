@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  Clock, User, Calendar, Tag, ArrowUpCircle, Bot, Loader2,
+  Clock, User, Calendar, Tag, Bot, Loader2,
   ArrowRight, RotateCcw, Archive, Search, CheckCircle2, ShieldCheck,
   ChevronDown, ChevronRight, Play, SkipForward, XCircle, AlertTriangle,
   MessageSquare, RefreshCw,
@@ -11,7 +11,6 @@ import { Button } from '../../components/primitives/Button';
 import { Tooltip } from '../../components/primitives/Tooltip';
 import { formatRelativeTime } from '../../engine/formatters';
 import {
-  escalateInboxItem,
   fetchInboxInvestigation,
   type InboxItem,
   type InvestigationReport,
@@ -344,14 +343,6 @@ export function TaskDetailDrawer({
     }
   };
 
-  const handleEscalate = async () => {
-    try {
-      const result = await escalateInboxItem(item.id);
-      refresh();
-      if (result.finding_id) setSelectedItem(result.finding_id);
-    } catch { /* toast */ }
-  };
-
   const handleAdvance = (status: string) => advanceStatus(item.id, status);
 
   return (
@@ -384,15 +375,6 @@ export function TaskDetailDrawer({
               Retry
             </Button>
           </div>
-        )}
-
-        {item.status === 'escalated' && !!item.metadata?.escalated_to && (
-          <button
-            onClick={() => setSelectedItem(String(item.metadata!.escalated_to))}
-            className="w-full text-left rounded-lg border border-violet-800/50 bg-violet-950/30 px-3 py-2 text-sm text-violet-300 hover:bg-violet-900/30 transition-colors"
-          >
-            Escalated to finding — click to view →
-          </button>
         )}
 
         {item.status === 'agent_cleared' && dismissReason && (
@@ -550,7 +532,7 @@ export function TaskDetailDrawer({
           </div>
         )}
 
-        {/* Forward buttons — user can always move forward */}
+        {/* Forward buttons — simplified lifecycle */}
         <div className="flex flex-wrap gap-2 pt-4 border-t border-slate-800">
           {item.status === 'new' && (
             <Button size="sm" onClick={handleInvestigate}>
@@ -561,7 +543,7 @@ export function TaskDetailDrawer({
 
           {item.status === 'agent_reviewing' && (
             <>
-              <Button size="sm" variant="ghost" onClick={() => { advanceStatus(item.id, 'acknowledged'); claim(item.id); }}>
+              <Button size="sm" variant="ghost" onClick={() => { advanceStatus(item.id, 'triaged'); claim(item.id); }}>
                 <CheckCircle2 className="w-4 h-4 mr-1" />
                 Skip AI — Claim Now
               </Button>
@@ -602,40 +584,15 @@ export function TaskDetailDrawer({
             </>
           )}
 
-          {item.status === 'acknowledged' && (
+          {item.status === 'triaged' && (
             <>
-              {!item.claimed_by ? (
-                <Tooltip content="Take ownership — assign this to yourself to investigate and resolve">
-                  <Button size="sm" onClick={() => claim(item.id)}>
-                    <CheckCircle2 className="w-4 h-4 mr-1" />
-                    Claim
-                  </Button>
-                </Tooltip>
-              ) : (
-                <>
-                  {item.item_type === 'finding' && (
-                    <Button size="sm" onClick={() => handleAdvance('investigating')}>
-                      <ArrowRight className="w-4 h-4 mr-1" />
-                      Start Investigating
-                    </Button>
-                  )}
-                  {item.item_type === 'task' && (
-                    <Button size="sm" onClick={() => handleAdvance('in_progress')}>
-                      <ArrowRight className="w-4 h-4 mr-1" />
-                      Start Working
-                    </Button>
-                  )}
-                </>
-              )}
-              {item.item_type === 'assessment' && (
-                <Tooltip content="Promote to a formal finding — the agent will investigate and build an action plan">
-                  <Button size="sm" variant="ghost" onClick={handleEscalate}>
-                    <ArrowUpCircle className="w-4 h-4 mr-1" />
-                    Escalate
-                  </Button>
-                </Tooltip>
-              )}
-              <Tooltip content="Open the agent chat to investigate this item interactively">
+              <Tooltip content="Take ownership — the agent will generate an investigation view for you">
+                <Button size="sm" onClick={() => claim(item.id)}>
+                  <CheckCircle2 className="w-4 h-4 mr-1" />
+                  Claim
+                </Button>
+              </Tooltip>
+              <Tooltip content="Open the agent chat to investigate interactively">
                 <Button size="sm" variant="ghost" onClick={handleInvestigate}>
                   <Bot className="w-4 h-4 mr-1" />
                   Deep Dive
@@ -650,88 +607,49 @@ export function TaskDetailDrawer({
             </>
           )}
 
-          {item.status === 'investigating' && (
+          {item.status === 'claimed' && (
             <>
-              {!investigation && !actionPlan && (
-                <p className="w-full text-xs text-slate-500 mb-1">No investigation data yet. Use Deep Dive to investigate with the agent.</p>
-              )}
-              <Button size="sm" onClick={handleInvestigate}>
-                <Bot className="w-4 h-4 mr-1" />
-                Deep Dive
-              </Button>
-              <Button size="sm" onClick={() => handleAdvance('action_taken')}>
-                <CheckCircle2 className="w-4 h-4 mr-1" />
-                Mark Action Taken
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => resolve(item.id)}>
-                <CheckCircle2 className="w-4 h-4 mr-1" />
-                Resolve
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => dismiss(item.id)}>
-                <Archive className="w-4 h-4 mr-1" />
-                Dismiss
-              </Button>
-            </>
-          )}
-
-          {item.status === 'action_taken' && (
-            <>
-              <Button size="sm" onClick={() => handleAdvance('verifying')}>
-                <ArrowRight className="w-4 h-4 mr-1" />
-                Mark Verifying
-              </Button>
-              <Button size="sm" variant="ghost" onClick={handleInvestigate}>
-                <Bot className="w-4 h-4 mr-1" />
-                Deep Dive
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => dismiss(item.id)}>
-                <Archive className="w-4 h-4 mr-1" />
-                Dismiss
-              </Button>
-            </>
-          )}
-
-          {item.status === 'verifying' && (
-            <>
-              <Button size="sm" onClick={() => resolve(item.id)}>
-                <CheckCircle2 className="w-4 h-4 mr-1" />
-                Mark Resolved
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => handleAdvance('investigating')}>
-                Re-investigate
-              </Button>
+              <Tooltip content="Begin working on this item">
+                <Button size="sm" onClick={() => handleAdvance('in_progress')}>
+                  <ArrowRight className="w-4 h-4 mr-1" />
+                  Start Working
+                </Button>
+              </Tooltip>
+              <Tooltip content="Open the agent chat to investigate interactively">
+                <Button size="sm" variant="ghost" onClick={handleInvestigate}>
+                  <Bot className="w-4 h-4 mr-1" />
+                  Deep Dive
+                </Button>
+              </Tooltip>
+              <Tooltip content="Archive — will be deleted after 30 days">
+                <Button size="sm" variant="ghost" onClick={() => dismiss(item.id)}>
+                  <Archive className="w-4 h-4 mr-1" />
+                  Dismiss
+                </Button>
+              </Tooltip>
             </>
           )}
 
           {item.status === 'in_progress' && (
             <>
-              <Button size="sm" onClick={() => resolve(item.id)}>
-                <CheckCircle2 className="w-4 h-4 mr-1" />
-                Mark Done
-              </Button>
-              <Button size="sm" variant="ghost" onClick={handleInvestigate}>
-                <Bot className="w-4 h-4 mr-1" />
-                Deep Dive
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => dismiss(item.id)}>
-                <Archive className="w-4 h-4 mr-1" />
-                Dismiss
-              </Button>
-            </>
-          )}
-
-          {item.status === 'escalated' && (
-            <>
-              {!!item.metadata?.escalated_to && (
-                <Button size="sm" onClick={() => setSelectedItem(String(item.metadata!.escalated_to))}>
-                  <ArrowRight className="w-4 h-4 mr-1" />
-                  View Finding
+              <Tooltip content="Mark this item as resolved">
+                <Button size="sm" onClick={() => resolve(item.id)}>
+                  <CheckCircle2 className="w-4 h-4 mr-1" />
+                  Resolve
                 </Button>
-              )}
-              <Button size="sm" variant="ghost" onClick={() => dismiss(item.id)}>
-                <Archive className="w-4 h-4 mr-1" />
-                Archive
-              </Button>
+              </Tooltip>
+              <Tooltip content="Open the agent chat for help">
+                <Button size="sm" variant="ghost" onClick={handleInvestigate}>
+                  <Bot className="w-4 h-4 mr-1" />
+                  Deep Dive
+                </Button>
+              </Tooltip>
+              <Tooltip content="Archive — will be deleted after 30 days">
+                <Button size="sm" variant="ghost" onClick={() => dismiss(item.id)}>
+                  <Archive className="w-4 h-4 mr-1" />
+                  Dismiss
+                </Button>
+              </Tooltip>
             </>
           )}
 
@@ -740,10 +658,6 @@ export function TaskDetailDrawer({
               <Archive className="w-4 h-4 mr-1" />
               Archive
             </Button>
-          )}
-
-          {!item.claimed_by && !['acknowledged', 'agent_cleared', 'agent_reviewing', 'agent_review_failed', 'resolved', 'archived', 'escalated'].includes(item.status) && (
-            <Button size="sm" variant="ghost" onClick={() => claim(item.id)}>Claim</Button>
           )}
         </div>
       </div>
