@@ -144,6 +144,10 @@ export type MonitorEvent =
   | { type: 'findings_snapshot'; activeIds: string[]; timestamp: number }
   | { type: 'skill_activity'; skill_name: string; status: string; timestamp: number; handoff_from?: string; handoff_to?: string }
   | { type: 'investigation_progress'; findingId: string; phases: InvestigationPhase[]; planId?: string; planName?: string; timestamp: number }
+  | { type: 'inbox_item_created'; id: string; title: string; severity: string | null; item_type: string }
+  | { type: 'inbox_item_updated'; id: string; status: string; claimed_by?: string | null }
+  | { type: 'inbox_item_claimed'; id: string; claimed_by: string; claimed_at: number }
+  | { type: 'inbox_item_resolved'; id: string; resolved_at: number }
   | { type: 'connected' }
   | { type: 'disconnected' }
   | { type: 'error'; message: string };

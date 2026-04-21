@@ -292,6 +292,30 @@ export const useMonitorStore = create<MonitorState>()(
               break;
             }
 
+            case 'inbox_item_created': {
+              import('./inboxStore').then(({ useInboxStore }) => {
+                useInboxStore.getState().refreshStats();
+                useInboxStore.getState().refresh();
+              });
+              if (event.severity === 'critical') {
+                useUIStore.getState().addToast({
+                  type: 'warning',
+                  title: event.title || 'New critical inbox item',
+                });
+              }
+              break;
+            }
+
+            case 'inbox_item_updated':
+            case 'inbox_item_claimed':
+            case 'inbox_item_resolved': {
+              import('./inboxStore').then(({ useInboxStore }) => {
+                useInboxStore.getState().refreshStats();
+                useInboxStore.getState().refresh();
+              });
+              break;
+            }
+
             case 'error':
               console.error('Monitor error:', event.message);
               handleAuthError(event.message);
