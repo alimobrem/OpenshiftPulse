@@ -3,6 +3,7 @@ import { Inbox } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/primitives/Tabs';
 import { EmptyState } from '../components/primitives/EmptyState';
 import { useInboxStore } from '../store/inboxStore';
+import { useUIStore } from '../store/uiStore';
 import { InboxHeader } from './inbox/InboxHeader';
 import { InboxFilterBar } from './inbox/InboxFilterBar';
 import { InboxItem } from './inbox/InboxItem';
@@ -39,7 +40,12 @@ export function InboxPage() {
     let cancelled = false;
     fetchInboxItem(selectedItemId)
       .then((item) => { if (!cancelled) setDrawerItem(item); })
-      .catch(() => { if (!cancelled) setDrawerItem(null); });
+      .catch(() => {
+        if (!cancelled) {
+          setDrawerItem(null);
+          useUIStore.getState().addToast({ type: 'error', title: 'Item not found — it may have been archived or deleted' });
+        }
+      });
     return () => { cancelled = true; };
   }, [selectedItemId, items]);
 

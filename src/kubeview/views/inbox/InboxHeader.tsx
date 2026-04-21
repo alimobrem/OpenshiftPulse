@@ -7,7 +7,7 @@ import { useInboxStore } from '../../store/inboxStore';
 type Preset = 'needs_attention' | 'agent_cleared' | 'my_items' | 'archived' | 'all';
 
 const PRESETS: Array<{ id: Preset; label: string; countKey: string }> = [
-  { id: 'needs_attention', label: 'Needs Attention', countKey: 'total' },
+  { id: 'needs_attention', label: 'Needs Attention', countKey: 'needs_attention' },
   { id: 'agent_cleared', label: 'Agent Cleared', countKey: 'agent_cleared' },
   { id: 'my_items', label: 'My Items', countKey: 'claimed' },
   { id: 'archived', label: 'Archived', countKey: 'archived' },
