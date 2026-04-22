@@ -114,7 +114,7 @@ export function useChartLiveData(
   });
 
   // Use live data if available, otherwise fall back to static series
-  const series = liveSeries && liveSeries.length > 0 ? liveSeries : spec.series;
+  const series = liveSeries && liveSeries.length > 0 ? liveSeries : spec.series || [];
   const isLive = hasQuery && !isPaused && liveSeries != null && liveSeries.length > 0;
 
   return {

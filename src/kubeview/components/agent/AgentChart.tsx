@@ -107,8 +107,8 @@ export default function AgentChart({ spec, onAddToView, refreshInterval, globalT
   // Transform series data for time-series charts: [{time, series1, series2, ...}]
   const rechartsData = useMemo(() => {
     const timeMap = new Map<number, Record<string, number>>();
-    for (const series of liveSeries) {
-      for (const [ts, val] of series.data) {
+    for (const series of liveSeries || []) {
+      for (const [ts, val] of series.data || []) {
         const entry = timeMap.get(ts) || { time: ts };
         entry[series.label] = val;
         timeMap.set(ts, entry);
