@@ -75,7 +75,7 @@ export const useInboxStore = create<InboxState>((set, get) => ({
   groups: [],
   stats: {},
   total: 0,
-  filters: {},
+  filters: { status: '__needs_attention__' },
   activePreset: 'needs_attention',
   groupBy: null,
   selectedItemId: null,
