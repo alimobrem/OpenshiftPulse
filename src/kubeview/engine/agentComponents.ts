@@ -420,6 +420,7 @@ export interface ConfidenceBadgeSpec {
   kind: 'confidence_badge';
   score: number;
   label?: string;
+  title?: string;
 }
 
 export interface ResolutionStep {

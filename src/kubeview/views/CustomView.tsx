@@ -220,7 +220,7 @@ export default function CustomView() {
 
   return (
     <div className="h-full overflow-auto bg-slate-950 p-6">
-      <div className="w-full max-w-[1800px] mx-auto space-y-4">
+      <div className="w-full max-w-[1800px] mx-auto space-y-2">
         {/* Header */}
         <div className="flex items-start justify-between">
           <div>
