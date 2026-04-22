@@ -44,11 +44,15 @@ export default function AgentTopology({ spec: initialSpec, onAddToView }: { spec
     return () => { abortRef.current?.abort(); };
   }, []);
 
-  const spec = currentSpec;
+  const spec = useMemo(() => ({
+    ...currentSpec,
+    nodes: currentSpec.nodes || [],
+    edges: currentSpec.edges || [],
+  }), [currentSpec]);
 
   const healthCounts = useMemo(() => {
     const c = { healthy: 0, warning: 0, error: 0 };
-    for (const n of spec.nodes) {
+    for (const n of spec.nodes || []) {
       if (n.status === 'error') c.error++;
       else if (n.status === 'warning') c.warning++;
       else c.healthy++;

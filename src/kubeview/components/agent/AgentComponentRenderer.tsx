@@ -427,10 +427,12 @@ function CellValue({ value, columnId, columnType, row }: { value: unknown; colum
 }
 
 function AgentInfoCardGrid({ spec }: { spec: InfoCardGridSpec }) {
+  const extra = spec as unknown as Record<string, unknown>;
+  const cards = (spec.cards || (extra.props as Record<string, unknown>)?.cards || []) as Array<Record<string, string>>;
   return (
     <div className="my-2 grid grid-cols-2 md:grid-cols-4 gap-2">
-      {spec.cards.map((card, i) => (
-        <InfoCard key={i} label={card.label} value={card.value} sub={card.sub} className="!p-2 !text-xs" />
+      {cards.map((card, i) => (
+        <InfoCard key={i} label={card.label || card.title || ''} value={card.value || card.text || ''} sub={card.sub} className="!p-2 !text-xs" />
       ))}
     </div>
   );
@@ -439,7 +441,7 @@ function AgentInfoCardGrid({ spec }: { spec: InfoCardGridSpec }) {
 function AgentBadgeList({ spec }: { spec: BadgeListSpec }) {
   return (
     <div className="my-2 flex flex-wrap gap-1.5">
-      {spec.badges.map((b, i) => (
+      {(spec.badges || []).map((b, i) => (
         <Badge key={i} variant={b.variant} size="sm">{b.text}</Badge>
       ))}
     </div>
@@ -537,7 +539,7 @@ function AgentStatusList({ spec }: { spec: StatusListSpec }) {
         </div>
       )}
       <div className="divide-y divide-slate-800/60">
-        {spec.items.map((item, i) => {
+        {(spec.items || []).map((item, i) => {
           const Icon = STATUS_ICONS[item.status] || HelpCircle;
           const clickTarget = resolveClickTarget(item);
           return (
@@ -572,7 +574,7 @@ function AgentKeyValue({ spec }: { spec: KeyValueSpec }) {
         </div>
       )}
       <div className="divide-y divide-slate-800">
-        {spec.pairs.map((pair, i) => (
+        {(spec.pairs || []).map((pair, i) => (
           <div key={i} className="flex items-center px-3 py-1.5 gap-4">
             <span className="text-xs text-slate-400 w-32 shrink-0">{pair.key}</span>
             <span className="text-xs text-slate-200 font-mono truncate">{pair.value}</span>
@@ -655,7 +657,7 @@ function TreeNode({ node, nodes, depth = 0, visited = new Set<string>() }: { nod
 function AgentRelationshipTree({ spec, onAddToView }: { spec: RelationshipTreeSpec; onAddToView?: (spec: ComponentSpec) => void }) {
   const nodeMap = useMemo(() => {
     const m = new Map<string, RelationshipTreeSpec['nodes'][0]>();
-    for (const n of spec.nodes) m.set(n.id, n);
+    for (const n of spec.nodes || []) m.set(n.id, n);
     return m;
   }, [spec.nodes]);
 
@@ -693,7 +695,7 @@ function AgentTabs({ spec, depth = 0 }: { spec: TabsSpec; depth?: number }) {
   return (
     <div className="my-2 border border-slate-700 rounded-lg overflow-hidden min-w-0">
       <div className="flex border-b border-slate-700 bg-slate-800/50 overflow-x-auto">
-        {spec.tabs.map((tab, i) => (
+        {(spec.tabs || []).map((tab, i) => (
           <button
             key={i}
             onClick={() => setActiveTab(i)}
@@ -774,7 +776,7 @@ function AgentSection({ spec, depth = 0 }: { spec: SectionSpec; depth?: number }
       )}
       {open && (
         <div className="p-2">
-          {spec.components.map((child, i) => (
+          {(spec.components || []).map((child, i) => (
             <AgentComponentRenderer key={i} spec={child} depth={depth + 1} />
           ))}
         </div>
@@ -797,7 +799,7 @@ function AgentLogViewer({ spec }: { spec: LogViewerSpec }) {
   const [levelFilter, setLevelFilter] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
-    let lines = spec.lines;
+    let lines = spec.lines || [];
     if (levelFilter) lines = lines.filter((l) => l.level === levelFilter);
     if (search) {
       const q = search.toLowerCase();
@@ -811,7 +813,7 @@ function AgentLogViewer({ spec }: { spec: LogViewerSpec }) {
       {spec.title && (
         <div className="px-3 py-2 border-b border-slate-800 flex items-center justify-between">
           <span className="text-xs font-medium text-slate-300">{spec.title}</span>
-          <span className="text-xs text-slate-500">{spec.lines.length} lines</span>
+          <span className="text-xs text-slate-500">{(spec.lines || []).length} lines</span>
         </div>
       )}
       <div className="px-3 py-1.5 border-b border-slate-800 flex items-center gap-2">
@@ -850,14 +852,15 @@ function AgentLogViewer({ spec }: { spec: LogViewerSpec }) {
 // ─── YAML Viewer ─────────────────────────────────────────────────────────────
 
 function AgentYamlViewer({ spec }: { spec: YamlViewerSpec }) {
+  const content = spec.content || (spec as unknown as Record<string, unknown>).yaml as string || '';
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(spec.content).then(() => {
+    navigator.clipboard.writeText(content).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
-  }, [spec.content]);
+  }, [content]);
 
   return (
     <div className="rounded-lg border border-slate-800 bg-slate-950 overflow-hidden">
@@ -869,7 +872,7 @@ function AgentYamlViewer({ spec }: { spec: YamlViewerSpec }) {
           </button>
         </div>
       )}
-      <pre className="p-3 overflow-auto max-h-96 text-xs text-slate-300 font-mono leading-relaxed whitespace-pre-wrap">{spec.content}</pre>
+      <pre className="p-3 overflow-auto max-h-96 text-xs text-slate-300 font-mono leading-relaxed whitespace-pre-wrap">{content}</pre>
     </div>
   );
 }
@@ -877,7 +880,7 @@ function AgentYamlViewer({ spec }: { spec: YamlViewerSpec }) {
 /** Horizontal ranked bar chart — like "Top Tools" */
 function AgentBarList({ spec }: { spec: BarListSpec }) {
   const maxItems = spec.maxItems ?? 10;
-  const items = spec.items.slice(0, maxItems);
+  const items = (spec.items || []).slice(0, maxItems);
   const maxValue = Math.max(...items.map((i) => i.value), 1);
 
   return (
@@ -977,6 +980,9 @@ function AgentProgressList({ spec }: { spec: ProgressListSpec }) {
 
 /** Single big number with trend indicator */
 function AgentStatCard({ spec }: { spec: StatCardSpec }) {
+  const extra = spec as unknown as Record<string, unknown>;
+  const title = spec.title || extra.label as string || '';
+  const value = spec.value || (extra.query ? String(extra.query).slice(0, 40) : '') || '';
   const goodDir = spec.trendGood || 'down';
   const trendIsGood = spec.trend === goodDir;
   const trendColor = !spec.trend || spec.trend === 'stable'
@@ -989,9 +995,9 @@ function AgentStatCard({ spec }: { spec: StatCardSpec }) {
       'bg-gradient-to-br from-slate-900 to-slate-900/70 rounded-lg border p-4 flex flex-col items-center justify-center text-center transition-all duration-200 hover:shadow-[0_0_12px_rgba(37,99,235,0.08)]',
       METRIC_STATUS_BORDER[spec.status || ''] || 'border-slate-800'
     )}>
-      <span className="text-xs text-slate-400 mb-1">{spec.title}</span>
+      <span className="text-xs text-slate-400 mb-1">{title}</span>
       <div className="text-2xl font-bold text-slate-100 font-mono">
-        {spec.value}{spec.unit && <span className="text-sm text-slate-400 ml-0.5">{spec.unit}</span>}
+        {value}{spec.unit && <span className="text-sm text-slate-400 ml-0.5">{spec.unit}</span>}
       </div>
       {spec.trend && spec.trendValue && (
         <div className={cn('text-xs mt-1 font-medium', trendColor)}>
@@ -1114,7 +1120,7 @@ function AgentTimeline({ spec }: { spec: TimelineSpec }) {
   const lanes = useMemo(() => {
     if (grouping === 'source') return spec.lanes;
     const bySeverity: Record<string, Array<TimelineSpec['lanes'][0]['events'][0]>> = { critical: [], warning: [], info: [], normal: [] };
-    for (const lane of spec.lanes) {
+    for (const lane of spec.lanes || []) {
       for (const evt of lane.events) bySeverity[evt.severity]?.push(evt);
     }
     const catMap: Record<string, 'alert' | 'event' | 'rollout' | 'config'> = { critical: 'alert', warning: 'alert', info: 'event', normal: 'config' };
@@ -1387,7 +1393,7 @@ function AgentResourceCounts({ spec }: { spec: ResourceCountsSpec }) {
     <div>
       {spec.title && <div className="text-xs font-medium text-slate-400 mb-2">{spec.title}</div>}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
-        {spec.items.map((item) => {
+        {(spec.items || []).map((item) => {
           const icon = RESOURCE_ICONS[item.resource] || '□';
           const color = RESOURCE_COLORS[item.resource] || 'text-slate-400';
           const statusColor = item.status === 'error' ? 'border-red-800/50' : item.status === 'warning' ? 'border-amber-800/50' : 'border-slate-800';
