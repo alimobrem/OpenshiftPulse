@@ -89,15 +89,14 @@ export function CommandBar() {
     staleTime: 300000,
   });
 
-  // Fetch issue count for notification bell
+  // Fetch inbox needs-attention count for notification bell
   const { data: issueCount = 0 } = useQuery({
-    queryKey: ['toolbar', 'issues'],
+    queryKey: ['toolbar', 'inbox-attention'],
     queryFn: async () => {
-      const pods = await k8sList<any>('/api/v1/pods');
-      return pods.filter((p: any) => {
-        const s = getPodStatus(p);
-        return s.reason === 'CrashLoopBackOff' || s.reason === 'ImagePullBackOff' || s.phase === 'Failed';
-      }).length;
+      const res = await fetch('/api/agent/inbox?status=__needs_attention__&limit=0');
+      if (!res.ok) return 0;
+      const data = await res.json();
+      return data.total ?? 0;
     },
     refetchInterval: 60000,
   });
@@ -331,9 +330,9 @@ export function CommandBar() {
 
         {/* Notification bell */}
         <button
-          onClick={() => go('/incidents', 'Incidents')}
+          onClick={() => go('/inbox', 'Inbox')}
           className="relative p-1.5 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 transition-colors"
-          title={issueCount > 0 ? `${issueCount} issues need attention` : 'No issues'}
+          title={issueCount > 0 ? `${issueCount} items need attention` : 'Inbox clear'}
         >
           <Bell className="w-4 h-4" />
           {issueCount > 0 && (
