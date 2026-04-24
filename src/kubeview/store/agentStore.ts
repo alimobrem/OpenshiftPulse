@@ -310,6 +310,11 @@ export const useAgentStore = create<AgentState>()(
                 useCustomViewStore.getState().loadViews();
               });
               break;
+            case 'session_expired':
+              import('../engine/auth').then(({ handleAuthError }) => {
+                handleAuthError('session_expired');
+              });
+              break;
             case 'cleared':
               set({ messages: [], streamingText: '', thinkingText: '', activeTools: [], activeSkills: [], streamingComponents: [] });
               break;

@@ -126,7 +126,7 @@ export function MetricCard({
   const max = values.length > 0 ? Math.max(...values) : 0;
   const range = max - min || 1;
   const w = 200;
-  const h = 48;
+  const h = 56;
   const padding = 2;
 
   // Determine color based on thresholds
@@ -150,8 +150,14 @@ export function MetricCard({
     <div className={cn('bg-slate-900 rounded-lg border border-slate-800 p-3', onClick && 'cursor-pointer hover:border-slate-600 transition-colors')} onClick={onClick} role={onClick ? 'button' : undefined}>
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs text-slate-400">{title}</span>
-        <span className="text-sm font-mono font-bold" style={{ color: displayColor }}>
+        <span className="text-sm font-mono font-bold flex items-center gap-1" style={{ color: displayColor }}>
           {current !== null ? `${current.toFixed(1)}${unit}` : '—'}
+          {values.length >= 4 && current !== null && (() => {
+            const prev = values[Math.floor(values.length / 2)];
+            const delta = current - prev;
+            if (Math.abs(delta) < 0.5) return null;
+            return <span className="text-[10px]">{delta > 0 ? '▲' : '▼'}</span>;
+          })()}
         </span>
       </div>
       {linePath ? (

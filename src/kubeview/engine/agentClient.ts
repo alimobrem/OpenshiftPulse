@@ -81,7 +81,8 @@ export type AgentEvent =
   | { type: 'finding'; id: string; severity: string; category: string; title: string; summary: string; resources: Array<{ kind: string; name: string; namespace?: string }>; autoFixable: boolean; runbookId?: string; timestamp: number }
   | { type: 'action_report'; id: string; findingId: string; tool: string; status: string; beforeState?: string; afterState?: string; error?: string; timestamp: number }
   | { type: 'prediction'; id: string; category: string; title: string; detail: string; eta: string; confidence: number; resources: Array<{ kind: string; name: string; namespace?: string }>; recommendedAction?: string; timestamp: number }
-  | { type: 'monitor_status'; activeWatches: string[]; lastScan: number; findingsCount: number; nextScan: number };
+  | { type: 'monitor_status'; activeWatches: string[]; lastScan: number; findingsCount: number; nextScan: number }
+  | { type: 'session_expired'; reason?: string };
 
 type EventHandler = (event: AgentEvent) => void;
 
