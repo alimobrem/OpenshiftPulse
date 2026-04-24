@@ -2,20 +2,23 @@ import { cn } from '@/lib/utils';
 import { useAgentStore } from '../../store/agentStore';
 import { useUIStore } from '../../store/uiStore';
 import { useAgentStatus } from '../../hooks/useAgentStatus';
+import { useNavigateTab } from '../../hooks/useNavigateTab';
 
 export function CollapsedRail() {
   const expandAISidebar = useUIStore((s) => s.expandAISidebar);
   const hasUnreadInsight = useAgentStore((s) => s.hasUnreadInsight);
   const status = useAgentStatus();
+  const go = useNavigateTab();
 
   const Icon = status.icon;
   const isAnimated = status.type === 'streaming' || status.type === 'investigating';
 
-  const setAISidebarMode = useUIStore((s) => s.setAISidebarMode);
-
   const handleClick = () => {
-    expandAISidebar();
-    setAISidebarMode(status.type === 'findings' ? 'dashboard' : 'chat');
+    if (status.type === 'findings') {
+      go('/inbox', 'Inbox');
+    } else {
+      expandAISidebar();
+    }
   };
 
   return (

@@ -184,10 +184,10 @@ export default function CustomView() {
 
   if (!view) {
     const handleCloseTab = () => {
+      go('/inbox', 'Inbox');
       const tabs = useUIStore.getState().tabs;
       const tab = tabs.find((t) => t.path === `/custom/${viewId}`);
       if (tab) useUIStore.getState().closeTab(tab.id);
-      go('/inbox', 'Inbox');
     };
     return (
       <div className="h-full flex items-center justify-center bg-slate-950">

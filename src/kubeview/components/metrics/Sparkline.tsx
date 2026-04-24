@@ -146,18 +146,17 @@ export function MetricCard({
     ? points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ')
     : '';
 
+  const trendArrow = values.length >= 4 && current !== null
+    ? (() => { const d = current - values[Math.floor(values.length / 2)]; return Math.abs(d) >= 0.5 ? (d > 0 ? '▲' : '▼') : null; })()
+    : null;
+
   return (
     <div className={cn('bg-slate-900 rounded-lg border border-slate-800 p-3', onClick && 'cursor-pointer hover:border-slate-600 transition-colors')} onClick={onClick} role={onClick ? 'button' : undefined}>
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs text-slate-400">{title}</span>
         <span className="text-sm font-mono font-bold flex items-center gap-1" style={{ color: displayColor }}>
           {current !== null ? `${current.toFixed(1)}${unit}` : '—'}
-          {values.length >= 4 && current !== null && (() => {
-            const prev = values[Math.floor(values.length / 2)];
-            const delta = current - prev;
-            if (Math.abs(delta) < 0.5) return null;
-            return <span className="text-[10px]">{delta > 0 ? '▲' : '▼'}</span>;
-          })()}
+          {trendArrow && <span className="text-[10px]">{trendArrow}</span>}
         </span>
       </div>
       {linePath ? (
