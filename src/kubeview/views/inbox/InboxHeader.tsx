@@ -30,7 +30,7 @@ export function InboxHeader({
   const setPreset = useInboxStore((s) => s.setPreset);
 
   const newCount = stats.new ?? 0;
-  const totalOpen = (stats.total ?? 0) - (stats.resolved ?? 0) - (stats.archived ?? 0);
+  const totalOpen = stats.needs_attention ?? 0;
 
   const hasSeverityData = SEVERITY_BADGES.some((s) => (stats[s.key] ?? 0) > 0);
 

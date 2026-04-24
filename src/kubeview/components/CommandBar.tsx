@@ -93,10 +93,10 @@ export function CommandBar() {
   const { data: issueCount = 0 } = useQuery({
     queryKey: ['toolbar', 'inbox-attention'],
     queryFn: async () => {
-      const res = await fetch('/api/agent/inbox?status=__needs_attention__&limit=0');
+      const res = await fetch('/api/agent/inbox/stats');
       if (!res.ok) return 0;
       const data = await res.json();
-      return data.total ?? 0;
+      return data.needs_attention ?? 0;
     },
     refetchInterval: 60000,
   });

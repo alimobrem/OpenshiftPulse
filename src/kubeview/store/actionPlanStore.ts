@@ -5,6 +5,7 @@
  */
 
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 export interface ActionPlanStep {
   title: string;
@@ -54,7 +55,9 @@ export function resolveStepStatus(exec: ActionPlanExecution, stepIndex: number):
   return exec.stepStatuses[stepIndex] ?? exec.steps[stepIndex]?.status ?? 'pending';
 }
 
-export const useActionPlanStore = create<ActionPlanState>((set, get) => ({
+export const useActionPlanStore = create<ActionPlanState>()(
+  persist(
+    (set, get) => ({
   execution: null,
 
   startExecution: (itemId, itemTitle, steps) => {
@@ -149,4 +152,12 @@ export const useActionPlanStore = create<ActionPlanState>((set, get) => ({
   clearExecution: () => {
     set({ execution: null });
   },
-}));
+    }),
+    {
+      name: 'openshiftpulse-action-plan',
+      partialize: (state) => ({
+        execution: state.execution,
+      }),
+    },
+  ),
+);
