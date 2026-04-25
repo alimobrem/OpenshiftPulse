@@ -311,8 +311,8 @@ export const useAgentStore = create<AgentState>()(
               });
               break;
             case 'session_expired':
-              import('../engine/auth').then(({ handleAuthError }) => {
-                handleAuthError('session_expired');
+              import('../store/uiStore').then(({ useUIStore }) => {
+                useUIStore.getState().addDegradedReason('session_expired');
               });
               break;
             case 'cleared':
