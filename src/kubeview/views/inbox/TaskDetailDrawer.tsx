@@ -630,6 +630,12 @@ export function TaskDetailDrawer({
                   Deep Dive
                 </Button>
               </Tooltip>
+              <Tooltip content="Reset to new — agent will re-triage">
+                <Button size="sm" variant="ghost" onClick={() => handleAdvance('new')}>
+                  <RotateCcw className="w-4 h-4 mr-1" />
+                  Reset
+                </Button>
+              </Tooltip>
               <Tooltip content="Archive — will be deleted after 30 days">
                 <Button size="sm" variant="ghost" onClick={() => setConfirmDismiss(true)}>
                   <Archive className="w-4 h-4 mr-1" />
@@ -651,6 +657,12 @@ export function TaskDetailDrawer({
                 <Button size="sm" variant="ghost" onClick={handleResolve}>
                   <CheckCircle2 className="w-4 h-4 mr-1" />
                   Resolve
+                </Button>
+              </Tooltip>
+              <Tooltip content="Reset to new — unclaim and re-triage">
+                <Button size="sm" variant="ghost" onClick={() => handleAdvance('new')}>
+                  <RotateCcw className="w-4 h-4 mr-1" />
+                  Reset
                 </Button>
               </Tooltip>
               <Tooltip content="Archive — will be deleted after 30 days">
@@ -676,6 +688,12 @@ export function TaskDetailDrawer({
                   Deep Dive
                 </Button>
               </Tooltip>
+              <Tooltip content="Reset to new — start over">
+                <Button size="sm" variant="ghost" onClick={() => handleAdvance('new')}>
+                  <RotateCcw className="w-4 h-4 mr-1" />
+                  Reset
+                </Button>
+              </Tooltip>
               <Tooltip content="Archive — will be deleted after 30 days">
                 <Button size="sm" variant="ghost" onClick={() => setConfirmDismiss(true)}>
                   <Archive className="w-4 h-4 mr-1" />
@@ -686,10 +704,18 @@ export function TaskDetailDrawer({
           )}
 
           {item.status === 'resolved' && (
-            <Button size="sm" variant="ghost" onClick={() => setConfirmDismiss(true)}>
-              <Archive className="w-4 h-4 mr-1" />
-              Archive
-            </Button>
+            <>
+              <Tooltip content="Reopen — send back to new for re-triage">
+                <Button size="sm" variant="ghost" onClick={() => handleAdvance('new')}>
+                  <RotateCcw className="w-4 h-4 mr-1" />
+                  Reopen
+                </Button>
+              </Tooltip>
+              <Button size="sm" variant="ghost" onClick={() => setConfirmDismiss(true)}>
+                <Archive className="w-4 h-4 mr-1" />
+                Archive
+              </Button>
+            </>
           )}
         </div>
       </div>
