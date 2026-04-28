@@ -34,11 +34,20 @@ spec:
       ports:
         - protocol: TCP
           port: 8080
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: postgresql
+      ports:
+        - protocol: TCP
+          port: 5432
     - ports:
         - protocol: TCP
           port: 443
         - protocol: TCP
           port: 6443
+        - protocol: TCP
+          port: 9091
     - ports:
         - protocol: TCP
           port: 53
