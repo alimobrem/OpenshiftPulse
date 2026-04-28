@@ -22,9 +22,9 @@ test.describe('View Content', () => {
     await expect(page.locator('text=Administration').first()).toBeVisible({ timeout: 15_000 });
   });
 
-  test('Incident Center loads and shows in status bar', async ({ page }) => {
-    await page.goto('/incidents');
-    await expect(page.locator('text=Incident Center').first()).toBeVisible({ timeout: 15_000 });
+  test('Inbox loads and shows heading', async ({ page }) => {
+    await page.goto('/inbox');
+    await expect(page.locator('text=Inbox').first()).toBeVisible({ timeout: 15_000 });
   });
 
   test('Workloads view renders heading', async ({ page }) => {

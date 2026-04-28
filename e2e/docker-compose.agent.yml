@@ -22,7 +22,7 @@ services:
   agent:
     build:
       context: ../../pulse-agent
-      dockerfile: Dockerfile.full
+      dockerfile: Dockerfile
     environment:
       PULSE_AGENT_HOST: "0.0.0.0"
       PULSE_AGENT_PORT: "8080"

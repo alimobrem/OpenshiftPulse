@@ -36,14 +36,14 @@ test.describe('Navigation', () => {
     await expect(page.locator('text=Administration').first()).toBeVisible({ timeout: 15_000 });
   });
 
-  test('Incident Center loads', async ({ page }) => {
-    await page.goto('/incidents');
-    await expect(page.locator('text=Incident Center').first()).toBeVisible({ timeout: 15_000 });
+  test('Inbox loads', async ({ page }) => {
+    await page.goto('/inbox');
+    await expect(page.locator('text=Inbox').first()).toBeVisible({ timeout: 15_000 });
   });
 
-  test('Review Queue loads', async ({ page }) => {
-    await page.goto('/reviews');
-    await expect(page.locator('text=Review Queue').first()).toBeVisible({ timeout: 15_000 });
+  test('redirects /incidents to /inbox', async ({ page }) => {
+    await page.goto('/incidents');
+    await page.waitForURL(/inbox/, { timeout: 10_000 });
   });
 
   test('Identity view loads', async ({ page }) => {
@@ -61,9 +61,9 @@ test.describe('Navigation', () => {
     await expect(page.locator('text=GitOps').first()).toBeVisible({ timeout: 15_000 });
   });
 
-  test('redirects /alerts to /incidents', async ({ page }) => {
+  test('Alerts view loads', async ({ page }) => {
     await page.goto('/alerts');
-    await page.waitForURL(/incidents/, { timeout: 10_000 });
+    await expect(page.locator('text=Alerts').first()).toBeVisible({ timeout: 15_000 });
   });
 
   test('redirects /builds to /workloads', async ({ page }) => {
