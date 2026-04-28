@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { AgentComponentRenderer } from '../AgentComponentRenderer';
-import type { TabsSpec, GridSpec, SectionSpec } from '../../../engine/agentComponents';
+import type { TabsSpec, GridSpec, SectionSpec, ActionButtonSpec } from '../../../engine/agentComponents';
 
 // Mock child primitives to avoid deep dependency chains
 vi.mock('../../primitives/Badge', () => ({
@@ -11,6 +11,12 @@ vi.mock('../../primitives/Badge', () => ({
 
 vi.mock('../../primitives/InfoCard', () => ({
   InfoCard: ({ label }: any) => <div data-testid="info-card">{label}</div>,
+}));
+
+vi.mock('../AgentActionButton', () => ({
+  AgentActionButton: ({ spec, viewId }: any) => (
+    <button data-testid="action-button" data-view-id={viewId}>{spec.label}</button>
+  ),
 }));
 
 describe('AgentComponentRenderer — layout types', () => {
@@ -116,5 +122,26 @@ describe('AgentComponentRenderer — layout types', () => {
     render(<AgentComponentRenderer spec={spec} />);
     expect(screen.getByText('Grid Tab')).toBeTruthy();
     expect(screen.getByText('Nested')).toBeTruthy();
+  });
+
+  it('forwards context props through tabs to nested action_button', () => {
+    const spec: TabsSpec = {
+      kind: 'tabs',
+      tabs: [
+        {
+          label: 'Actions',
+          components: [
+            { kind: 'action_button', label: 'Restart Pod', action: 'restart', resourceKind: 'Pod', resourceName: 'test-pod' } as ActionButtonSpec,
+          ],
+        },
+      ],
+    };
+
+    render(<AgentComponentRenderer spec={spec} viewId="view-123" />);
+    expect(screen.getByText('Actions')).toBeTruthy();
+    const btn = screen.getByTestId('action-button');
+    expect(btn).toBeTruthy();
+    expect(btn.textContent).toBe('Restart Pod');
+    expect(btn.getAttribute('data-view-id')).toBe('view-123');
   });
 });

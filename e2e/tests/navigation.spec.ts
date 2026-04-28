@@ -41,9 +41,10 @@ test.describe('Navigation', () => {
     await expect(page.locator('text=Inbox').first()).toBeVisible({ timeout: 15_000 });
   });
 
-  test('redirects /incidents to /inbox', async ({ page }) => {
-    await page.goto('/incidents');
+  test('redirects /incidents to /inbox preserving query params', async ({ page }) => {
+    await page.goto('/incidents?preset=needs_approval');
     await page.waitForURL(/inbox/, { timeout: 10_000 });
+    expect(page.url()).toContain('preset=needs_approval');
   });
 
   test('Identity view loads', async ({ page }) => {

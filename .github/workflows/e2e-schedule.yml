@@ -1,6 +1,8 @@
 name: E2E Tests (Scheduled)
 
 on:
+  schedule:
+    - cron: '0 0 * * 0'
   push:
     tags: ['v*']
   workflow_dispatch:
@@ -13,6 +15,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Checkout agent repo
+        uses: actions/checkout@v4
+        with:
+          repository: PulseSRE/pulse-agent
+          path: pulse-agent
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -29,18 +37,30 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium
 
+      - name: Start mock agent stack
+        run: docker compose -f e2e/docker-compose.agent.yml up -d --build --wait
+        timeout-minutes: 5
+        env:
+          AGENT_REPO_PATH: ${{ github.workspace }}/pulse-agent
+
       - name: Run E2E tests
+        env:
+          PULSE_AGENT_WS_TOKEN: e2e-test-token
         run: pnpm exec playwright test --config e2e/playwright.config.ts
 
-      - name: Upload Playwright report
+      - name: Stop mock agent stack
         if: always()
+        run: docker compose -f e2e/docker-compose.agent.yml down
+
+      - name: Upload Playwright report
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: |
             playwright-report/
             test-results/
-          retention-days: 30
+          retention-days: 14
 
       - name: Post summary
         if: always()

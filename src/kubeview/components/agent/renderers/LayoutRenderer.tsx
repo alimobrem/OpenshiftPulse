@@ -5,13 +5,23 @@
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import type { TabsSpec, GridSpec, SectionSpec } from '../../../engine/agentComponents';
+import type { TabsSpec, GridSpec, SectionSpec, ComponentSpec } from '../../../engine/agentComponents';
 
 // AgentComponentRenderer is imported at the module level for recursive rendering.
 // This is safe because LayoutRenderer is always consumed after the dispatcher is defined.
 import { AgentComponentRenderer } from './index';
 
-export function AgentTabs({ spec, depth = 0 }: { spec: TabsSpec; depth?: number }) {
+export interface LayoutContextProps {
+  onAddToView?: (spec: ComponentSpec) => void;
+  refreshInterval?: number;
+  globalTimeRange?: string;
+  hoverTimestamp?: number | null;
+  onHoverTimestamp?: (ts: number | null) => void;
+  onSpecChange?: (spec: ComponentSpec) => void;
+  viewId?: string;
+}
+
+export function AgentTabs({ spec, depth = 0, onAddToView, refreshInterval, globalTimeRange, hoverTimestamp, onHoverTimestamp, onSpecChange, viewId }: { spec: TabsSpec; depth?: number } & LayoutContextProps) {
   const [activeTab, setActiveTab] = useState(0);
 
   if (!spec.tabs?.length) return null;
@@ -36,7 +46,7 @@ export function AgentTabs({ spec, depth = 0 }: { spec: TabsSpec; depth?: number 
       </div>
       <div className="p-2">
         {(spec.tabs[activeTab]?.components || []).map((child, i) => (
-          <AgentComponentRenderer key={i} spec={child} depth={depth + 1} />
+          <AgentComponentRenderer key={i} spec={child} depth={depth + 1} onAddToView={onAddToView} refreshInterval={refreshInterval} globalTimeRange={globalTimeRange} hoverTimestamp={hoverTimestamp} onHoverTimestamp={onHoverTimestamp} onSpecChange={onSpecChange} viewId={viewId} />
         ))}
       </div>
     </div>
@@ -44,7 +54,7 @@ export function AgentTabs({ spec, depth = 0 }: { spec: TabsSpec; depth?: number 
 }
 
 /** Grid layout that arranges child components in columns */
-export function AgentGrid({ spec, depth = 0 }: { spec: GridSpec; depth?: number }) {
+export function AgentGrid({ spec, depth = 0, onAddToView, refreshInterval, globalTimeRange, hoverTimestamp, onHoverTimestamp, onSpecChange, viewId }: { spec: GridSpec; depth?: number } & LayoutContextProps) {
   const columns = spec.columns ?? 2;
 
   return (
@@ -65,7 +75,7 @@ export function AgentGrid({ spec, depth = 0 }: { spec: GridSpec; depth?: number 
           const spanFull = item.kind === 'resource_counts' || item.kind === 'data_table' || item.kind === 'status_list';
           return (
             <div key={i} style={spanFull ? { gridColumn: `1 / -1` } : undefined}>
-              <AgentComponentRenderer spec={item} depth={depth + 1} />
+              <AgentComponentRenderer spec={item} depth={depth + 1} onAddToView={onAddToView} refreshInterval={refreshInterval} globalTimeRange={globalTimeRange} hoverTimestamp={hoverTimestamp} onHoverTimestamp={onHoverTimestamp} onSpecChange={onSpecChange} viewId={viewId} />
             </div>
           );
         })}
@@ -75,7 +85,7 @@ export function AgentGrid({ spec, depth = 0 }: { spec: GridSpec; depth?: number 
 }
 
 /** Collapsible section with title and optional description */
-export function AgentSection({ spec, depth = 0 }: { spec: SectionSpec; depth?: number }) {
+export function AgentSection({ spec, depth = 0, onAddToView, refreshInterval, globalTimeRange, hoverTimestamp, onHoverTimestamp, onSpecChange, viewId }: { spec: SectionSpec; depth?: number } & LayoutContextProps) {
   const [open, setOpen] = useState(spec.defaultOpen ?? true);
   const Toggle = open ? ChevronUp : ChevronDown;
 
@@ -101,7 +111,7 @@ export function AgentSection({ spec, depth = 0 }: { spec: SectionSpec; depth?: n
       {open && (
         <div className="p-2">
           {(spec.components || []).map((child, i) => (
-            <AgentComponentRenderer key={i} spec={child} depth={depth + 1} />
+            <AgentComponentRenderer key={i} spec={child} depth={depth + 1} onAddToView={onAddToView} refreshInterval={refreshInterval} globalTimeRange={globalTimeRange} hoverTimestamp={hoverTimestamp} onHoverTimestamp={onHoverTimestamp} onSpecChange={onSpecChange} viewId={viewId} />
           ))}
         </div>
       )}

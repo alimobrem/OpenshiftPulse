@@ -70,28 +70,28 @@ export function MorningSummaryCard({ className }: { className?: string }) {
           icon={<Bot className="h-4 w-4 text-blue-400" />}
           label="Actions"
           value={briefing.actions.total}
-          onClick={() => go('/incidents', 'Incidents')}
+          onClick={() => go('/inbox', 'Inbox')}
         />
         <ClickableStat
           icon={<Bot className="h-4 w-4 text-emerald-400" />}
           label="Completed"
           value={briefing.actions.completed}
           valueClass={briefing.actions.completed > 0 ? 'text-emerald-400' : undefined}
-          onClick={() => go('/incidents', 'Incidents')}
+          onClick={() => go('/inbox', 'Inbox')}
         />
         <ClickableStat
           icon={<Bell className="h-4 w-4 text-red-400" />}
           label="Incidents"
           value={counts.total}
           valueClass={counts.critical > 0 ? 'text-red-400' : counts.total > 0 ? 'text-amber-400' : undefined}
-          onClick={() => go('/incidents', 'Incidents')}
+          onClick={() => go('/inbox', 'Inbox')}
         />
         <ClickableStat
           icon={<ClipboardList className="h-4 w-4 text-amber-400" />}
           label="Reviews"
           value={pendingReviews}
           valueClass={pendingReviews > 0 ? 'text-amber-400' : undefined}
-          onClick={() => go('/incidents?tab=actions', 'Review Queue')}
+          onClick={() => go('/inbox?preset=needs_approval', 'Review Queue')}
         />
       </div>
 

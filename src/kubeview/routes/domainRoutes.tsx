@@ -1,4 +1,4 @@
-import { Navigate, Route, useParams } from 'react-router-dom';
+import { Navigate, Route, useParams, useLocation } from 'react-router-dom';
 import React, { Suspense, lazy } from 'react';
 import { LoadingFallback } from '../components/LoadingFallback';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -45,6 +45,11 @@ function FleetResourceRoute() {
   return <FleetResourceView gvrKey={gvrKey} />;
 }
 
+function IncidentsRedirect() {
+  const location = useLocation();
+  return <Navigate to={`/inbox${location.search}`} replace />;
+}
+
 function DynamicViewRedirectRoute() {
   const { id } = useParams<{ id: string }>();
   return <Navigate to={`/custom/${id}`} replace />;
@@ -76,7 +81,7 @@ export function domainRoutes() {
       <Route path="inbox" element={<Lazy fallbackTitle="Inbox"><InboxPage /></Lazy>} />
       <Route path="monitor" element={<Navigate to="/inbox" replace />} />
       <Route path="dynamic/:id" element={<DynamicViewRedirectRoute />} />
-      <Route path="incidents" element={<Navigate to="/inbox" replace />} />
+      <Route path="incidents" element={<IncidentsRedirect />} />
       <Route path="readiness" element={<Lazy fallbackTitle="Readiness"><OnboardingView /></Lazy>} />
       <Route path="onboarding" element={<Navigate to="/readiness" replace />} />
       <Route path="reviews" element={<Navigate to="/inbox?preset=needs_approval" replace />} />

@@ -48,11 +48,11 @@ export function AgentComponentRenderer({ spec: rawSpec, depth = 0, onAddToView, 
     case 'chart':
       return <ChartSuspense spec={spec} onAddToView={onAddToView} refreshInterval={refreshInterval} globalTimeRange={globalTimeRange} hoverTimestamp={hoverTimestamp} onHoverTimestamp={onHoverTimestamp} onSpecChange={onSpecChange} />;
     case 'tabs':
-      return <AgentTabs spec={spec} depth={depth} />;
+      return <AgentTabs spec={spec} depth={depth} onAddToView={onAddToView} refreshInterval={refreshInterval} globalTimeRange={globalTimeRange} hoverTimestamp={hoverTimestamp} onHoverTimestamp={onHoverTimestamp} onSpecChange={onSpecChange} viewId={viewId} />;
     case 'grid':
-      return <AgentGrid spec={spec} depth={depth} />;
+      return <AgentGrid spec={spec} depth={depth} onAddToView={onAddToView} refreshInterval={refreshInterval} globalTimeRange={globalTimeRange} hoverTimestamp={hoverTimestamp} onHoverTimestamp={onHoverTimestamp} onSpecChange={onSpecChange} viewId={viewId} />;
     case 'section':
-      return <AgentSection spec={spec} depth={depth} />;
+      return <AgentSection spec={spec} depth={depth} onAddToView={onAddToView} refreshInterval={refreshInterval} globalTimeRange={globalTimeRange} hoverTimestamp={hoverTimestamp} onHoverTimestamp={onHoverTimestamp} onSpecChange={onSpecChange} viewId={viewId} />;
     case 'relationship_tree':
       return <AgentRelationshipTree spec={spec} onAddToView={onAddToView} />;
     case 'log_viewer':

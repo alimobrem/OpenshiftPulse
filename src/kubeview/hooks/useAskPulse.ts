@@ -16,7 +16,10 @@ interface UseAskPulseResult {
 
 export function useAskPulse(query: string): UseAskPulseResult {
   const [response, setResponse] = useState<AskPulseResponse | null>(null);
-  const agentAvailable = useAgentStore(s => s.connected);
+  const connected = useAgentStore(s => s.connected);
+  const [wasEverConnected, setWasEverConnected] = useState(false);
+  useEffect(() => { if (connected) setWasEverConnected(true); }, [connected]);
+  const agentAvailable = connected || !wasEverConnected;
 
   const isNaturalLanguage = useMemo(() => detectNaturalLanguage(query), [query]);
 
