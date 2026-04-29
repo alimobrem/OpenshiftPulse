@@ -27,36 +27,5 @@ spec:
         - protocol: TCP
           port: 8443
   egress:
-    - to:
-        - podSelector:
-            matchLabels:
-              app.kubernetes.io/name: openshift-sre-agent
-      ports:
-        - protocol: TCP
-          port: 8080
-    - to:
-        - podSelector:
-            matchLabels:
-              app.kubernetes.io/component: postgresql
-      ports:
-        - protocol: TCP
-          port: 5432
-    - to:
-        - namespaceSelector: {}
-      ports:
-        - protocol: TCP
-          port: 443
-        - protocol: TCP
-          port: 6443
-        - protocol: TCP
-          port: 9091
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: openshift-dns
-      ports:
-        - protocol: TCP
-          port: 53
-        - protocol: UDP
-          port: 53
+    - {}
 {{- end }}
